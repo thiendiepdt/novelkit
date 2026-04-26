@@ -1,0 +1,5 @@
+张三=Trương Tam
+李四=Lý Tứ
+王五=Vương Ngũ
+中国=Trung Quốc
+越南=Việt Nam

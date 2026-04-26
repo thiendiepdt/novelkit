@@ -1,0 +1,197 @@
+@import "tailwindcss";
+
+@theme {
+  /* Warm Charcoal - Xianxia Theme (same as mtc-tools) */
+  --color-bg-primary: #121212;
+  --color-bg-secondary: #1a1a1a;
+  --color-bg-card: #242424;
+  --color-bg-card-hover: #2e2e2e;
+  --color-bg-glass: rgba(30, 30, 30, 0.88);
+  --color-bg-input: rgba(255, 255, 255, 0.06);
+
+  --color-gold: #c9a96e;
+  --color-gold-light: #e2c992;
+  --color-gold-dim: #8b6914;
+  --color-gold-glow: rgba(201, 169, 110, 0.2);
+
+  --color-jade: #4ead7a;
+  --color-jade-dark: #357a56;
+
+  --color-purple: #9a8ec4;
+  --color-purple-dark: #6e5fa8;
+
+  --color-crimson: #d45d5d;
+
+  --color-text-primary: #e0ddd8;
+  --color-text-secondary: #a09a90;
+  --color-text-dim: #888075;
+
+  --color-border-main: rgba(255, 255, 255, 0.07);
+  --color-border-gold: rgba(201, 169, 110, 0.3);
+  --color-border-hover: rgba(201, 169, 110, 0.5);
+}
+
+/* Base */
+html {
+  scroll-behavior: smooth;
+  color-scheme: dark;
+}
+
+body {
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+  color: var(--color-text-primary);
+  background: #121212;
+  min-height: 100vh;
+  -webkit-tap-highlight-color: transparent;
+}
+
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  background:
+    radial-gradient(
+      ellipse at 20% 10%,
+      rgba(201, 169, 110, 0.03) 0%,
+      transparent 50%
+    ),
+    radial-gradient(
+      ellipse at 80% 90%,
+      rgba(78, 173, 122, 0.02) 0%,
+      transparent 50%
+    );
+  pointer-events: none;
+  z-index: 0;
+}
+
+#root {
+  position: relative;
+  z-index: 1;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+a {
+  color: var(--color-gold);
+  text-decoration: none;
+  transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+}
+a:hover {
+  color: var(--color-gold-light);
+}
+
+/* Textarea styling */
+textarea {
+  font-family: 'Be Vietnam Pro', -apple-system, BlinkMacSystemFont, sans-serif;
+}
+
+/* Animations */
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(12px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes pulse-gold {
+  0%, 100% {
+    box-shadow: 0 0 0 0 rgba(201, 169, 110, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 0 8px rgba(201, 169, 110, 0);
+  }
+}
+
+@keyframes shimmer {
+  0% { background-position: -200% 0; }
+  100% { background-position: 200% 0; }
+}
+
+/* Hide scrollbar - desktop only */
+@media (min-width: 768px) {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+}
+
+/* Minimap textarea - padding for minimap on desktop only */
+@media (min-width: 768px) {
+  .minimap-textarea {
+    padding-right: 100px !important;
+  }
+}
+
+/* Custom global scrollbar - VS Code style */
+::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: rgba(150, 150, 150, 0.3);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+  border-radius: 6px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: rgba(150, 150, 150, 0.5);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+::-webkit-scrollbar-thumb:active {
+  background: rgba(150, 150, 150, 0.6);
+  border: 3px solid transparent;
+  background-clip: padding-box;
+}
+* {
+  scrollbar-width: thin;
+  scrollbar-color: rgba(150, 150, 150, 0.3) transparent;
+}
+
+/* Copy success animation */
+@keyframes copySuccess {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.05);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.animate-copy-success {
+  animation: copySuccess 0.3s ease-out;
+}
+
+/* Mobile touch improvements */
+@media (max-width: 640px) {
+  textarea {
+    font-size: 16px !important; /* Prevent iOS zoom on focus */
+  }
+}

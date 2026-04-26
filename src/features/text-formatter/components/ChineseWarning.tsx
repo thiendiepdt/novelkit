@@ -1,0 +1,49 @@
+import { useState } from 'react';
+
+interface ChineseWarningProps {
+  chineseChars: string[];
+}
+
+export default function ChineseWarning({ chineseChars }: ChineseWarningProps) {
+  const [expanded, setExpanded] = useState(false);
+  const displayLimit = 20;
+  const hasMore = chineseChars.length > displayLimit;
+  const displayChars = expanded ? chineseChars : chineseChars.slice(0, displayLimit);
+
+  return (
+    <div className="mt-4 bg-crimson/10 border border-crimson/30 rounded-xl p-4 animate-copy-success">
+      <div className="flex items-start gap-3">
+        <span className="text-xl shrink-0">⚠️</span>
+        <div className="flex-1 min-w-0">
+          <h3 className="text-sm font-semibold text-crimson mb-1">
+            Phát hiện {chineseChars.length} ký tự tiếng Trung!
+          </h3>
+          <p className="text-xs text-text-secondary mb-3 leading-relaxed">
+            Nội dung có chứa chữ Trung chưa được dịch. Kiểm tra lại trước khi đăng.
+          </p>
+
+          {/* Chinese characters display */}
+          <div className="flex flex-wrap gap-1.5">
+            {displayChars.map((char, i) => (
+              <span
+                key={i}
+                className="inline-flex items-center justify-center bg-crimson/20 border border-crimson/30 text-crimson text-sm font-medium rounded-lg w-8 h-8 transition-all duration-200 hover:bg-crimson/30 hover:scale-110 cursor-default"
+                title={`U+${char.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')}`}
+              >
+                {char}
+              </span>
+            ))}
+            {hasMore && !expanded && (
+              <button
+                onClick={() => setExpanded(true)}
+                className="inline-flex items-center justify-center bg-crimson/10 border border-crimson/20 text-crimson text-[10px] font-medium rounded-lg px-2 h-8 hover:bg-crimson/20 transition-colors duration-200"
+              >
+                +{chineseChars.length - displayLimit}
+              </button>
+            )}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
