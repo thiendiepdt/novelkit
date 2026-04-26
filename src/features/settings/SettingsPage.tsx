@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import React, { useState } from 'react';
+import { useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { SettingsSidebar, type SettingsCategory } from './components/SettingsSidebar';
 import { SettingsItem, SettingsToggle, SettingsNumber } from './components/SettingsItem';
@@ -217,7 +217,7 @@ export function SettingsPage() {
             <optgroup label="Tùy chỉnh riêng cho Truyện (Per-Book)" className="bg-bg-hover text-text-dim font-bold">
               {books.map(b => (
                 <option key={b.id} value={b.id.toString()} className="bg-bg-card text-text-primary font-normal">
-                  📖 {b.name}
+                  📖 {b.title}
                 </option>
               ))}
               {/* If accessed via URL with a book not in current page list */}

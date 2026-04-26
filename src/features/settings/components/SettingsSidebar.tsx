@@ -1,4 +1,3 @@
-import React from 'react';
 
 export type SettingsCategory = 'general' | 'splitter' | 'ttcUploader';
 

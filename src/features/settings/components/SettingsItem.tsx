@@ -1,9 +1,9 @@
-import React from 'react';
+import type { ReactNode } from 'react';
 
 interface SettingsItemProps {
-  label: string;
+  label: ReactNode;
   description?: string;
-  children: React.ReactNode;
+  children: ReactNode;
 }
 
 export function SettingsItem({ label, description, children }: SettingsItemProps) {
