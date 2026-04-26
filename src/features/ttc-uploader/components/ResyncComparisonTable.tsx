@@ -36,12 +36,16 @@ export function ResyncComparisonTable({
         statusText = 'Chương mới (Thêm vào)';
         newChaptersCount++;
       } else {
+        // Check title mismatch (catches renumbering from chapter splits)
+        const titleChanged = local.title.trim() !== remote.title.trim();
         // Allow ~3% variance in word count
         const larger = Math.max(local.word_count, remote.wordCount);
         const diff = Math.abs(local.word_count - remote.wordCount);
-        if (larger > 0 && diff / larger > 0.03) {
+        const wordCountChanged = larger > 0 && diff / larger > 0.03;
+
+        if (titleChanged || wordCountChanged) {
           status = 'changed';
-          statusText = 'Có thay đổi (Cần ghi đè)';
+          statusText = titleChanged ? 'Có thay đổi (Cần ghi đè)' : 'Có thay đổi (Cần ghi đè)';
           hasChanges = true;
           if (firstChangedIndex === null) firstChangedIndex = local.index;
         }

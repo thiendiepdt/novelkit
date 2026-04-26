@@ -94,6 +94,9 @@ function TtcUploaderContent() {
             onToIndexChange={chapters.setToIndex}
             onDelayChange={chapters.setDelayMs}
             enableSplit={chapters.enableSplit}
+            maxWords={chapters.maxWords}
+            minWords={chapters.minWords}
+            roundUp={chapters.roundUp}
             onEnableSplitChange={chapters.setEnableSplit}
             onMaxWordsChange={chapters.setMaxWords}
             onMinWordsChange={chapters.setMinWords}
