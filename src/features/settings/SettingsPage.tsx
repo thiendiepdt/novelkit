@@ -168,13 +168,13 @@ export function SettingsPage() {
                 </SettingsItem>
 
                 <SettingsItem 
-                  label="Số lượng chương tối đa tải về (Limit)" 
-                  description="Giới hạn số chương mỗi lần request. (TTC hỗ trợ tối đa 1000)."
+                  label="Số chương hiển thị mỗi trang" 
+                  description="Giới hạn số chương hiển thị trên mỗi trang của bảng danh sách chương."
                 >
                   <SettingsNumber 
                     value={getValue('ttcUploader', 'chaptersLimit')} 
                     onChange={v => setValue('ttcUploader', 'chaptersLimit', v)} 
-                    min={100} max={1000} step={100}
+                    min={10} max={50} step={10}
                   />
                 </SettingsItem>
               </>

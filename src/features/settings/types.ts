@@ -31,6 +31,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     enableSplit: true,
     uploadDelayMs: 200,
     booksLimit: 20,
-    chaptersLimit: 1000,
+    chaptersLimit: 10,
   },
 };
