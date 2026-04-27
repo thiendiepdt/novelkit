@@ -17,6 +17,7 @@ export interface TtcUploaderSettings {
   folderPath: string;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
+  vipNewChaptersOnly: boolean;
 }
 
 export interface AppSettings {
@@ -45,5 +46,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     folderPath: '',
     chapterPrice: 0,
     unlockTimer: '',
+    vipNewChaptersOnly: true,
   },
 };

@@ -50,6 +50,7 @@ export interface ParsedChapter {
   content: string;
   word_count: number;
   file_name: string;
+  price?: number;
 }
 
 // ─── Upload Types ──────────────────────────────────────────

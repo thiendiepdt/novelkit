@@ -91,6 +91,7 @@ interface UploadToolbarProps {
   localSortMode: LocalSortMode;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
+  vipNewChaptersOnly: boolean;
   onPickFolder: () => void;
   onReloadFolder: () => void;
   onSyncModeChange: (mode: SyncMode) => void;
@@ -105,6 +106,7 @@ interface UploadToolbarProps {
   onLocalSortModeChange: (value: LocalSortMode) => void;
   onChapterPriceChange: (value: number) => void;
   onUnlockTimerChange: (value: UnlockTimer) => void;
+  onVipNewChaptersOnlyChange: (value: boolean) => void;
   onUpload: () => void;
   onCancelUpload: () => void;
   onRemoveJob: () => void;
@@ -130,6 +132,7 @@ export function UploadToolbar({
   localSortMode,
   chapterPrice,
   unlockTimer,
+  vipNewChaptersOnly,
   onPickFolder,
   onReloadFolder,
   onSyncModeChange,
@@ -144,6 +147,7 @@ export function UploadToolbar({
   onLocalSortModeChange,
   onChapterPriceChange,
   onUnlockTimerChange,
+  onVipNewChaptersOnlyChange,
   onUpload,
   onCancelUpload,
   onRemoveJob,
@@ -334,20 +338,31 @@ export function UploadToolbar({
           </div>
 
           {chapterPrice > 0 && (
-            <div className="flex items-center gap-1.5">
-              <label className="text-[11px] text-text-dim whitespace-nowrap">🔓</label>
-              <Select
-                value={unlockTimer}
-                onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
-                className="text-xs !py-1 !pl-2 !pr-7"
-              >
-                <option value="">Không mở khóa</option>
-                <option value="8h">8 giờ</option>
-                <option value="1d">1 ngày</option>
-                <option value="3d">3 ngày</option>
-                <option value="7d">7 ngày</option>
-              </Select>
-            </div>
+            <>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] text-text-dim whitespace-nowrap">🔓</label>
+                <Select
+                  value={unlockTimer}
+                  onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
+                  className="text-xs !py-1 !pl-2 !pr-7"
+                >
+                  <option value="">Không mở khóa</option>
+                  <option value="8h">8 giờ</option>
+                  <option value="1d">1 ngày</option>
+                  <option value="3d">3 ngày</option>
+                  <option value="7d">7 ngày</option>
+                </Select>
+              </div>
+              <label className="flex items-center gap-1 cursor-pointer ml-1">
+                <input
+                  type="checkbox"
+                  checked={vipNewChaptersOnly}
+                  onChange={(e) => onVipNewChaptersOnlyChange(e.target.checked)}
+                  className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                />
+                <span className="text-[11px] text-text-dim whitespace-nowrap" title="Chỉ đặt giá/khóa cho các chương chưa có trên web">Chỉ VIP chương mới</span>
+              </label>
+            </>
           )}
 
           {/* Upload Button / Progress */}
