@@ -58,6 +58,8 @@ export interface UploadOptions {
   book_id: number;
   chapters: ParsedChapter[];
   delay_ms?: number;
+  price?: number;
+  unlock_timer?: string;
 }
 
 /** Rust-side event payload emitted via `ttc://upload-progress`. */

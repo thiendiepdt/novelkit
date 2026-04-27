@@ -1,43 +1,51 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState } from 'react';
-import { useSearchParams } from 'react-router-dom';
+import { useState, useEffect } from 'react';
 import { SettingsSidebar, type SettingsCategory } from './components/SettingsSidebar';
 import { SettingsItem, SettingsToggle, SettingsNumber } from './components/SettingsItem';
 import { useSettingsContext } from './context/SettingsContext';
+import { useSettingsModal } from './context/SettingsModalContext';
 import { Select } from '@/shared/components';
-import { useTtcBooks } from '@/features/ttc-uploader/hooks/useTtcBooks'; // To get book names for the dropdown
+import { useTtcAuth } from '@/features/ttc-uploader/hooks/useTtcAuth';
+import { useTtcBooks } from '@/features/ttc-uploader/hooks/useTtcBooks';
 
-export function SettingsPage() {
-  const [searchParams, setSearchParams] = useSearchParams();
+interface SettingsPanelProps {
+  onClose: () => void;
+  initialBookId?: number;
+  initialBookTitle?: string;
+}
+
+/**
+ * Settings panel — the core UI, reusable as a modal overlay or route page.
+ */
+export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: SettingsPanelProps) {
   const { globalSettings, updateGlobalSettings, resetGlobalSettings, bookSettings, updateBookSettings, clearBookSettings } = useSettingsContext();
   
-  // Try to load books so we can show names in the dropdown
-  const { books } = useTtcBooks();
+  const auth = useTtcAuth();
+  const { books } = useTtcBooks(auth.session);
 
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>('splitter');
-  
-  // "global" or specific book ID
-  const rawBookId = searchParams.get('bookId');
-  const scope = rawBookId || 'global';
+  const [scope, setScope] = useState<string>(initialBookId ? initialBookId.toString() : 'global');
+
+  // Close on Escape
+  useEffect(() => {
+    const handleKey = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') onClose();
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [onClose]);
 
   const handleScopeChange = (newScope: string) => {
-    if (newScope === 'global') {
-      searchParams.delete('bookId');
-    } else {
-      searchParams.set('bookId', newScope);
-    }
-    setSearchParams(searchParams);
+    setScope(newScope);
   };
 
   const isGlobal = scope === 'global';
   const selectedBookId = isGlobal ? undefined : Number(scope);
 
-  // Helper to read current value based on scope
   const getValue = (section: 'splitter' | 'ttcUploader', key: string) => {
     if (isGlobal) {
       return (globalSettings as any)[section][key];
     } else {
-      // Fallback to global if per-book is not set
       const bookVals = bookSettings[selectedBookId!]?.[section] as any;
       if (bookVals && bookVals[key] !== undefined) {
         return bookVals[key];
@@ -46,14 +54,12 @@ export function SettingsPage() {
     }
   };
 
-  // Helper to check if a value is overridden
   const isOverridden = (section: 'splitter' | 'ttcUploader', key: string) => {
     if (isGlobal) return false;
     const bookVals = bookSettings[selectedBookId!]?.[section] as any;
     return bookVals && bookVals[key] !== undefined;
   };
 
-  // Helper to write value
   const setValue = (section: 'splitter' | 'ttcUploader', key: string, value: any) => {
     if (isGlobal) {
       updateGlobalSettings(section, { [key]: value } as any);
@@ -62,7 +68,6 @@ export function SettingsPage() {
     }
   };
 
-  // Helper to clear an override
   const clearOverride = (section: 'splitter' | 'ttcUploader', key: string) => {
     if (isGlobal) return;
     const currentSectionOverrides = bookSettings[selectedBookId!]?.[section] as any || {};
@@ -153,6 +158,34 @@ export function SettingsPage() {
                 min={100} step={100}
               />
             </SettingsItem>
+
+            <SettingsItem 
+              label={<span>Giá VIP chương (hoa) mặc định là 0 {renderOverrideIndicator('ttcUploader', 'chapterPrice')}</span>} 
+              description="Số hoa mỗi chương VIP. Đặt 0 = miễn phí."
+            >
+              <SettingsNumber 
+                value={getValue('ttcUploader', 'chapterPrice')} 
+                onChange={v => setValue('ttcUploader', 'chapterPrice', v)} 
+                min={0} step={1}
+              />
+            </SettingsItem>
+
+            <SettingsItem 
+              label={<span>Thời gian mở khóa VIP {renderOverrideIndicator('ttcUploader', 'unlockTimer')}</span>} 
+              description="Sau thời gian này chương VIP sẽ tự mở khóa miễn phí. Để trống = không tự mở."
+            >
+              <Select
+                value={getValue('ttcUploader', 'unlockTimer')}
+                onChange={(e) => setValue('ttcUploader', 'unlockTimer', e.target.value)}
+                className="py-1"
+              >
+                <option value="" className="bg-bg-card text-text-primary">Không tự mở</option>
+                <option value="8h" className="bg-bg-card text-text-primary">8 giờ</option>
+                <option value="1d" className="bg-bg-card text-text-primary">1 ngày</option>
+                <option value="3d" className="bg-bg-card text-text-primary">3 ngày</option>
+                <option value="7d" className="bg-bg-card text-text-primary">7 ngày</option>
+              </Select>
+            </SettingsItem>
             
             {isGlobal && (
               <>
@@ -196,9 +229,19 @@ export function SettingsPage() {
   };
 
   return (
-    <div className="flex flex-col h-[calc(100vh-64px)] overflow-hidden animate-fadeIn">
+    <div className="flex flex-col h-full overflow-hidden">
       {/* Settings Header Toolbar */}
       <div className="flex-shrink-0 px-6 py-3 border-b border-border-main bg-bg-card flex items-center gap-4">
+        <button
+          onClick={onClose}
+          className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+          title="Đóng (Esc)"
+        >
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            <line x1="18" y1="6" x2="6" y2="18" />
+            <line x1="6" y1="6" x2="18" y2="18" />
+          </svg>
+        </button>
         <h1 className="text-lg font-bold text-text-primary flex items-center gap-2">
           <span>⚙️</span> Settings
         </h1>
@@ -220,9 +263,10 @@ export function SettingsPage() {
                   📖 {b.title}
                 </option>
               ))}
-              {/* If accessed via URL with a book not in current page list */}
-              {rawBookId && !books.find(b => b.id.toString() === rawBookId) && (
-                <option value={rawBookId} className="bg-bg-card text-text-primary font-normal">📖 Truyện ID {rawBookId}</option>
+              {initialBookId && initialBookTitle && !books.find(b => b.id === initialBookId) && (
+                <option key={initialBookId} value={initialBookId.toString()} className="bg-bg-card text-text-primary font-normal">
+                  📖 {initialBookTitle}
+                </option>
               )}
             </optgroup>
           </Select>
@@ -262,4 +306,18 @@ export function SettingsPage() {
   );
 }
 
+/**
+ * Fullscreen overlay for the settings panel.
+ * Rendered once in App.tsx — always mounted but only visible when isOpen.
+ */
+export function SettingsOverlay() {
+  const { isOpen, bookId, bookTitle, closeSettings } = useSettingsModal();
 
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 z-[200] animate-fadeIn" style={{ background: '#121212' }}>
+      <SettingsPanel onClose={closeSettings} initialBookId={bookId} initialBookTitle={bookTitle} />
+    </div>
+  );
+}

@@ -46,7 +46,7 @@ export function SettingsNumber({ value, onChange, min, max, step }: { value: num
       min={min}
       max={max}
       step={step}
-      className="w-24 px-3 py-1.5 bg-bg-card border border-border-main rounded-lg text-sm text-text-primary focus:border-gold focus:outline-none transition-colors text-right"
+      className="w-24 px-3 py-1.5 bg-bg-card border border-border-main rounded-lg text-sm text-text-primary focus:border-gold focus:outline-none transition-colors text-center"
     />
   );
 }

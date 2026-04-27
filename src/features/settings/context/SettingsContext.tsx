@@ -62,33 +62,39 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     });
   }, [setBookSettings]);
 
-  const getSettingsForBook = useCallback((bookId?: number): AppSettings => {
-    if (!bookId || !bookSettings[bookId]) {
-      return globalSettings;
-    }
-
-    const specific = bookSettings[bookId];
-    return {
-      splitter: {
-        ...globalSettings.splitter,
-        ...(specific.splitter || {}),
-      },
-      ttcUploader: {
-        ...globalSettings.ttcUploader,
-        ...(specific.ttcUploader || {}),
-      }
+  const value = useMemo(() => {
+    const mergedGlobalSettings: AppSettings = {
+      splitter: { ...DEFAULT_SETTINGS.splitter, ...(globalSettings?.splitter || {}) },
+      ttcUploader: { ...DEFAULT_SETTINGS.ttcUploader, ...(globalSettings?.ttcUploader || {}) },
     };
-  }, [globalSettings, bookSettings]);
 
-  const value = useMemo(() => ({
-    globalSettings,
-    updateGlobalSettings,
-    resetGlobalSettings,
-    bookSettings,
-    updateBookSettings,
-    clearBookSettings,
-    getSettingsForBook,
-  }), [globalSettings, updateGlobalSettings, resetGlobalSettings, bookSettings, updateBookSettings, clearBookSettings, getSettingsForBook]);
+    const getSettingsForBookMerged = (bookId?: number): AppSettings => {
+      if (!bookId || !bookSettings[bookId]) {
+        return mergedGlobalSettings;
+      }
+      const specific = bookSettings[bookId];
+      return {
+        splitter: {
+          ...mergedGlobalSettings.splitter,
+          ...(specific.splitter || {}),
+        },
+        ttcUploader: {
+          ...mergedGlobalSettings.ttcUploader,
+          ...(specific.ttcUploader || {}),
+        }
+      };
+    };
+
+    return {
+      globalSettings: mergedGlobalSettings,
+      updateGlobalSettings,
+      resetGlobalSettings,
+      bookSettings,
+      updateBookSettings,
+      clearBookSettings,
+      getSettingsForBook: getSettingsForBookMerged,
+    };
+  }, [globalSettings, updateGlobalSettings, resetGlobalSettings, bookSettings, updateBookSettings, clearBookSettings]);
 
   return (
     <SettingsContext.Provider value={value}>

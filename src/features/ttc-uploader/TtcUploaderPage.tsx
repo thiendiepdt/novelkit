@@ -98,11 +98,15 @@ function TtcUploaderContent() {
             minWords={chapters.minWords}
             roundUp={chapters.roundUp}
             localSortMode={chapters.localSortMode}
+            chapterPrice={chapters.chapterPrice}
+            unlockTimer={chapters.unlockTimer}
             onEnableSplitChange={chapters.setEnableSplit}
             onMaxWordsChange={chapters.setMaxWords}
             onMinWordsChange={chapters.setMinWords}
             onRoundUpChange={chapters.setRoundUp}
             onLocalSortModeChange={chapters.setLocalSortMode}
+            onChapterPriceChange={chapters.setChapterPrice}
+            onUnlockTimerChange={chapters.setUnlockTimer}
             onUpload={chapters.handleUpload}
             onCancelUpload={chapters.handleCancelUpload}
             onRemoveJob={chapters.handleRemoveJob}

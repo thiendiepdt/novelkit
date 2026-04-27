@@ -2,7 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useSettings } from '@/features/settings/hooks/useSettings';
-import type { LocalSortMode } from '@/features/settings/types';
+import type { LocalSortMode, UnlockTimer } from '@/features/settings/types';
 import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
 import { splitMultipleChapters } from '@/features/chapter-splitter/utils/splitter';
 import { DEFAULT_CHAPTERS_LIMIT } from '../constants';
@@ -53,7 +53,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
   // Chapter Splitter Settings
   const { maxWords, minWords, roundUp } = settings.splitter;
-  const { enableSplit, uploadDelayMs: delayMs, localSortMode, folderPath } = settings.ttcUploader;
+  const { enableSplit, uploadDelayMs: delayMs, localSortMode, folderPath, chapterPrice, unlockTimer } = settings.ttcUploader;
 
   const setEnableSplit = useCallback((v: boolean) => updateSettings('ttcUploader', { enableSplit: v }), [updateSettings]);
   const setMaxWords = useCallback((v: number) => updateSettings('splitter', { maxWords: v }), [updateSettings]);
@@ -61,6 +61,8 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   const setRoundUp = useCallback((v: boolean) => updateSettings('splitter', { roundUp: v }), [updateSettings]);
   const setDelayMs = useCallback((v: number) => updateSettings('ttcUploader', { uploadDelayMs: v }), [updateSettings]);
   const setLocalSortMode = useCallback((v: LocalSortMode) => updateSettings('ttcUploader', { localSortMode: v }), [updateSettings]);
+  const setChapterPrice = useCallback((v: number) => updateSettings('ttcUploader', { chapterPrice: v }), [updateSettings]);
+  const setUnlockTimer = useCallback((v: UnlockTimer) => updateSettings('ttcUploader', { unlockTimer: v }), [updateSettings]);
 
   // Upload settings & progress
   const [syncMode, setSyncMode] = useState<SyncMode>('all');
@@ -103,6 +105,16 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       setLoadingRemoteChaps(false);
     }
   }, []);
+
+  // Auto-refetch remote chapters when upload completes
+  const prevUploadStatusRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const currentStatus = currentJob?.status;
+    if (prevUploadStatusRef.current === 'running' && currentStatus === 'done' && selectedBook) {
+      fetchRemoteChapters(selectedBook.id, 1, chaptersLimit);
+    }
+    prevUploadStatusRef.current = currentStatus;
+  }, [currentJob?.status, selectedBook, fetchRemoteChapters, chaptersLimit]);
 
   // Fetch ALL remote chapters for comparison
   const fetchAllRemoteChapters = useCallback(async (bookId: number) => {
@@ -264,11 +276,13 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       book_id: selectedBook.id,
       chapters: chaptersToUpload,
       delay_ms: delayMs,
+      price: chapterPrice,
+      unlock_timer: unlockTimer || undefined,
     };
 
     addJob(options, selectedBook.title);
 
-  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapters, allRemoteChapters, addJob]);
+  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, chapters, allRemoteChapters, addJob]);
 
   // Cancel the ongoing upload job for the current book
   const handleCancelUpload = useCallback(() => {
@@ -361,6 +375,10 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     setToIndex,
     delayMs,
     setDelayMs,
+    chapterPrice,
+    setChapterPrice,
+    unlockTimer,
+    setUnlockTimer,
     progress,
     handleUpload,
     handleCancelUpload,
