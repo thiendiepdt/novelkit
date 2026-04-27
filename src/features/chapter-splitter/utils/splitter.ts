@@ -233,8 +233,11 @@ export function splitMultipleChapters(
   // Process each chapter
   const allParts: PartData[] = [];
   let totalWords = 0;
+  let currentChapterIndex = 0;
 
   for (const chapter of chapters) {
+    currentChapterIndex++;
+
     if (chapter.content.length === 0) {
       // Chapter with only a heading, no content
       const text = chapter.heading;
@@ -249,14 +252,8 @@ export function splitMultipleChapters(
     totalWords += chapterContentWords;
 
     let skipSplit = false;
-    if (splitFromChapter > 0) {
-      const match = chapter.heading.match(/chương\s+(\d+)/i);
-      if (match) {
-        const chapNum = parseInt(match[1], 10);
-        if (chapNum < splitFromChapter) {
-          skipSplit = true;
-        }
-      }
+    if (splitFromChapter > 0 && currentChapterIndex < splitFromChapter) {
+      skipSplit = true;
     }
 
     // Check if this chapter needs splitting
