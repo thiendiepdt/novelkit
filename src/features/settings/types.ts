@@ -9,6 +9,7 @@ export interface SplitterSettings {
 
 export interface TtcUploaderSettings {
   enableSplit: boolean;
+  splitFromChapter: number;
   uploadDelayMs: number;
   booksLimit: number;
   chaptersLimit: number;
@@ -36,6 +37,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   ttcUploader: {
     enableSplit: true,
+    splitFromChapter: 1,
     uploadDelayMs: 200,
     booksLimit: 20,
     chaptersLimit: 10,

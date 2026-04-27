@@ -84,6 +84,7 @@ interface UploadToolbarProps {
   delayMs: number;
   progress: UploadProgress;
   enableSplit: boolean;
+  splitFromChapter: number;
   maxWords: number;
   minWords: number;
   roundUp: boolean;
@@ -91,11 +92,13 @@ interface UploadToolbarProps {
   chapterPrice: number;
   unlockTimer: UnlockTimer;
   onPickFolder: () => void;
+  onReloadFolder: () => void;
   onSyncModeChange: (mode: SyncMode) => void;
   onFromIndexChange: (value: number) => void;
   onToIndexChange: (value: number) => void;
   onDelayChange: (value: number) => void;
   onEnableSplitChange: (value: boolean) => void;
+  onSplitFromChapterChange: (value: number) => void;
   onMaxWordsChange: (value: number) => void;
   onMinWordsChange: (value: number) => void;
   onRoundUpChange: (value: boolean) => void;
@@ -120,6 +123,7 @@ export function UploadToolbar({
   delayMs,
   progress,
   enableSplit,
+  splitFromChapter,
   maxWords,
   minWords,
   roundUp,
@@ -127,11 +131,13 @@ export function UploadToolbar({
   chapterPrice,
   unlockTimer,
   onPickFolder,
+  onReloadFolder,
   onSyncModeChange,
   onFromIndexChange,
   onToIndexChange,
   onDelayChange,
   onEnableSplitChange,
+  onSplitFromChapterChange,
   onMaxWordsChange,
   onMinWordsChange,
   onRoundUpChange,
@@ -159,9 +165,18 @@ export function UploadToolbar({
             <span>📁</span> Chọn Folder
           </button>
           {folderPath && (
-            <span className="text-[11px] text-text-dim font-mono max-w-[150px] truncate" title={folderPath}>
-              {folderPath.split(/[/\\]/).pop()}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-text-dim font-mono max-w-[150px] truncate" title={folderPath}>
+                {folderPath.split(/[/\\]/).pop()}
+              </span>
+              <button
+                onClick={onReloadFolder}
+                className="p-1 hover:bg-bg-hover text-text-dim hover:text-gold rounded transition-colors cursor-pointer"
+                title="Tải lại folder"
+              >
+                🔄
+              </button>
+            </div>
           )}
           {loadingChapters ? (
             <span className="text-[10px] text-text-dim">Đang đọc file...</span>
@@ -217,6 +232,16 @@ export function UploadToolbar({
                       value={minWords}
                       onChange={onMinWordsChange}
                       className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[11px] text-text-dim" title="Chỉ chia từ chương số này trở đi (1 = chia tất cả)">Từ chương:</label>
+                    <BufferedNumberInput
+                      value={splitFromChapter}
+                      onChange={onSplitFromChapterChange}
+                      min={1}
+                      className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                      title="Chỉ chia từ chương số này trở đi (1 = chia tất cả)"
                     />
                   </div>
                   <label className="flex items-center gap-1 cursor-pointer">
