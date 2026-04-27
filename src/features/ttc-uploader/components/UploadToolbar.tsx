@@ -1,8 +1,10 @@
 import type { SyncMode, UploadProgress, ParsedChapter } from '../types';
 import { SYNC_MODE_LABELS } from '../types';
+import type { LocalSortMode } from '@/features/settings/types';
+import Select from '@/shared/components/Select';
 
 interface UploadToolbarProps {
-  folderPath: string | null;
+  folderPath: string;
   chapters: ParsedChapter[];
   loadingChapters: boolean;
   syncMode: SyncMode;
@@ -14,6 +16,7 @@ interface UploadToolbarProps {
   maxWords: number;
   minWords: number;
   roundUp: boolean;
+  localSortMode: LocalSortMode;
   onPickFolder: () => void;
   onSyncModeChange: (mode: SyncMode) => void;
   onFromIndexChange: (value: number) => void;
@@ -23,6 +26,7 @@ interface UploadToolbarProps {
   onMaxWordsChange: (value: number) => void;
   onMinWordsChange: (value: number) => void;
   onRoundUpChange: (value: boolean) => void;
+  onLocalSortModeChange: (value: LocalSortMode) => void;
   onUpload: () => void;
   onCancelUpload: () => void;
   onRemoveJob: () => void;
@@ -44,6 +48,7 @@ export function UploadToolbar({
   maxWords,
   minWords,
   roundUp,
+  localSortMode,
   onPickFolder,
   onSyncModeChange,
   onFromIndexChange,
@@ -53,6 +58,7 @@ export function UploadToolbar({
   onMaxWordsChange,
   onMinWordsChange,
   onRoundUpChange,
+  onLocalSortModeChange,
   onUpload,
   onCancelUpload,
   onRemoveJob,
@@ -84,6 +90,24 @@ export function UploadToolbar({
           <span className="text-[10px] text-gold font-medium">Tìm thấy {chapters.length} file txt</span>
         ) : null}
       </div>
+
+      {/* Sort Mode */}
+      {chapters.length > 0 && (
+        <>
+          <div className="h-8 w-px bg-border-main hidden sm:block"></div>
+          <div className="flex items-center gap-1.5">
+            <label className="text-[11px] text-text-dim" title="Thứ tự sắp xếp chương local">Sắp xếp:</label>
+            <Select
+              value={localSortMode}
+              onChange={(e) => onLocalSortModeChange(e.target.value as LocalSortMode)}
+              className="text-xs !py-1 !pl-2 !pr-7"
+            >
+              <option value="name">📝 Tên chương</option>
+              <option value="file">📁 Thứ tự file</option>
+            </Select>
+          </div>
+        </>
+      )}
 
       {/* Vertical divider */}
       {chapters.length > 0 && <div className="h-8 w-px bg-border-main hidden sm:block"></div>}
