@@ -100,6 +100,8 @@ pub struct UploadOptions {
     pub book_id: i64,
     pub chapters: Vec<ParsedChapter>,
     pub delay_ms: Option<u64>,
+    pub price: Option<i32>,
+    pub unlock_timer: Option<String>,
 }
 
 // ─── Upload API Payload (matches TTC API) ──────────────────

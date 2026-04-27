@@ -160,6 +160,8 @@ pub async fn ttc_upload_chapters(
 
     let total = chapters.len();
     let delay = options.delay_ms.unwrap_or(1000);
+    let price = options.price.unwrap_or(0);
+    let unlock_timer = options.unlock_timer.clone().unwrap_or_default();
     let client = get_client(&app);
 
     // Fetch Tokens
@@ -212,7 +214,7 @@ pub async fn ttc_upload_chapters(
                 title: chapter.title.clone(),
                 content: chapter.content.clone(),
                 word_count: chapter.word_count,
-                price: 0,
+                price,
                 link: String::new(),
             });
         }
@@ -221,7 +223,7 @@ pub async fn ttc_upload_chapters(
             chapters: payload_chapters,
             upload_type: "normal".into(),
             scheduled_at: String::new(),
-            unlock_timer: String::new(),
+            unlock_timer: unlock_timer.clone(),
             serial_mode: false,
             serial_first_at: String::new(),
             serial_chunks_per_day: 5,

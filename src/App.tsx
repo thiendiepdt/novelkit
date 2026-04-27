@@ -11,7 +11,8 @@ import DownloadsPage from '@/features/downloads/DownloadsPage';
 import { DownloadQueueProvider } from '@/shared/context/DownloadQueueContext';
 import { UploadQueueProvider } from '@/shared/context/UploadQueueContext';
 import { SettingsProvider } from '@/features/settings/context/SettingsContext';
-import { SettingsPage } from '@/features/settings/SettingsPage';
+import { SettingsModalProvider } from '@/features/settings/context/SettingsModalContext';
+import { SettingsOverlay } from '@/features/settings/SettingsPage';
 
 function App() {
   // ─── Auto-update check (desktop only) ──────────────────
@@ -50,50 +51,55 @@ function App() {
       <Route path="/quick-translator" element={<TranslatorPage />} />
       <Route path="/ttc-uploader" element={<TtcUploaderPage />} />
       <Route path="/downloads" element={<DownloadsPage />} />
-      <Route path="/settings" element={<SettingsPage />} />
     </Routes>
   );
 
   if (isTauri()) {
     return (
       <SettingsProvider>
-        <UploadQueueProvider>
-          <DownloadQueueProvider>
-            <BrowserRouter>
-              <ScrollToTop />
-              <div className="flex flex-col h-screen overflow-hidden bg-bg-main">
-                <Header />
-                <div className="flex flex-1 overflow-hidden">
-                  <Sidebar />
-                  <main className="flex-1 overflow-y-auto">
-                    {routes}
-                  </main>
+        <SettingsModalProvider>
+          <UploadQueueProvider>
+            <DownloadQueueProvider>
+              <BrowserRouter>
+                <ScrollToTop />
+                <div className="flex flex-col h-screen overflow-hidden bg-bg-main">
+                  <Header />
+                  <div className="flex flex-1 overflow-hidden">
+                    <Sidebar />
+                    <main className="flex-1 overflow-y-auto">
+                      {routes}
+                    </main>
+                  </div>
+                  <StatusBar />
+                  <SettingsOverlay />
                 </div>
-                <StatusBar />
-              </div>
-            </BrowserRouter>
-          </DownloadQueueProvider>
-        </UploadQueueProvider>
+              </BrowserRouter>
+            </DownloadQueueProvider>
+          </UploadQueueProvider>
+        </SettingsModalProvider>
       </SettingsProvider>
     );
   }
 
   return (
     <SettingsProvider>
-      <UploadQueueProvider>
-        <DownloadQueueProvider>
-          <BrowserRouter>
-          <ScrollToTop />
-          <div className="flex flex-col min-h-screen bg-bg-main">
-            <Header />
-            <main className="flex-1">
-              {routes}
-            </main>
-            <Footer />
-          </div>
-        </BrowserRouter>
-      </DownloadQueueProvider>
-      </UploadQueueProvider>
+      <SettingsModalProvider>
+        <UploadQueueProvider>
+          <DownloadQueueProvider>
+            <BrowserRouter>
+            <ScrollToTop />
+            <div className="flex flex-col min-h-screen bg-bg-main">
+              <Header />
+              <main className="flex-1">
+                {routes}
+              </main>
+              <Footer />
+              <SettingsOverlay />
+            </div>
+          </BrowserRouter>
+        </DownloadQueueProvider>
+        </UploadQueueProvider>
+      </SettingsModalProvider>
     </SettingsProvider>
   );
 }

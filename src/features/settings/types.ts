@@ -1,4 +1,5 @@
 export type LocalSortMode = 'name' | 'file';
+export type UnlockTimer = '' | '8h' | '1d' | '3d' | '7d';
 
 export interface SplitterSettings {
   maxWords: number;
@@ -13,6 +14,8 @@ export interface TtcUploaderSettings {
   chaptersLimit: number;
   localSortMode: LocalSortMode;
   folderPath: string;
+  chapterPrice: number;
+  unlockTimer: UnlockTimer;
 }
 
 export interface AppSettings {
@@ -38,5 +41,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     chaptersLimit: 10,
     localSortMode: 'name',
     folderPath: '',
+    chapterPrice: 0,
+    unlockTimer: '',
   },
 };

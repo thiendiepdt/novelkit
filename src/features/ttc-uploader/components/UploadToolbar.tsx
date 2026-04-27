@@ -1,7 +1,78 @@
 import type { SyncMode, UploadProgress, ParsedChapter } from '../types';
 import { SYNC_MODE_LABELS } from '../types';
-import type { LocalSortMode } from '@/features/settings/types';
+import type { LocalSortMode, UnlockTimer } from '@/features/settings/types';
 import Select from '@/shared/components/Select';
+import { useState, useEffect } from 'react';
+
+/**
+ * A number input that buffers keystrokes and only calls onChange 500ms after typing stops,
+ * or on blur/enter. This prevents heavy global state/localStorage updates on every keystroke.
+ */
+function BufferedNumberInput({
+  value,
+  onChange,
+  className,
+  min,
+  max,
+  step,
+  title,
+}: {
+  value: number;
+  onChange: (v: number) => void;
+  className?: string;
+  min?: number;
+  max?: number;
+  step?: number;
+  title?: string;
+}) {
+  const [localValue, setLocalValue] = useState<string>(value.toString());
+
+  // Sync when external value changes
+  useEffect(() => {
+    setLocalValue(value.toString());
+  }, [value]);
+
+  // Debounce typing
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      const num = Number(localValue);
+      if (!isNaN(num) && num !== value) {
+        onChange(num);
+      }
+    }, 500);
+    return () => clearTimeout(timer);
+  }, [localValue, value, onChange]);
+
+  const handleBlur = () => {
+    const num = Number(localValue);
+    if (!isNaN(num) && num !== value) {
+      onChange(num);
+    } else if (isNaN(num)) {
+      setLocalValue(value.toString()); // Revert if invalid
+    }
+  };
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter') {
+      e.currentTarget.blur();
+    }
+  };
+
+  return (
+    <input
+      type="number"
+      value={localValue}
+      onChange={(e) => setLocalValue(e.target.value)}
+      onBlur={handleBlur}
+      onKeyDown={handleKeyDown}
+      className={className}
+      min={min}
+      max={max}
+      step={step}
+      title={title}
+    />
+  );
+}
 
 interface UploadToolbarProps {
   folderPath: string;
@@ -17,6 +88,8 @@ interface UploadToolbarProps {
   minWords: number;
   roundUp: boolean;
   localSortMode: LocalSortMode;
+  chapterPrice: number;
+  unlockTimer: UnlockTimer;
   onPickFolder: () => void;
   onSyncModeChange: (mode: SyncMode) => void;
   onFromIndexChange: (value: number) => void;
@@ -27,6 +100,8 @@ interface UploadToolbarProps {
   onMinWordsChange: (value: number) => void;
   onRoundUpChange: (value: boolean) => void;
   onLocalSortModeChange: (value: LocalSortMode) => void;
+  onChapterPriceChange: (value: number) => void;
+  onUnlockTimerChange: (value: UnlockTimer) => void;
   onUpload: () => void;
   onCancelUpload: () => void;
   onRemoveJob: () => void;
@@ -49,6 +124,8 @@ export function UploadToolbar({
   minWords,
   roundUp,
   localSortMode,
+  chapterPrice,
+  unlockTimer,
   onPickFolder,
   onSyncModeChange,
   onFromIndexChange,
@@ -59,17 +136,20 @@ export function UploadToolbar({
   onMinWordsChange,
   onRoundUpChange,
   onLocalSortModeChange,
+  onChapterPriceChange,
+  onUnlockTimerChange,
   onUpload,
   onCancelUpload,
   onRemoveJob,
 }: UploadToolbarProps) {
   return (
     <div
-      className="bg-bg-card border border-border-main rounded-xl p-3 flex flex-wrap items-center gap-x-6 gap-y-3"
+      className="bg-bg-card border border-border-main rounded-xl p-3 flex flex-col gap-2.5"
       style={{ animation: 'slideUp 0.3s ease-out' }}
     >
-      {/* Step 1: Folder Picker */}
-      <div className="flex flex-col gap-1.5">
+      {/* Row 1: Source — Folder, Sort, Split */}
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+        {/* Folder Picker */}
         <div className="flex items-center gap-2">
           <button
             onClick={onPickFolder}
@@ -83,92 +163,85 @@ export function UploadToolbar({
               {folderPath.split(/[/\\]/).pop()}
             </span>
           )}
+          {loadingChapters ? (
+            <span className="text-[10px] text-text-dim">Đang đọc file...</span>
+          ) : chapters.length > 0 ? (
+            <span className="text-[10px] text-gold font-medium">({chapters.length} chương)</span>
+          ) : null}
         </div>
-        {loadingChapters ? (
-          <span className="text-[10px] text-text-dim">Đang đọc file...</span>
-        ) : chapters.length > 0 ? (
-          <span className="text-[10px] text-gold font-medium">Tìm thấy {chapters.length} file txt</span>
-        ) : null}
-      </div>
 
-      {/* Sort Mode */}
-      {chapters.length > 0 && (
-        <>
-          <div className="h-8 w-px bg-border-main hidden sm:block"></div>
-          <div className="flex items-center gap-1.5">
-            <label className="text-[11px] text-text-dim" title="Thứ tự sắp xếp chương local">Sắp xếp:</label>
-            <Select
-              value={localSortMode}
-              onChange={(e) => onLocalSortModeChange(e.target.value as LocalSortMode)}
-              className="text-xs !py-1 !pl-2 !pr-7"
-            >
-              <option value="name">📝 Tên chương</option>
-              <option value="file">📁 Thứ tự file</option>
-            </Select>
-          </div>
-        </>
-      )}
+        {chapters.length > 0 && (
+          <>
+            <div className="h-5 w-px bg-border-main"></div>
 
-      {/* Vertical divider */}
-      {chapters.length > 0 && <div className="h-8 w-px bg-border-main hidden sm:block"></div>}
+            {/* Sort */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] text-text-dim">Sắp xếp:</label>
+              <Select
+                value={localSortMode}
+                onChange={(e) => onLocalSortModeChange(e.target.value as LocalSortMode)}
+                className="text-xs !py-1 !pl-2 !pr-7"
+              >
+                <option value="name">📝 Tên chương</option>
+                <option value="file">📁 Thứ tự file</option>
+              </Select>
+            </div>
 
-      {/* Split Settings */}
-      {chapters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3">
-          <label className="flex items-center gap-1.5 cursor-pointer">
-            <input
-              type="checkbox"
-              checked={enableSplit}
-              onChange={(e) => onEnableSplitChange(e.target.checked)}
-              className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
-            />
-            <span className="text-[11px] font-medium text-gold" title="Tự động chia nhỏ chương dài hoặc gộp chương ngắn">Tự động chia</span>
-          </label>
-          
-          {enableSplit && (
-            <>
-              <div className="h-4 w-px bg-border-main"></div>
-              <div className="flex items-center gap-1.5">
-                <label className="text-[11px] text-text-dim" title="Cắt file nếu dài hơn số chữ này">Max chữ:</label>
-                <input
-                  type="number"
-                  value={maxWords}
-                  onChange={(e) => onMaxWordsChange(Number(e.target.value))}
-                  className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-                />
-              </div>
-              <div className="flex items-center gap-1.5">
-                <label className="text-[11px] text-text-dim" title="Gộp vào chương trước nếu ngắn hơn số chữ này">Min chữ:</label>
-                <input
-                  type="number"
-                  value={minWords}
-                  onChange={(e) => onMinWordsChange(Number(e.target.value))}
-                  className="w-14 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-                />
-              </div>
+            <div className="h-5 w-px bg-border-main"></div>
+
+            {/* Split Toggle + Settings */}
+            <div className="flex items-center gap-3">
               <label className="flex items-center gap-1.5 cursor-pointer">
                 <input
                   type="checkbox"
-                  checked={roundUp}
-                  onChange={(e) => onRoundUpChange(e.target.checked)}
+                  checked={enableSplit}
+                  onChange={(e) => onEnableSplitChange(e.target.checked)}
                   className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
                 />
-                <span className="text-[11px] text-text-dim" title="Cố gắng không cắt giữa chừng đoạn văn">Round Up</span>
+                <span className="text-[11px] font-medium text-gold" title="Tự động chia nhỏ chương dài hoặc gộp chương ngắn">Tự động chia</span>
               </label>
-            </>
-          )}
-        </div>
-      )}
+              
+              {enableSplit && (
+                <>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[11px] text-text-dim">Max:</label>
+                    <BufferedNumberInput
+                      value={maxWords}
+                      onChange={onMaxWordsChange}
+                      className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[11px] text-text-dim">Min:</label>
+                    <BufferedNumberInput
+                      value={minWords}
+                      onChange={onMinWordsChange}
+                      className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                    />
+                  </div>
+                  <label className="flex items-center gap-1 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={roundUp}
+                      onChange={(e) => onRoundUpChange(e.target.checked)}
+                      className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                    />
+                    <span className="text-[11px] text-text-dim">Round Up</span>
+                  </label>
+                </>
+              )}
+            </div>
+          </>
+        )}
+      </div>
 
-      {/* Vertical divider */}
-      {chapters.length > 0 && <div className="h-8 w-px bg-border-main hidden md:block"></div>}
-
-      {/* Step 2 & 3: Sync Settings & Upload Button */}
+      {/* Row 2: Upload — Sync mode, Delay, VIP, Upload button */}
       {chapters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-4 flex-1">
+        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 border-t border-border-main/50">
+          {/* Sync Mode */}
           <div className="flex items-center gap-2">
-            <label className="text-[11px] text-text-dim font-medium uppercase tracking-wider">Chế độ:</label>
-            <div className="flex gap-1">
+            <label className="text-[11px] text-text-dim">Chế độ:</label>
+            <div className="flex gap-0.5">
               {(Object.keys(SYNC_MODE_LABELS) as SyncMode[]).map((mode) => (
                 <button
                   key={mode}
@@ -185,41 +258,74 @@ export function UploadToolbar({
             </div>
           </div>
 
+          {/* Range inputs (conditional) */}
           {syncMode === 'range' && (
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] text-text-dim">Từ:</label>
-              <input
-                type="number"
+              <BufferedNumberInput
                 value={fromIndex}
-                onChange={(e) => onFromIndexChange(Number(e.target.value))}
+                onChange={onFromIndexChange}
                 min={1}
                 max={chapters.length}
-                className="w-14 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
               />
-              <label className="text-[11px] text-text-dim ml-1">Đến:</label>
-              <input
-                type="number"
+              <label className="text-[11px] text-text-dim">Đến:</label>
+              <BufferedNumberInput
                 value={toIndex}
-                onChange={(e) => onToIndexChange(Number(e.target.value))}
+                onChange={onToIndexChange}
                 min={1}
                 max={chapters.length}
-                className="w-14 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
               />
             </div>
           )}
 
+          <div className="h-5 w-px bg-border-main"></div>
+
+          {/* Delay */}
           <div className="flex items-center gap-1.5">
-            <label className="text-[11px] text-text-dim whitespace-nowrap" title="Delay giữa mỗi request">Delay (ms):</label>
-            <input
-              type="number"
+            <label className="text-[11px] text-text-dim whitespace-nowrap">Delay:</label>
+            <BufferedNumberInput
               value={delayMs}
-              onChange={(e) => onDelayChange(Number(e.target.value))}
+              onChange={onDelayChange}
               min={100}
               step={100}
-              className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+              className="w-20 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+            />
+            <span className="text-[10px] text-text-dim">ms</span>
+          </div>
+
+          {/* VIP */}
+          <div className="flex items-center gap-1.5">
+            <label className="text-[11px] text-text-dim whitespace-nowrap">💰 VIP:</label>
+            <BufferedNumberInput
+              value={chapterPrice}
+              onChange={onChapterPriceChange}
+              min={0}
+              step={1}
+              className="w-20 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+              title="Số hoa (0 = miễn phí)"
             />
           </div>
 
+          {chapterPrice > 0 && (
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] text-text-dim whitespace-nowrap">🔓</label>
+              <Select
+                value={unlockTimer}
+                onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
+                className="text-xs !py-1 !pl-2 !pr-7"
+              >
+                <option value="">Không mở khóa</option>
+                <option value="8h">8 giờ</option>
+                <option value="1d">1 ngày</option>
+                <option value="3d">3 ngày</option>
+                <option value="7d">7 ngày</option>
+              </Select>
+            </div>
+          )}
+
+          {/* Upload Button / Progress */}
           <div className="ml-auto flex items-center min-w-[140px]">
             {progress.status === 'idle' ? (
               <button

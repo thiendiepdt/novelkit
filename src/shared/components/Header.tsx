@@ -1,11 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
 import { isTauri } from '@/shared/utils/platform';
 import { DownloadQueueManager, UploadQueueManager } from '@/shared/components';
+import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 
 export default function Header() {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const showHomeLink = !isHome && !isTauri();
+  const { openSettings } = useSettingsModal();
 
   return (
     <header
@@ -31,13 +33,13 @@ export default function Header() {
               <span className="hidden sm:inline">Trang chủ</span>
             </Link>
           )}
-          <Link
-            to="/settings"
-            className="text-text-secondary hover:text-gold transition-colors flex items-center justify-center text-lg"
+          <button
+            onClick={() => openSettings()}
+            className="text-text-secondary hover:text-gold transition-colors flex items-center justify-center text-lg cursor-pointer"
             title="Cài đặt hệ thống"
           >
             ⚙️
-          </Link>
+          </button>
           <UploadQueueManager />
           <DownloadQueueManager />
         </div>
