@@ -1,3 +1,5 @@
+export type LocalSortMode = 'name' | 'file';
+
 export interface SplitterSettings {
   maxWords: number;
   minWords: number;
@@ -9,6 +11,8 @@ export interface TtcUploaderSettings {
   uploadDelayMs: number;
   booksLimit: number;
   chaptersLimit: number;
+  localSortMode: LocalSortMode;
+  folderPath: string;
 }
 
 export interface AppSettings {
@@ -32,5 +36,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     uploadDelayMs: 200,
     booksLimit: 20,
     chaptersLimit: 10,
+    localSortMode: 'name',
+    folderPath: '',
   },
 };

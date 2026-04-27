@@ -2,6 +2,7 @@ import { useState, useEffect, useCallback, useRef } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { open } from '@tauri-apps/plugin-dialog';
 import { useSettings } from '@/features/settings/hooks/useSettings';
+import type { LocalSortMode } from '@/features/settings/types';
 import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
 import { splitMultipleChapters } from '@/features/chapter-splitter/utils/splitter';
 import { DEFAULT_CHAPTERS_LIMIT } from '../constants';
@@ -46,20 +47,20 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   const [loadingAllRemote, setLoadingAllRemote] = useState(false);
 
   // Local chapters (from folder)
-  const [folderPath, setFolderPath] = useState<string | null>(null);
   const [chapters, setChapters] = useState<ParsedChapter[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [rawFolderText, setRawFolderText] = useState<string>('');
 
   // Chapter Splitter Settings
   const { maxWords, minWords, roundUp } = settings.splitter;
-  const { enableSplit, uploadDelayMs: delayMs } = settings.ttcUploader;
+  const { enableSplit, uploadDelayMs: delayMs, localSortMode, folderPath } = settings.ttcUploader;
 
   const setEnableSplit = useCallback((v: boolean) => updateSettings('ttcUploader', { enableSplit: v }), [updateSettings]);
   const setMaxWords = useCallback((v: number) => updateSettings('splitter', { maxWords: v }), [updateSettings]);
   const setMinWords = useCallback((v: number) => updateSettings('splitter', { minWords: v }), [updateSettings]);
   const setRoundUp = useCallback((v: boolean) => updateSettings('splitter', { roundUp: v }), [updateSettings]);
   const setDelayMs = useCallback((v: number) => updateSettings('ttcUploader', { uploadDelayMs: v }), [updateSettings]);
+  const setLocalSortMode = useCallback((v: LocalSortMode) => updateSettings('ttcUploader', { localSortMode: v }), [updateSettings]);
 
   // Upload settings & progress
   const [syncMode, setSyncMode] = useState<SyncMode>('all');
@@ -131,6 +132,22 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }
   }, []);
 
+  // Load folder text from a given path
+  const loadFolder = useCallback(async (path: string) => {
+    setLoadingChapters(true);
+    try {
+      const rawText = await invoke<string>('ttc_read_folder_text', {
+        folderPath: path,
+      });
+      setRawFolderText(rawText);
+    } catch (e) {
+      console.error('Parse error:', e);
+      setRawFolderText('');
+    } finally {
+      setLoadingChapters(false);
+    }
+  }, []);
+
   // Pick folder and parse local .txt files
   const handlePickFolder = useCallback(async () => {
     const selected = await open({
@@ -138,25 +155,45 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       title: 'Chọn folder chứa file chương (.txt)',
     });
     if (selected) {
-      setFolderPath(selected);
-      setLoadingChapters(true);
-      try {
-        const rawText = await invoke<string>('ttc_read_folder_text', {
-          folderPath: selected,
-        });
-        setRawFolderText(rawText);
-      } catch (e) {
-        console.error('Parse error:', e);
-        setRawFolderText('');
-      } finally {
-        setLoadingChapters(false);
-      }
+      updateSettings('ttcUploader', { folderPath: selected });
+      await loadFolder(selected);
     }
-  }, []);
+  }, [loadFolder, updateSettings]);
+
+  // Auto-load saved folder when book is selected
+  const autoLoadedRef = useRef<number | null>(null);
+  useEffect(() => {
+    if (selectedBook && folderPath && autoLoadedRef.current !== selectedBook.id) {
+      autoLoadedRef.current = selectedBook.id;
+      loadFolder(folderPath);
+    }
+  }, [selectedBook, folderPath, loadFolder]);
 
   // Process raw text into chapters whenever settings or text changes (debounced)
   const [processingChapters, setProcessingChapters] = useState(false);
   const debounceTimerRef = useRef<ReturnType<typeof setTimeout>>(undefined);
+
+  /**
+   * Natural sort comparator for chapter titles.
+   * Extracts leading number from "Chương X" pattern for numeric comparison,
+   * falls back to locale string comparison for non-numeric titles.
+   */
+  const naturalTitleSort = useCallback((a: ParsedChapter, b: ParsedChapter) => {
+    const numRegex = /chương\s+(\d+)/i;
+    const matchA = a.title.match(numRegex);
+    const matchB = b.title.match(numRegex);
+    if (matchA && matchB) {
+      const numA = parseInt(matchA[1], 10);
+      const numB = parseInt(matchB[1], 10);
+      if (numA !== numB) return numA - numB;
+      // Same chapter number — compare full title (e.g., part suffixes)
+      return a.title.localeCompare(b.title, 'vi');
+    }
+    // Chapters with numbers come first
+    if (matchA) return -1;
+    if (matchB) return 1;
+    return a.title.localeCompare(b.title, 'vi');
+  }, []);
   
   useEffect(() => {
     if (!rawFolderText) {
@@ -175,7 +212,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       // splitMultipleChapters now handles duplicate title removal internally
       const result = splitMultipleChapters(rawFolderText, actualMaxWords, roundUp, actualMinWords);
 
-      const parsedChapters: ParsedChapter[] = result.parts.map((part, index) => {
+      let parsedChapters: ParsedChapter[] = result.parts.map((part, index) => {
         return {
           index: index + 1,
           title: part.title || `Chương ${index + 1}`,
@@ -184,6 +221,13 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
           file_name: 'local_folder',
         };
       });
+
+      // Sort by chapter title (natural sort) if mode is 'name'
+      if (localSortMode === 'name') {
+        parsedChapters.sort(naturalTitleSort);
+        // Re-index after sorting
+        parsedChapters = parsedChapters.map((ch, i) => ({ ...ch, index: i + 1 }));
+      }
       
       setChapters(parsedChapters);
       setProcessingChapters(false);
@@ -193,7 +237,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }, 400);
 
     return () => clearTimeout(debounceTimerRef.current);
-  }, [rawFolderText, maxWords, minWords, roundUp, enableSplit]);
+  }, [rawFolderText, maxWords, minWords, roundUp, enableSplit, localSortMode, naturalTitleSort]);
 
   // Start chapter upload
   const handleUpload = useCallback(async () => {
@@ -271,12 +315,12 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
   // Reset state when book changes
   const resetState = useCallback(() => {
-    setFolderPath(null);
     setChapters([]);
     setRawFolderText('');
     setRemoteChapters([]);
     setAllRemoteChapters([]);
     setRemoteChapPage(1);
+    autoLoadedRef.current = null;
   }, []);
 
   return {
@@ -300,6 +344,8 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     // Settings
     enableSplit,
     setEnableSplit,
+    localSortMode,
+    setLocalSortMode,
     maxWords,
     setMaxWords,
     minWords,

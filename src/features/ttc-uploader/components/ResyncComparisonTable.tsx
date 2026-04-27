@@ -94,6 +94,9 @@ export function ResyncComparisonTable({
           <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
             {localChapters.length} chương Local
           </span>
+          <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
+            {remoteChapters.length} chương TTC
+          </span>
         </h2>
         
         {localChapters.length > 0 && (

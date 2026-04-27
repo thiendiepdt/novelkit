@@ -97,10 +97,12 @@ function TtcUploaderContent() {
             maxWords={chapters.maxWords}
             minWords={chapters.minWords}
             roundUp={chapters.roundUp}
+            localSortMode={chapters.localSortMode}
             onEnableSplitChange={chapters.setEnableSplit}
             onMaxWordsChange={chapters.setMaxWords}
             onMinWordsChange={chapters.setMinWords}
             onRoundUpChange={chapters.setRoundUp}
+            onLocalSortModeChange={chapters.setLocalSortMode}
             onUpload={chapters.handleUpload}
             onCancelUpload={chapters.handleCancelUpload}
             onRemoveJob={chapters.handleRemoveJob}
@@ -134,9 +136,6 @@ function TtcUploaderContent() {
           >
             ⚖️ So sánh Local
             {chapters.loadingAllRemote && <span className="ml-1.5 text-[10px] text-text-dim animate-pulse">(đang tải...)</span>}
-            {!chapters.loadingAllRemote && chapters.allRemoteChapters.length > 0 && (
-              <span className="ml-1.5 text-[10px] text-jade">{chapters.allRemoteChapters.length}</span>
-            )}
           </button>
         </div>
 
