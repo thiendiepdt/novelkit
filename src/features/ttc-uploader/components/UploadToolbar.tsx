@@ -84,24 +84,29 @@ interface UploadToolbarProps {
   delayMs: number;
   progress: UploadProgress;
   enableSplit: boolean;
+  splitFromChapter: number;
   maxWords: number;
   minWords: number;
   roundUp: boolean;
   localSortMode: LocalSortMode;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
+  vipNewChaptersOnly: boolean;
   onPickFolder: () => void;
+  onReloadFolder: () => void;
   onSyncModeChange: (mode: SyncMode) => void;
   onFromIndexChange: (value: number) => void;
   onToIndexChange: (value: number) => void;
   onDelayChange: (value: number) => void;
   onEnableSplitChange: (value: boolean) => void;
+  onSplitFromChapterChange: (value: number) => void;
   onMaxWordsChange: (value: number) => void;
   onMinWordsChange: (value: number) => void;
   onRoundUpChange: (value: boolean) => void;
   onLocalSortModeChange: (value: LocalSortMode) => void;
   onChapterPriceChange: (value: number) => void;
   onUnlockTimerChange: (value: UnlockTimer) => void;
+  onVipNewChaptersOnlyChange: (value: boolean) => void;
   onUpload: () => void;
   onCancelUpload: () => void;
   onRemoveJob: () => void;
@@ -120,24 +125,29 @@ export function UploadToolbar({
   delayMs,
   progress,
   enableSplit,
+  splitFromChapter,
   maxWords,
   minWords,
   roundUp,
   localSortMode,
   chapterPrice,
   unlockTimer,
+  vipNewChaptersOnly,
   onPickFolder,
+  onReloadFolder,
   onSyncModeChange,
   onFromIndexChange,
   onToIndexChange,
   onDelayChange,
   onEnableSplitChange,
+  onSplitFromChapterChange,
   onMaxWordsChange,
   onMinWordsChange,
   onRoundUpChange,
   onLocalSortModeChange,
   onChapterPriceChange,
   onUnlockTimerChange,
+  onVipNewChaptersOnlyChange,
   onUpload,
   onCancelUpload,
   onRemoveJob,
@@ -159,9 +169,18 @@ export function UploadToolbar({
             <span>📁</span> Chọn Folder
           </button>
           {folderPath && (
-            <span className="text-[11px] text-text-dim font-mono max-w-[150px] truncate" title={folderPath}>
-              {folderPath.split(/[/\\]/).pop()}
-            </span>
+            <div className="flex items-center gap-1">
+              <span className="text-[11px] text-text-dim font-mono max-w-[150px] truncate" title={folderPath}>
+                {folderPath.split(/[/\\]/).pop()}
+              </span>
+              <button
+                onClick={onReloadFolder}
+                className="p-1 hover:bg-bg-hover text-text-dim hover:text-gold rounded transition-colors cursor-pointer"
+                title="Tải lại folder"
+              >
+                🔄
+              </button>
+            </div>
           )}
           {loadingChapters ? (
             <span className="text-[10px] text-text-dim">Đang đọc file...</span>
@@ -217,6 +236,16 @@ export function UploadToolbar({
                       value={minWords}
                       onChange={onMinWordsChange}
                       className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                    />
+                  </div>
+                  <div className="flex items-center gap-1.5">
+                    <label className="text-[11px] text-text-dim" title="Chỉ chia từ chương số này trở đi (1 = chia tất cả)">Từ chương:</label>
+                    <BufferedNumberInput
+                      value={splitFromChapter}
+                      onChange={onSplitFromChapterChange}
+                      min={1}
+                      className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                      title="Chỉ chia từ chương số này trở đi (1 = chia tất cả)"
                     />
                   </div>
                   <label className="flex items-center gap-1 cursor-pointer">
@@ -309,20 +338,31 @@ export function UploadToolbar({
           </div>
 
           {chapterPrice > 0 && (
-            <div className="flex items-center gap-1.5">
-              <label className="text-[11px] text-text-dim whitespace-nowrap">🔓</label>
-              <Select
-                value={unlockTimer}
-                onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
-                className="text-xs !py-1 !pl-2 !pr-7"
-              >
-                <option value="">Không mở khóa</option>
-                <option value="8h">8 giờ</option>
-                <option value="1d">1 ngày</option>
-                <option value="3d">3 ngày</option>
-                <option value="7d">7 ngày</option>
-              </Select>
-            </div>
+            <>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] text-text-dim whitespace-nowrap">🔓</label>
+                <Select
+                  value={unlockTimer}
+                  onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
+                  className="text-xs !py-1 !pl-2 !pr-7"
+                >
+                  <option value="">Không mở khóa</option>
+                  <option value="8h">8 giờ</option>
+                  <option value="1d">1 ngày</option>
+                  <option value="3d">3 ngày</option>
+                  <option value="7d">7 ngày</option>
+                </Select>
+              </div>
+              <label className="flex items-center gap-1 cursor-pointer ml-1">
+                <input
+                  type="checkbox"
+                  checked={vipNewChaptersOnly}
+                  onChange={(e) => onVipNewChaptersOnlyChange(e.target.checked)}
+                  className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                />
+                <span className="text-[11px] text-text-dim whitespace-nowrap" title="Chỉ đặt giá/khóa cho các chương chưa có trên web">Chỉ VIP chương mới</span>
+              </label>
+            </>
           )}
 
           {/* Upload Button / Progress */}

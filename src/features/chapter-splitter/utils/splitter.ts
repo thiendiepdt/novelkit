@@ -197,7 +197,8 @@ export function splitMultipleChapters(
   rawText: string,
   maxWords: number,
   roundUp: boolean = true,
-  minWords: number = 0
+  minWords: number = 0,
+  splitFromChapter: number = 0
 ): SplitResult {
   const cleanedText = removeDuplicateChapterTitles(rawText);
   const formatted = formatText(cleanedText).text;
@@ -232,8 +233,11 @@ export function splitMultipleChapters(
   // Process each chapter
   const allParts: PartData[] = [];
   let totalWords = 0;
+  let currentChapterIndex = 0;
 
   for (const chapter of chapters) {
+    currentChapterIndex++;
+
     if (chapter.content.length === 0) {
       // Chapter with only a heading, no content
       const text = chapter.heading;
@@ -247,8 +251,13 @@ export function splitMultipleChapters(
     const chapterContentWords = chapter.content.reduce((sum, p) => sum + getWordCount(p), 0);
     totalWords += chapterContentWords;
 
+    let skipSplit = false;
+    if (splitFromChapter > 0 && currentChapterIndex < splitFromChapter) {
+      skipSplit = true;
+    }
+
     // Check if this chapter needs splitting
-    if (chapterContentWords <= maxWords) {
+    if (skipSplit || chapterContentWords <= maxWords) {
       // No splitting needed — output as-is
       const contentText = chapter.content.join('\n\n');
       const text = [chapter.heading, contentText].join('\n\n');

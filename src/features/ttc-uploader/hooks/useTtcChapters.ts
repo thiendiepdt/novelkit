@@ -53,9 +53,11 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
   // Chapter Splitter Settings
   const { maxWords, minWords, roundUp } = settings.splitter;
-  const { enableSplit, uploadDelayMs: delayMs, localSortMode, folderPath, chapterPrice, unlockTimer } = settings.ttcUploader;
+  const { enableSplit, splitFromChapter, uploadDelayMs: delayMs, localSortMode, folderPath, chapterPrice, unlockTimer, vipNewChaptersOnly } = settings.ttcUploader;
 
   const setEnableSplit = useCallback((v: boolean) => updateSettings('ttcUploader', { enableSplit: v }), [updateSettings]);
+  const setSplitFromChapter = useCallback((v: number) => updateSettings('ttcUploader', { splitFromChapter: v }), [updateSettings]);
+  const setVipNewChaptersOnly = useCallback((v: boolean) => updateSettings('ttcUploader', { vipNewChaptersOnly: v }), [updateSettings]);
   const setMaxWords = useCallback((v: number) => updateSettings('splitter', { maxWords: v }), [updateSettings]);
   const setMinWords = useCallback((v: number) => updateSettings('splitter', { minWords: v }), [updateSettings]);
   const setRoundUp = useCallback((v: boolean) => updateSettings('splitter', { roundUp: v }), [updateSettings]);
@@ -172,6 +174,13 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }
   }, [loadFolder, updateSettings]);
 
+  // Reload current folder
+  const handleReloadFolder = useCallback(async () => {
+    if (folderPath) {
+      await loadFolder(folderPath);
+    }
+  }, [folderPath, loadFolder]);
+
   // Auto-load saved folder when book is selected
   const autoLoadedRef = useRef<number | null>(null);
   useEffect(() => {
@@ -222,7 +231,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       const actualMinWords = enableSplit ? minWords : 0;
 
       // splitMultipleChapters now handles duplicate title removal internally
-      const result = splitMultipleChapters(rawFolderText, actualMaxWords, roundUp, actualMinWords);
+      const result = splitMultipleChapters(rawFolderText, actualMaxWords, roundUp, actualMinWords, splitFromChapter);
 
       let parsedChapters: ParsedChapter[] = result.parts.map((part, index) => {
         return {
@@ -249,7 +258,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }, 400);
 
     return () => clearTimeout(debounceTimerRef.current);
-  }, [rawFolderText, maxWords, minWords, roundUp, enableSplit, localSortMode, naturalTitleSort]);
+  }, [rawFolderText, maxWords, minWords, roundUp, enableSplit, splitFromChapter, localSortMode, naturalTitleSort]);
 
   // Start chapter upload
   const handleUpload = useCallback(async () => {
@@ -272,9 +281,23 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       return;
     }
 
+    const latestRemote = allRemoteChapters.length > 0
+      ? allRemoteChapters[allRemoteChapters.length - 1].chapterNumber
+      : 0;
+
+    let finalChaptersToUpload = chaptersToUpload;
+    if (vipNewChaptersOnly && chapterPrice > 0) {
+      finalChaptersToUpload = chaptersToUpload.map(c => {
+        if (c.index <= latestRemote) {
+          return { ...c, price: 0 }; // Remove price for old chapters
+        }
+        return { ...c, price: chapterPrice };
+      });
+    }
+
     const options: UploadOptions = {
       book_id: selectedBook.id,
-      chapters: chaptersToUpload,
+      chapters: finalChaptersToUpload,
       delay_ms: delayMs,
       price: chapterPrice,
       unlock_timer: unlockTimer || undefined,
@@ -282,7 +305,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
     addJob(options, selectedBook.title);
 
-  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, chapters, allRemoteChapters, addJob]);
+  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, vipNewChaptersOnly, chapters, allRemoteChapters, addJob]);
 
   // Cancel the ongoing upload job for the current book
   const handleCancelUpload = useCallback(() => {
@@ -355,9 +378,12 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     chapters,
     loadingChapters: loadingChapters || processingChapters,
     handlePickFolder,
+    handleReloadFolder,
     // Settings
     enableSplit,
     setEnableSplit,
+    splitFromChapter,
+    setSplitFromChapter,
     localSortMode,
     setLocalSortMode,
     maxWords,
@@ -379,6 +405,8 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     setChapterPrice,
     unlockTimer,
     setUnlockTimer,
+    vipNewChaptersOnly,
+    setVipNewChaptersOnly,
     progress,
     handleUpload,
     handleCancelUpload,

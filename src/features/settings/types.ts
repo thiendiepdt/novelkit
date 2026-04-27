@@ -9,6 +9,7 @@ export interface SplitterSettings {
 
 export interface TtcUploaderSettings {
   enableSplit: boolean;
+  splitFromChapter: number;
   uploadDelayMs: number;
   booksLimit: number;
   chaptersLimit: number;
@@ -16,6 +17,7 @@ export interface TtcUploaderSettings {
   folderPath: string;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
+  vipNewChaptersOnly: boolean;
 }
 
 export interface AppSettings {
@@ -36,6 +38,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
   },
   ttcUploader: {
     enableSplit: true,
+    splitFromChapter: 1,
     uploadDelayMs: 200,
     booksLimit: 20,
     chaptersLimit: 10,
@@ -43,5 +46,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     folderPath: '',
     chapterPrice: 0,
     unlockTimer: '',
+    vipNewChaptersOnly: true,
   },
 };

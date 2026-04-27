@@ -79,6 +79,7 @@ pub struct ParsedChapter {
     pub content: String,
     pub word_count: usize,
     pub file_name: String,
+    pub price: Option<i32>,
 }
 
 // ─── Upload Types ──────────────────────────────────────────

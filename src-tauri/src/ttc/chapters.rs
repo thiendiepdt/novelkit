@@ -214,7 +214,7 @@ pub async fn ttc_upload_chapters(
                 title: chapter.title.clone(),
                 content: chapter.content.clone(),
                 word_count: chapter.word_count,
-                price,
+                price: chapter.price.unwrap_or(price),
                 link: String::new(),
             });
         }
