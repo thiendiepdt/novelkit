@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { isTauri } from '@/shared/utils/platform';
+import { Monitor, Scale, Upload, ClipboardList } from 'lucide-react';
 import { useTtcAuth } from './hooks/useTtcAuth';
 import { useTtcBooks } from './hooks/useTtcBooks';
 import { useTtcChapters } from './hooks/useTtcChapters';
@@ -21,7 +22,7 @@ export default function TtcUploaderPage() {
   if (!isTauri()) {
     return (
       <div className="w-full mx-auto px-4 py-12 text-center">
-        <div className="text-4xl mb-4">🖥️</div>
+        <div className="flex justify-center mb-4 text-text-dim"><Monitor size={48} /></div>
         <h1 className="text-2xl font-bold text-gold mb-2">Chỉ dành cho Desktop</h1>
         <p className="text-text-secondary">
           Tính năng TTC Uploader chỉ khả dụng trên phiên bản desktop của NovelKit.
@@ -128,7 +129,7 @@ function TtcUploaderContent() {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            📋 Danh sách TTC
+            <ClipboardList size={16} className="inline mr-1 -mt-0.5" /> Danh sách TTC
           </button>
           <button
             onClick={() => {
@@ -143,7 +144,7 @@ function TtcUploaderContent() {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            ⚖️ So sánh Local
+            <Scale size={16} className="inline mr-1 -mt-0.5" /> So sánh Local
             {chapters.loadingAllRemote && <span className="ml-1.5 text-[10px] text-text-dim animate-pulse">(đang tải...)</span>}
           </button>
         </div>
@@ -199,7 +200,7 @@ function TtcUploaderContent() {
       ) : (
         <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
           <div className="flex items-center gap-3" style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            <span className="text-2xl">📤</span>
+            <span className="flex items-center text-gold"><Upload size={28} /></span>
             <h1 className="text-xl md:text-2xl font-bold text-gold">
               TTC Uploader
             </h1>

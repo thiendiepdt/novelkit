@@ -1,3 +1,5 @@
+import { ChevronLeft, ChevronRight } from 'lucide-react';
+
 interface PaginationProps {
   currentPage: number;
   totalPages: number;
@@ -24,7 +26,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         disabled={currentPage === 0}
         className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-bg-secondary border border-border-main text-text-secondary hover:text-text-primary hover:border-border-gold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        ‹ Trước
+        <ChevronLeft size={14} className="inline mr-0.5" /> Trước
       </button>
       <div className="flex items-center gap-1">
         {visiblePages.map((pageNum, idx, arr) => {
@@ -51,7 +53,7 @@ export default function Pagination({ currentPage, totalPages, onPageChange }: Pa
         disabled={currentPage >= totalPages - 1}
         className="text-xs font-medium px-2.5 py-1.5 rounded-md bg-bg-secondary border border-border-main text-text-secondary hover:text-text-primary hover:border-border-gold transition-all disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        Sau ›
+        Sau <ChevronRight size={14} className="inline ml-0.5" />
       </button>
       <button
         onClick={() => onPageChange(totalPages - 1)}

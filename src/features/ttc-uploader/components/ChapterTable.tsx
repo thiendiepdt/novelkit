@@ -1,5 +1,6 @@
 import { Pagination } from '@/shared/components';
 import type { TtcChapter, TtcStory } from '../types';
+import { ClipboardList, Download, RefreshCw } from 'lucide-react';
 
 interface ChapterTableProps {
   selectedBook: TtcStory;
@@ -38,7 +39,7 @@ export function ChapterTable({
       {/* Header */}
       <div className="flex-shrink-0 px-4 py-3 bg-bg-hover/50 border-b border-border-main flex justify-between items-center z-10">
         <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
-          <span>📋</span> Danh sách chương trên TTC
+          <ClipboardList size={18} /> Danh sách chương trên TTC
           <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
             {totalChapters || selectedBook.total_chapters} chương
           </span>
@@ -49,7 +50,7 @@ export function ChapterTable({
             className="text-xs px-2.5 py-1 bg-gold/10 border border-gold/30 text-gold rounded hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
             title="Tải toàn bộ chương truyện về máy"
           >
-            <span>⬇</span> Tải Cả Bộ
+            <Download size={14} /> Tải Cả Bộ
           </button>
           <button
             onClick={onRefresh}
@@ -57,7 +58,7 @@ export function ChapterTable({
             className="text-xs text-text-dim hover:text-gold transition-colors cursor-pointer disabled:opacity-50"
             title="Làm mới danh sách"
           >
-            🔄 Refresh
+            <RefreshCw size={14} className="inline mr-1 -mt-0.5" /> Refresh
           </button>
         </div>
       </div>
@@ -137,7 +138,7 @@ function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownlo
           className="px-2 py-1 text-[10px] font-medium rounded border border-gold/30 bg-gold/10 text-gold hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer"
           title={`Tải nội dung chương ${ch.chapterNumber}`}
         >
-          ⬇ Tải
+          <Download size={10} className="inline mr-0.5 -mt-0.5" /> Tải
         </button>
       </td>
     </tr>

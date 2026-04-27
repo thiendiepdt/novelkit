@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { ArrowRight } from 'lucide-react';
 
 interface Props {
   text: string;
@@ -36,7 +37,7 @@ export default function FindReplaceBar({ text, onReplaceText, onClose }: Props) 
           onChange={e => setFindStr(e.target.value)}
           className="flex-1 bg-bg-main border border-border-main rounded-md px-3 py-1.5 text-xs focus:border-gold outline-none text-text-primary min-w-[120px]"
         />
-        <span className="text-text-dim text-xs">→</span>
+        <ArrowRight size={12} className="text-text-dim" />
         <input 
           type="text" 
           placeholder="Thay thế bằng..." 

@@ -1,9 +1,9 @@
 import { Link } from 'react-router-dom';
 import { isTauri } from '@/shared/utils/platform';
-
+import { FileText, Scissors, Zap, Upload, Sparkles, ArrowRight } from 'lucide-react';
 interface Tool {
   id: string;
-  icon: string;
+  icon: React.ReactNode;
   name: string;
   description: string;
   path: string;
@@ -14,7 +14,7 @@ interface Tool {
 const tools: Tool[] = [
   {
     id: 'text-formatter',
-    icon: '📝',
+    icon: <FileText size={36} strokeWidth={1.5} />,
     name: 'Format Truyện',
     description: 'Tự động format đoạn văn, xóa khoảng trắng đầu dòng, kiểm tra chữ Trung, đếm số chữ.',
     path: '/text-formatter',
@@ -22,7 +22,7 @@ const tools: Tool[] = [
   },
   {
     id: 'chapter-splitter',
-    icon: '✂️',
+    icon: <Scissors size={36} strokeWidth={1.5} />,
     name: 'Chia Chương',
     description: 'Cắt một chương truyện dài thành nhiều phần nhỏ để đăng mượt mà, không bị cắt xén đoạn văn.',
     path: '/chapter-splitter',
@@ -30,7 +30,7 @@ const tools: Tool[] = [
   },
   {
     id: 'quick-translator',
-    icon: '⚡',
+    icon: <Zap size={36} strokeWidth={1.5} />,
     name: 'Dịch Nhanh (QT Web)',
     description: 'Dịch Tiếng Trung siêu tốc sử dụng từ điển hệ QuickTranslator. Chỉnh sửa nghĩa bằng click.',
     path: '/quick-translator',
@@ -38,7 +38,7 @@ const tools: Tool[] = [
   },
   {
     id: 'ttc-uploader',
-    icon: '📤',
+    icon: <Upload size={36} strokeWidth={1.5} />,
     name: 'TTC Uploader',
     description: 'Đăng chương hàng loạt lên tiemtruyenchu.com. Resync chương từ folder truyện trong máy.',
     path: '/ttc-uploader',
@@ -91,7 +91,7 @@ export default function HomePage() {
             </p>
             <div className="mt-4 flex items-center gap-1.5 text-xs text-text-dim group-hover:text-gold transition-colors duration-300">
               <span>Mở tool</span>
-              <span className="group-hover:translate-x-1 transition-transform duration-300">→</span>
+              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
             </div>
           </Link>
         ))}
@@ -101,7 +101,7 @@ export default function HomePage() {
           className="block bg-bg-card/50 border border-border-main/50 rounded-xl p-5 md:p-6 opacity-50 cursor-default"
           style={{ animation: 'slideUp 0.5s ease-out 0.1s both' }}
         >
-          <div className="text-3xl md:text-4xl mb-3 opacity-40">🔮</div>
+          <div className="mb-3 opacity-40"><Sparkles size={36} strokeWidth={1.5} /></div>
           <h2 className="text-lg md:text-xl font-semibold text-text-dim mb-1.5">
             Sắp ra mắt...
           </h2>

@@ -1,3 +1,5 @@
+import React from 'react';
+import { Settings, Scissors, Rocket } from 'lucide-react';
 
 export type SettingsCategory = 'general' | 'splitter' | 'ttcUploader';
 
@@ -6,10 +8,10 @@ interface SettingsSidebarProps {
   onSelectCategory: (cat: SettingsCategory) => void;
 }
 
-const CATEGORIES: { id: SettingsCategory; label: string; icon: string }[] = [
-  { id: 'general', label: 'Chung (General)', icon: '⚙️' },
-  { id: 'splitter', label: 'Chapter Splitter', icon: '✂️' },
-  { id: 'ttcUploader', label: 'TTC Uploader', icon: '🚀' },
+const CATEGORIES: { id: SettingsCategory; label: string; icon: React.ReactNode }[] = [
+  { id: 'general', label: 'Chung (General)', icon: <Settings size={16} /> },
+  { id: 'splitter', label: 'Chapter Splitter', icon: <Scissors size={16} /> },
+  { id: 'ttcUploader', label: 'TTC Uploader', icon: <Rocket size={16} /> },
 ];
 
 export function SettingsSidebar({ activeCategory, onSelectCategory }: SettingsSidebarProps) {

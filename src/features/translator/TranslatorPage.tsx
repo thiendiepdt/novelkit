@@ -6,6 +6,7 @@ import TokenViewer from './components/TokenViewer';
 import TranslationEditorModal from './components/TranslationEditorModal';
 import FindReplaceBar from './components/FindReplaceBar';
 import type { TranslatedToken, DictType } from './engine/types';
+import { Zap, Check, DownloadCloud, Clipboard, ArrowRight, Save } from 'lucide-react';
 
 export default function TranslatorPage() {
   const { isReady, isLoading, api } = useTranslatorWorker();
@@ -87,7 +88,7 @@ export default function TranslatorPage() {
       {/* Header */}
       <div className="flex-shrink-0 mb-6 flex flex-col md:flex-row md:items-center justify-between gap-4" style={{ animation: 'fadeIn 0.4s ease-out' }}>
         <h1 className="text-xl md:text-2xl font-bold text-gold flex items-center gap-2">
-          <span>⚡</span>
+          <Zap size={28} className="text-gold" />
           Quick Translator
         </h1>
         <p className="text-sm text-text-secondary mt-1.5 flex items-center gap-2">
@@ -95,7 +96,7 @@ export default function TranslatorPage() {
           {isLoading ? (
             <span className="text-crimson animate-pulse text-xs">Đang tải từ điển...</span>
           ) : (
-            <span className="text-jade text-xs">✓ Sẵn sàng</span>
+            <span className="text-jade text-xs"><Check size={12} className="inline mr-0.5 -mt-0.5" /> Sẵn sàng</span>
           )}
         </p>
       </div>
@@ -106,11 +107,11 @@ export default function TranslatorPage() {
         {/* Left: Input */}
         <div className="flex-1 flex flex-col min-h-0 bg-bg-card rounded-2xl border border-border-main overflow-hidden">
           <div className="flex items-center justify-between px-4 py-3 border-b border-border-main bg-bg-secondary w-full shrink-0">
-            <span className="text-sm font-medium text-text-secondary">📥 Tiếng Trung (Raw)</span>
+            <span className="text-sm font-medium text-text-secondary"><DownloadCloud size={14} className="inline mr-1 -mt-0.5" /> Tiếng Trung (Raw)</span>
             <div className="flex gap-2">
               <button onClick={() => setShowFindReplace(!showFindReplace)} className="text-xs text-text-dim hover:text-white px-2 py-1 transition-colors flex items-center gap-1">🔎 Tìm & Thay thế</button>
               <button onClick={handleClear} className="text-xs text-text-dim hover:text-crimson px-2 py-1 transition-colors">✕ Xóa</button>
-              <button onClick={handlePaste} className="text-xs text-gold hover:text-gold-light px-2 py-1 transition-colors">📋 Dán</button>
+              <button onClick={handlePaste} className="text-xs text-gold hover:text-gold-light px-2 py-1 transition-colors flex items-center gap-1"><Clipboard size={12} /> Dán</button>
             </div>
           </div>
           
@@ -137,7 +138,7 @@ export default function TranslatorPage() {
             disabled={!isReady || !input.trim() || isTranslating}
             className="flex-1 md:flex-none flex items-center justify-center bg-gold text-bg-primary font-semibold text-sm px-6 py-4 rounded-xl transition-all duration-300 hover:bg-gold-light active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed w-full shadow-lg shadow-gold/20"
           >
-            {isTranslating ? 'Đang dịch...' : 'Dịch ➦'}
+            {isTranslating ? 'Đang dịch...' : <span className="flex items-center">Dịch <ArrowRight size={16} className="ml-1.5" /></span>}
           </button>
         </div>
 
@@ -159,8 +160,8 @@ export default function TranslatorPage() {
               </button>
             </div>
             <div className="flex gap-2 shrink-0">
-              <button onClick={handleCopyResult} className="text-xs text-jade hover:text-jade-light px-2 py-1 transition-colors flex items-center gap-1">📋 Copy</button>
-              <button onClick={handleExportText} className="text-xs text-gold hover:text-gold-light px-2 py-1 transition-colors flex items-center gap-1">💾 Tải .txt</button>
+              <button onClick={handleCopyResult} className="text-xs text-jade hover:text-jade-light px-2 py-1 transition-colors flex items-center gap-1"><Clipboard size={12} /> Copy</button>
+              <button onClick={handleExportText} className="text-xs text-gold hover:text-gold-light px-2 py-1 transition-colors flex items-center gap-1"><Save size={12} /> Tải .txt</button>
             </div>
           </div>
           <div className="flex-1 p-4 bg-transparent overflow-y-auto w-full h-full">

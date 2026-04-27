@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
+import { Check } from 'lucide-react';
 import { Select } from '@/shared/components';
 import { fetchEditBookForm, submitEditBookForm, uploadCover } from '../api';
 import type { EditBookForm, EditBookData } from '../types';
@@ -313,7 +314,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                     </label>
                     <label className={`flex-1 flex items-center justify-center gap-2 px-4 py-2.5 rounded-lg border cursor-pointer transition-all ${formData.status === 'full' ? 'bg-jade/10 border-jade text-jade font-semibold shadow-[0_0_10px_rgba(0,200,83,0.2)]' : 'bg-bg-hover border-border-main text-text-secondary hover:border-text-dim'}`}>
                       <input type="radio" name="status" value="full" checked={formData.status === 'full'} onChange={handleChange} className="hidden" />
-                      <span>✓ Hoàn thành</span>
+                      <span className="flex items-center gap-1.5"><Check size={14} /> Hoàn thành</span>
                     </label>
                   </div>
                 </div>

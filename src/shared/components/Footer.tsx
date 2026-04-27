@@ -1,3 +1,5 @@
+import { Settings } from 'lucide-react';
+
 export default function Footer() {
   const year = new Date().getFullYear();
 
@@ -11,7 +13,7 @@ export default function Footer() {
       <div className="w-full mx-auto px-4 md:px-6 py-6">
         <div className="flex flex-col items-center gap-3 text-center">
           <div className="flex items-center gap-2 text-gold text-sm font-semibold tracking-wide">
-            <span>⚙</span>
+            <span><Settings size={16} className="inline" /></span>
             NovelKit
           </div>
           <p className="text-xs text-text-dim leading-relaxed max-w-md">

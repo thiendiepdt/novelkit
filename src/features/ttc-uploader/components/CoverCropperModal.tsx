@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
+import { Scissors } from 'lucide-react';
 import type { Area } from 'react-easy-crop';
 import { getCroppedImg } from '../utils/cropImage';
 
@@ -47,7 +48,7 @@ export function CoverCropperModal({ imageSrc, onClose, onCropComplete }: CoverCr
         {/* Header */}
         <div className="px-5 py-4 border-b border-border-main flex justify-between items-center bg-bg-hover/30">
           <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
-            <span className="text-jade">✂</span> Cắt Ảnh Bìa
+            <span className="text-jade"><Scissors size={18} /></span> Cắt Ảnh Bìa
           </h2>
           <button 
             onClick={onClose}

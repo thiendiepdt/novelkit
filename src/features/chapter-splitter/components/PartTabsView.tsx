@@ -1,6 +1,7 @@
 import type { SplitResult } from '../utils/splitter';
 import type { MiniMapMarker } from '@/shared/components/MiniMapTextarea';
 import MiniMapTextarea from '@/shared/components/MiniMapTextarea';
+import { Check, Clipboard } from 'lucide-react';
 
 interface PartTabsViewProps {
   result: SplitResult;
@@ -76,7 +77,7 @@ export default function PartTabsView({
                 : 'bg-bg-card border border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
             }`}
           >
-            {copiedIndex === activeTab ? '✓ Copied' : '📋 Copy'}
+            {copiedIndex === activeTab ? <><Check size={12} className="inline mr-1" /> Copied</> : <><Clipboard size={12} className="inline mr-1" /> Copy</>}
           </button>
         </div>
         <MiniMapTextarea

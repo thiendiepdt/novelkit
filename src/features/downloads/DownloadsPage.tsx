@@ -1,6 +1,7 @@
 import { useDownloadQueue } from '@/shared/context/useDownloadQueue';
 import { isTauri } from '@/shared/utils/platform';
 import { invoke } from '@tauri-apps/api/core';
+import { Download, Package, Folder } from 'lucide-react';
 
 export default function DownloadsPage() {
   const { jobs, removeJob, cancelJob, clearDone } = useDownloadQueue();
@@ -28,7 +29,7 @@ export default function DownloadsPage() {
     <div className="w-full max-w-5xl mx-auto px-4 md:px-6 py-6 md:py-8 space-y-8" style={{ animation: 'fadeIn 0.4s ease-out' }}>
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-3">
-          <span className="text-2xl">⬇️</span>
+          <span className="flex items-center justify-center text-gold"><Download size={28} /></span>
           <h1 className="text-xl md:text-2xl font-bold text-gold">Quản lý Tải xuống</h1>
         </div>
         {completedJobs.length > 0 && (
@@ -43,8 +44,8 @@ export default function DownloadsPage() {
 
       {jobs.length === 0 ? (
         <div className="bg-bg-card border border-border-main rounded-xl p-12 flex flex-col items-center justify-center text-center">
-          <div className="w-16 h-16 rounded-full bg-bg-hover flex items-center justify-center text-3xl mb-4">
-            📦
+          <div className="w-16 h-16 rounded-full bg-bg-hover flex items-center justify-center mb-4 text-text-dim">
+            <Package size={32} />
           </div>
           <h3 className="text-lg font-medium text-text-primary mb-2">Chưa có dữ liệu tải xuống</h3>
           <p className="text-sm text-text-dim max-w-sm">
@@ -147,7 +148,7 @@ export default function DownloadsPage() {
                             }}
                             className="px-3 py-1.5 bg-bg-hover text-text-primary text-xs font-medium rounded-lg hover:bg-gold/20 hover:text-gold transition-colors flex items-center gap-1.5 cursor-pointer"
                           >
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z"></path></svg>
+                            <Folder size={14} />
                             Mở thư mục
                           </button>
                         )}

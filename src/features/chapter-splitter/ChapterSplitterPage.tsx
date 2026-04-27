@@ -8,6 +8,7 @@ import SplitterInput from './components/SplitterInput';
 import SplitterStats from './components/SplitterStats';
 import PartListView from './components/PartListView';
 import PartTabsView from './components/PartTabsView';
+import { Scissors, Save, Maximize2, Sparkles, UploadCloud, Check, Clipboard, BookOpen } from 'lucide-react';
 
 export default function ChapterSplitterPage() {
   const splitter = useChapterSplitter();
@@ -40,7 +41,7 @@ export default function ChapterSplitterPage() {
       {/* Title */}
       <div className="mb-6" style={{ animation: 'fadeIn 0.4s ease-out' }}>
         <h1 className="text-xl md:text-2xl font-bold text-gold flex items-center gap-2">
-          <span>✂️</span>
+          <Scissors size={28} className="text-gold" />
           Chia Chương
         </h1>
         <p className="text-sm text-text-secondary mt-1.5 leading-relaxed">
@@ -86,7 +87,7 @@ export default function ChapterSplitterPage() {
             boxShadow: splitter.input.trim() && splitter.isValidInput ? '0 4px 20px rgba(201,169,110,0.3)' : 'none',
           }}
         >
-          {splitter.isMultiChapter ? `✦ Chia ${splitter.chapterBoundaryCount} Chương` : '✦ Chia Chương'}
+          {splitter.isMultiChapter ? <><Sparkles size={14} className="inline mr-1" /> Chia {splitter.chapterBoundaryCount} Chương</> : <><Sparkles size={14} className="inline mr-1" /> Chia Chương</>}
         </button>
       </div>
 
@@ -98,7 +99,7 @@ export default function ChapterSplitterPage() {
           {/* Output header */}
           <div className="flex items-center justify-between mb-4">
             <p className="text-sm font-medium text-text-secondary">
-              📤 Kết quả chia ({result.parts.length} phần):
+              <UploadCloud size={14} className="inline mr-1 -mt-0.5" /> Kết quả chia ({result.parts.length} phần):
             </p>
             <div className="flex items-center gap-2">
               <button
@@ -109,19 +110,19 @@ export default function ChapterSplitterPage() {
                     : 'bg-bg-card border border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
                 }`}
               >
-                {copiedIndex === -1 ? '✓ Copied' : '📋 Copy tất cả'}
+                {copiedIndex === -1 ? <><Check size={12} className="inline mr-1" /> Copied</> : <><Clipboard size={12} className="inline mr-1" /> Copy tất cả</>}
               </button>
               <button
                 onClick={handleDownloadOutput}
                 className="text-xs font-medium text-jade bg-jade/10 border border-jade/25 hover:bg-jade/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
               >
-                <span>💾</span> Tải .txt
+                <Save size={14} /> Tải .txt
               </button>
               <button
                 onClick={() => splitter.setShowFullscreen(true)}
                 className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
               >
-                <span>⛶</span> Xem toàn màn
+                <Maximize2 size={14} /> Xem toàn màn
               </button>
             </div>
           </div>
@@ -157,8 +158,8 @@ export default function ChapterSplitterPage() {
             isOpen={splitter.showFullscreen}
             onClose={() => splitter.setShowFullscreen(false)}
             title={result.chapterCount
-              ? `📖 Xem trước - ${result.chapterCount} chương`
-              : `📖 Xem trước - ${result.parts.length} phần`}
+              ? <><BookOpen size={14} className="inline mr-1" /> Xem trước - {result.chapterCount} chương</>
+              : <><BookOpen size={14} className="inline mr-1" /> Xem trước - {result.parts.length} phần</>}
           />
 
           {splitter.previewPartIndex !== null && (
@@ -166,7 +167,7 @@ export default function ChapterSplitterPage() {
               text={result.parts[splitter.previewPartIndex]?.text || ''}
               isOpen
               onClose={() => splitter.setPreviewPartIndex(null)}
-              title={`📖 ${result.parts[splitter.previewPartIndex]?.text.split('\n')[0] || `Phần ${splitter.previewPartIndex + 1}`} (${splitter.previewPartIndex + 1}/${result.parts.length})`}
+              title={<><BookOpen size={14} className="inline mr-1" /> {result.parts[splitter.previewPartIndex]?.text.split('\n')[0] || `Phần ${splitter.previewPartIndex + 1}`} ({splitter.previewPartIndex + 1}/{result.parts.length})</>}
               hasPrev={splitter.previewPartIndex > 0}
               hasNext={splitter.previewPartIndex < result.parts.length - 1}
               onPrev={() => splitter.setPreviewPartIndex(prev => prev !== null ? Math.max(0, prev - 1) : null)}
@@ -180,7 +181,7 @@ export default function ChapterSplitterPage() {
         text={splitter.showInputFullscreen ? splitter.input : ''}
         isOpen={splitter.showInputFullscreen}
         onClose={() => splitter.setShowInputFullscreen(false)}
-        title="📖 Xem trước - Nội dung gốc"
+        title={<><BookOpen size={14} className="inline mr-1" /> Xem trước - Nội dung gốc</>}
       />
     </div>
   );

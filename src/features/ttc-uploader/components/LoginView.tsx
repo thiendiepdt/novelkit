@@ -1,3 +1,5 @@
+import { Upload, Lock } from 'lucide-react';
+
 interface LoginViewProps {
   onLogin: () => void;
 }
@@ -9,7 +11,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
   return (
     <>
       <div className="flex-shrink-0 flex items-center gap-3 mb-8" style={{ animation: 'fadeIn 0.4s ease-out' }}>
-        <span className="text-2xl">📤</span>
+        <span className="flex items-center text-gold"><Upload size={28} /></span>
         <h1 className="text-xl md:text-2xl font-bold text-gold">
           TTC Uploader
         </h1>
@@ -24,7 +26,7 @@ export function LoginView({ onLogin }: LoginViewProps) {
           style={{ animation: 'slideUp 0.4s ease-out' }}
         >
           <div className="w-16 h-16 bg-bg-hover rounded-full flex items-center justify-center mx-auto mb-4">
-            <span className="text-3xl">🔒</span>
+            <Lock size={32} />
           </div>
           <h2 className="text-xl font-bold text-text-primary mb-2">Chưa đăng nhập</h2>
           <p className="text-sm text-text-secondary mb-6">

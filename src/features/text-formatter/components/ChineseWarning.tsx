@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import { AlertTriangle } from 'lucide-react';
 
 interface ChineseWarningProps {
   chineseChars: string[];
@@ -13,7 +14,7 @@ export default function ChineseWarning({ chineseChars }: ChineseWarningProps) {
   return (
     <div className="mt-4 bg-crimson/10 border border-crimson/30 rounded-xl p-4 animate-copy-success">
       <div className="flex items-start gap-3">
-        <span className="text-xl shrink-0">⚠️</span>
+        <AlertTriangle size={24} className="shrink-0 text-crimson" />
         <div className="flex-1 min-w-0">
           <h3 className="text-sm font-semibold text-crimson mb-1">
             Phát hiện {chineseChars.length} ký tự tiếng Trung!

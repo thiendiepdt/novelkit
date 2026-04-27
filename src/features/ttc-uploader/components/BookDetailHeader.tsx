@@ -1,6 +1,7 @@
 import type { TtcStory } from '../types';
 import ProxiedImage from './ProxiedImage';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
+import { Settings, ArrowLeft } from 'lucide-react';
 
 interface BookDetailHeaderProps {
   book: TtcStory;
@@ -19,7 +20,7 @@ export function BookDetailHeader({ book, onBack }: BookDetailHeaderProps) {
         onClick={onBack}
         className="mt-1 px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-secondary hover:text-gold hover:border-gold/50 transition-colors cursor-pointer flex-shrink-0"
       >
-        ← Quay lại
+        <ArrowLeft size={14} className="inline mr-1" /> Quay lại
       </button>
       <ProxiedImage
         path={book.poster}
@@ -39,7 +40,7 @@ export function BookDetailHeader({ book, onBack }: BookDetailHeaderProps) {
         className="mt-1 px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-secondary hover:text-gold hover:border-gold/50 transition-colors cursor-pointer flex-shrink-0 flex items-center gap-1.5"
         title="Cấu hình riêng cho truyện này"
       >
-        <span>⚙️</span>
+        <Settings size={16} />
         <span className="hidden sm:inline">Cấu hình</span>
       </button>
     </div>
