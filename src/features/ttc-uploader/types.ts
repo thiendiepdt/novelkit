@@ -32,6 +32,9 @@ export interface TtcChapter {
   status: string | null;
   chapter_price: number;
   last_chap_updated: string | null;
+  buy_count?: number;
+  link_click_count?: number;
+  unlock_link?: string | null;
 }
 
 export interface TtcChaptersResponse {

@@ -1,5 +1,5 @@
 import type { TtcChapter, ParsedChapter, SyncMode } from '../types';
-import { useMemo, useState, useEffect } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { Scale, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ROWS_PER_PAGE = 100;
@@ -73,7 +73,7 @@ export function ResyncComparisonTable({
       recommendationText = 'Mọi chương đều khớp. Không cần cập nhật.';
     }
 
-    return { rows, recommendedMode, recFromIndex, recToIndex, recommendationText };
+    return { rows, recommendedMode, recFromIndex, recToIndex, recommendationText, firstChangedIndex };
   }, [localChapters, remoteChapters]);
 
   // Pagination
@@ -83,8 +83,44 @@ export function ResyncComparisonTable({
     return analysis.rows.slice(start, start + ROWS_PER_PAGE);
   }, [analysis.rows, page]);
 
-  // Reset page when data changes
-  useEffect(() => setPage(0), [localChapters.length, remoteChapters.length]);
+  const scrollContainerRef = useRef<HTMLDivElement>(null);
+  const [scrollTriggerId, setScrollTriggerId] = useState(0);
+
+  // Auto-navigate to the page containing the first changed chapter, or reset to 0
+  useEffect(() => {
+    if (analysis.firstChangedIndex !== null) {
+      const targetArrayIndex = analysis.rows.findIndex(r => r.local.index === analysis.firstChangedIndex);
+      if (targetArrayIndex >= 0) {
+        const targetPage = Math.floor(targetArrayIndex / ROWS_PER_PAGE);
+        setPage(targetPage);
+        setScrollTriggerId(id => id + 1); // Trigger scroll
+        return;
+      }
+    }
+    setPage(0);
+  }, [localChapters, remoteChapters, analysis.firstChangedIndex, analysis.rows]);
+
+  // Auto-scroll to the row
+  useEffect(() => {
+    if (scrollTriggerId === 0 || analysis.firstChangedIndex === null) return;
+    
+    const targetArrayIndex = analysis.rows.findIndex(r => r.local.index === analysis.firstChangedIndex);
+    if (targetArrayIndex >= 0) {
+      const targetPage = Math.floor(targetArrayIndex / ROWS_PER_PAGE);
+      if (page === targetPage) {
+        // Delay to allow DOM update and initial slideUp animation to complete
+        const timer = setTimeout(() => {
+          if (scrollContainerRef.current) {
+            const row = scrollContainerRef.current.querySelector(`tr[data-chapter-index="${analysis.firstChangedIndex}"]`);
+            if (row) {
+              row.scrollIntoView({ behavior: 'smooth', block: 'center' });
+            }
+          }
+        }, 400);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [scrollTriggerId, page, analysis.firstChangedIndex, analysis.rows]);
 
   return (
     <div className="bg-bg-card border border-border-main rounded-xl overflow-hidden mt-4 flex flex-col flex-1 min-h-0" style={{ animation: 'slideUp 0.3s ease-out 0.1s both' }}>
@@ -146,7 +182,7 @@ export function ResyncComparisonTable({
       )}
 
       {/* Table */}
-      <div className="flex-1 overflow-y-auto relative min-h-[300px]">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative min-h-[300px]">
         {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-text-dim">
             <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />
@@ -170,7 +206,7 @@ export function ResyncComparisonTable({
             </thead>
             <tbody className="divide-y divide-border-main">
               {paginatedRows.map((row) => (
-                <tr key={row.local.index} className="hover:bg-bg-hover/50 transition-colors text-text-primary">
+                <tr key={row.local.index} data-chapter-index={row.local.index} className="hover:bg-bg-hover/50 transition-colors text-text-primary">
                   <td className="px-4 py-2 text-center text-text-dim text-xs font-mono">{row.local.index}</td>
                   
                   {/* TTC Data */}
