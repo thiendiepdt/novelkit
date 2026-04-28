@@ -1,6 +1,6 @@
 import { Pagination } from '@/shared/components';
 import type { TtcChapter, TtcStory } from '../types';
-import { ClipboardList, Download, RefreshCw } from 'lucide-react';
+import { ClipboardList, Download, RefreshCw, Lock } from 'lucide-react';
 
 interface ChapterTableProps {
   selectedBook: TtcStory;
@@ -96,6 +96,7 @@ export function ChapterTable({
                 <th className="px-4 py-2 font-medium border-b border-border-main">Tên chương</th>
                 <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main">Số chữ</th>
                 <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main">Lượt xem</th>
+                <th className="px-4 py-2 font-medium w-24 text-center border-b border-border-main">Mua/Click</th>
                 <th className="px-4 py-2 font-medium w-28 text-center border-b border-border-main">Trạng thái</th>
                 <th className="px-4 py-2 font-medium w-32 text-center border-b border-border-main">Cập nhật</th>
                 <th className="px-4 py-2 font-medium w-20 text-center border-b border-border-main">Thao tác</th>
@@ -119,12 +120,26 @@ function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownlo
   return (
     <tr className="hover:bg-bg-hover/50 transition-colors text-text-primary">
       <td className="px-4 py-2.5 text-center text-text-dim text-xs font-mono">{ch.chapterNumber}</td>
-      <td className="px-4 py-2.5 max-w-[200px] md:max-w-[300px] truncate" title={ch.title}>{ch.title}</td>
+      <td className="px-4 py-2.5 max-w-[200px] md:max-w-[400px]" title={ch.title}>
+        <div className="flex items-center gap-2">
+          <span className="truncate">{ch.title}</span>
+          {ch.chapter_price > 0 && (
+            <span className="shrink-0 inline-flex items-center gap-1 bg-[#d32f2f] text-white px-1.5 py-0.5 rounded-md text-[10px] font-bold shadow-sm">
+              <Lock size={10} /> VIP • {ch.chapter_price} 🌸
+            </span>
+          )}
+        </div>
+      </td>
       <td className="px-4 py-2.5 text-right text-text-dim text-xs font-mono">
         {ch.wordCount > 0 ? ch.wordCount.toLocaleString() : '-'}
       </td>
       <td className="px-4 py-2.5 text-right text-text-dim text-xs font-mono">
         {ch.views.toLocaleString()}
+      </td>
+      <td className="px-4 py-2.5 text-center text-text-dim text-xs font-mono">
+        {ch.chapter_price > 0
+          ? (ch.buy_count?.toLocaleString() || '0')
+          : (ch.unlock_link ? (ch.link_click_count?.toLocaleString() || '0') : '—')}
       </td>
       <td className="px-4 py-2.5 text-center">
         <ChapterStatusBadge status={ch.status} />

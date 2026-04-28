@@ -50,6 +50,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   const [chapters, setChapters] = useState<ParsedChapter[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
   const [rawFolderText, setRawFolderText] = useState<string>('');
+  const [reloadCounter, setReloadCounter] = useState(0);
 
   // Chapter Splitter Settings
   const { maxWords, minWords, roundUp } = settings.splitter;
@@ -154,6 +155,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
         folderPath: path,
       });
       setRawFolderText(rawText);
+      setReloadCounter(c => c + 1);
     } catch (e) {
       console.error('Parse error:', e);
       setRawFolderText('');
@@ -258,7 +260,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }, 400);
 
     return () => clearTimeout(debounceTimerRef.current);
-  }, [rawFolderText, maxWords, minWords, roundUp, enableSplit, splitFromChapter, localSortMode, naturalTitleSort]);
+  }, [rawFolderText, reloadCounter, maxWords, minWords, roundUp, enableSplit, splitFromChapter, localSortMode, naturalTitleSort]);
 
   // Start chapter upload
   const handleUpload = useCallback(async () => {
