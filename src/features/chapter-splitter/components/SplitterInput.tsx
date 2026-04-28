@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { useDragDrop } from '@/shared/hooks/useDragDrop';
 import MiniMapTextarea from '@/shared/components/MiniMapTextarea';
+import { Library, BookOpen, Maximize2, FolderOpen, FileText, AlertTriangle, DownloadCloud, Clipboard } from 'lucide-react';
 
 interface SplitterInputProps {
   input: string;
@@ -43,7 +44,7 @@ export default function SplitterInput({
       <div className="flex items-center justify-between mb-2">
         <div className="flex items-center gap-2">
           <label htmlFor="input-text" className="text-sm font-medium text-text-secondary">
-            📥 Nội dung gốc
+            <DownloadCloud size={14} className="inline mr-1 -mt-0.5" /> Nội dung gốc
           </label>
           {input.trim() && (
             <span
@@ -53,7 +54,7 @@ export default function SplitterInput({
                   : 'bg-jade/15 text-jade border border-jade/30'
               }`}
             >
-              {isMultiChapter ? `📚 ${chapterBoundaryCount} chương` : '📖 1 chương'}
+              {isMultiChapter ? <><Library size={12} className="inline mr-1" /> {chapterBoundaryCount} chương</> : <><BookOpen size={12} className="inline mr-1" /> 1 chương</>}
             </span>
           )}
         </div>
@@ -63,13 +64,13 @@ export default function SplitterInput({
             disabled={!input.trim()}
             className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
           >
-            <span>⛶</span> Toàn màn
+            <Maximize2 size={14} /> Toàn màn
           </button>
           <button
             onClick={() => fileInputRef.current?.click()}
             className="text-xs font-medium text-purple bg-purple/10 border border-purple/25 hover:bg-purple/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
           >
-            📂 Upload .txt
+            <FolderOpen size={14} className="inline mr-1" /> Upload .txt
           </button>
           <input
             ref={fileInputRef}
@@ -90,7 +91,7 @@ export default function SplitterInput({
             onClick={onPaste}
             className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
           >
-            📋 Dán
+            <Clipboard size={12} className="inline mr-1" /> Dán
           </button>
         </div>
       </div>
@@ -100,7 +101,7 @@ export default function SplitterInput({
         {isDragOver && (
           <div className="absolute inset-0 z-20 bg-purple/10 border-2 border-dashed border-purple/50 rounded-xl flex items-center justify-center backdrop-blur-sm pointer-events-none">
             <div className="text-center">
-              <span className="text-3xl block mb-2">📂</span>
+              <div className="flex justify-center mb-2"><FolderOpen size={36} className="text-purple" /></div>
               <span className="text-sm font-medium text-purple">Thả file .txt vào đây</span>
             </div>
           </div>
@@ -108,7 +109,7 @@ export default function SplitterInput({
         {isLargeInput && inputStats ? (
           <div className="bg-bg-card border border-border-main rounded-xl p-5">
             <div className="flex items-center gap-3 mb-3">
-              <span className="text-2xl">📄</span>
+              <FileText size={24} className="text-text-dim" />
               <div>
                 <p className="text-sm font-semibold text-text-primary">Nội dung đã tải</p>
                 <p className="text-xs text-text-dim mt-0.5">Quá lớn để hiển thị — sẽ xử lý khi bấm Chia</p>
@@ -155,7 +156,7 @@ export default function SplitterInput({
       </div>
       {!isValidInput && (
         <p className="text-xs text-crimson mt-2 flex items-center gap-1.5" style={{ animation: 'fadeIn 0.2s ease-out' }}>
-          <span>⚠️</span> Văn bản phải bắt đầu bằng chữ "Chương" (dòng đầu làm tiêu đề).
+          <AlertTriangle size={14} /> Văn bản phải bắt đầu bằng chữ "Chương" (dòng đầu làm tiêu đề).
         </p>
       )}
     </div>

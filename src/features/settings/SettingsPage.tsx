@@ -7,6 +7,7 @@ import { useSettingsModal } from './context/SettingsModalContext';
 import { Select } from '@/shared/components';
 import { useTtcAuth } from '@/features/ttc-uploader/hooks/useTtcAuth';
 import { useTtcBooks } from '@/features/ttc-uploader/hooks/useTtcBooks';
+import { Settings, X, RotateCcw } from 'lucide-react';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -237,13 +238,10 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
           className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
           title="Đóng (Esc)"
         >
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-            <line x1="18" y1="6" x2="6" y2="18" />
-            <line x1="6" y1="6" x2="18" y2="18" />
-          </svg>
+          <X size={18} />
         </button>
         <h1 className="text-lg font-bold text-text-primary flex items-center gap-2">
-          <span>⚙️</span> Settings
+          <Settings size={18} /> Settings
         </h1>
         
         <div className="h-6 w-px bg-border-main mx-2" />
@@ -285,7 +283,7 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
             className="ml-auto text-xs px-3 py-1.5 bg-crimson/10 text-crimson border border-crimson/30 rounded hover:bg-crimson/20 transition-colors cursor-pointer flex items-center gap-1"
             title="Khôi phục toàn bộ cấu hình hệ thống về mặc định gốc"
           >
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>
+            <RotateCcw size={14} />
             <span className="hidden sm:inline">Khôi phục mặc định</span>
           </button>
         )}

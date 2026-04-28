@@ -1,11 +1,13 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { copyToClipboard } from '@/shared/utils/clipboard';
+import { Book, ChevronLeft, ChevronRight, Copy, Check, X } from 'lucide-react';
 
 interface FullscreenPreviewProps {
   text: string;
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title?: string | ReactNode;
   onNext?: () => void;
   onPrev?: () => void;
   hasNext?: boolean;
@@ -54,7 +56,9 @@ export default function FullscreenPreview({ text, isOpen, onClose, title, onNext
         style={{ background: 'rgba(18, 18, 18, 0.98)' }}
       >
         <div className="flex items-center gap-2">
-          <span className="text-gold text-sm font-semibold">{title || '📖 Xem trước'}</span>
+          <span className="text-gold text-sm font-semibold flex items-center gap-1.5">
+            {title || <><Book size={16} /> Xem trước</>}
+          </span>
         </div>
 
         <div className="flex items-center gap-2">
@@ -66,7 +70,7 @@ export default function FullscreenPreview({ text, isOpen, onClose, title, onNext
                 className="text-text-secondary hover:text-gold disabled:opacity-30 disabled:hover:text-text-secondary disabled:cursor-not-allowed px-2.5 py-1.5 transition-colors"
                 title="Phần trước"
               >
-                 ◀
+                 <ChevronLeft size={16} />
               </button>
               <div className="w-[1px] h-4 bg-white/10" />
               <button
@@ -75,26 +79,26 @@ export default function FullscreenPreview({ text, isOpen, onClose, title, onNext
                 className="text-text-secondary hover:text-gold disabled:opacity-30 disabled:hover:text-text-secondary disabled:cursor-not-allowed px-2.5 py-1.5 transition-colors"
                 title="Phần tiếp theo"
               >
-                ▶
+                <ChevronRight size={16} />
               </button>
             </div>
           )}
           <button
             onClick={handleCopy}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all duration-200 active:scale-95 ${
+            className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
               copied
                 ? 'bg-jade/20 border-jade/40 text-jade'
                 : 'bg-bg-card border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
             }`}
           >
-            {copied ? '✓ Copied' : '📋 Copy'}
+            {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
           </button>
           <button
             onClick={onClose}
-            className="text-text-dim hover:text-text-primary transition-colors duration-200 p-1.5 rounded-lg hover:bg-white/5 text-lg leading-none"
+            className="text-text-dim hover:text-text-primary transition-colors duration-200 p-1.5 rounded-lg hover:bg-white/5 flex items-center justify-center"
             aria-label="Đóng"
           >
-            ✕
+            <X size={18} />
           </button>
         </div>
       </div>

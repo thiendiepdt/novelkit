@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUploadQueueContext } from '../context/UploadQueueContext';
+import { Upload, X, Check, AlertCircle } from 'lucide-react';
 
 export default function UploadQueueManager() {
   const { jobs, cancelJob, removeJob, clearDone } = useUploadQueueContext();
@@ -33,11 +34,7 @@ export default function UploadQueueManager() {
         }`}
         title="Hàng đợi Đăng chương"
       >
-        <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-          <polyline points="17 8 12 3 7 8" />
-          <line x1="12" y1="3" x2="12" y2="15" />
-        </svg>
+        <Upload size={20} />
         {totalActive > 0 && (
           <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-crimson text-[10px] font-bold text-white shadow-sm ring-2 ring-bg-main">
             {totalActive}
@@ -51,11 +48,7 @@ export default function UploadQueueManager() {
           {/* Header */}
           <div className="flex items-center justify-between p-4 border-b border-border-main">
             <h3 className="font-bold text-text-primary flex items-center gap-2">
-              <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-gold">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="17 8 12 3 7 8" />
-                <line x1="12" y1="3" x2="12" y2="15" />
-              </svg>
+              <Upload size={18} className="text-gold" />
               Tiến trình Đăng chương
             </h3>
             {jobs.some(j => j.status === 'done' || j.status === 'error') && (
@@ -94,7 +87,7 @@ export default function UploadQueueManager() {
                         className="p-1 text-text-dim hover:text-crimson hover:bg-crimson/10 rounded transition-colors"
                         title="Hủy tiến trình"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <X size={14} />
                       </button>
                     ) : (
                       <button
@@ -102,7 +95,7 @@ export default function UploadQueueManager() {
                         className="p-1 text-text-dim hover:text-text-primary hover:bg-bg-hover rounded transition-colors"
                         title="Xóa khỏi danh sách"
                       >
-                        <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><line x1="18" y1="6" x2="6" y2="18"></line><line x1="6" y1="6" x2="18" y2="18"></line></svg>
+                        <X size={14} />
                       </button>
                     )}
                   </div>
@@ -135,7 +128,7 @@ export default function UploadQueueManager() {
 
                   {job.status === 'done' && (
                     <div className="flex items-center gap-1.5 text-xs text-jade">
-                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="20 6 9 17 4 12"></polyline></svg>
+                      <Check size={12} />
                       Đã hoàn tất
                     </div>
                   )}
@@ -143,7 +136,7 @@ export default function UploadQueueManager() {
                   {job.status === 'error' && (
                     <div className="text-xs text-crimson">
                       <div className="flex items-center gap-1.5 font-medium mb-1">
-                        <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="10"></circle><line x1="12" y1="8" x2="12" y2="12"></line><line x1="12" y1="16" x2="12.01" y2="16"></line></svg>
+                        <AlertCircle size={12} />
                         Lỗi đăng chương
                       </div>
                       <div className="text-[11px] opacity-80 break-words">

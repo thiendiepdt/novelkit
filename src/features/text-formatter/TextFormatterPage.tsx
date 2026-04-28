@@ -4,6 +4,7 @@ import { copyToClipboard } from '@/shared/utils/clipboard';
 import StatsPanel from './components/StatsPanel';
 import ChineseWarning from './components/ChineseWarning';
 import FullscreenPreview from '@/shared/components/FullscreenPreview';
+import { FileText, Maximize2, DownloadCloud, Clipboard, Sparkles, Check, UploadCloud } from 'lucide-react';
 
 export default function TextFormatterPage() {
   const [input, setInput] = useState('');
@@ -48,7 +49,7 @@ export default function TextFormatterPage() {
       {/* Title */}
       <div className="mb-6" style={{ animation: 'fadeIn 0.4s ease-out' }}>
         <h1 className="text-xl md:text-2xl font-bold text-gold flex items-center gap-2">
-          <span>📝</span>
+          <FileText size={28} className="text-gold" />
           Format Truyện
         </h1>
         <p className="text-sm text-text-secondary mt-1.5 leading-relaxed">
@@ -60,7 +61,7 @@ export default function TextFormatterPage() {
       <div className="mb-4" style={{ animation: 'fadeIn 0.4s ease-out 0.1s both' }}>
         <div className="flex items-center justify-between mb-2">
           <label htmlFor="input-text" className="text-sm font-medium text-text-secondary">
-            📥 Nội dung gốc
+            <DownloadCloud size={14} className="inline mr-1 -mt-0.5" /> Nội dung gốc
           </label>
           <div className="flex items-center gap-2">
             {input && (
@@ -75,7 +76,7 @@ export default function TextFormatterPage() {
               onClick={handlePaste}
               className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
             >
-              📋 Dán
+              <Clipboard size={12} className="inline mr-1" /> Dán
             </button>
           </div>
         </div>
@@ -104,7 +105,7 @@ export default function TextFormatterPage() {
             boxShadow: input.trim() ? '0 4px 20px rgba(201,169,110,0.3)' : 'none',
           }}
         >
-          ✦ Format
+          <Sparkles size={14} className="inline mr-1 -mt-0.5" /> Format
         </button>
 
         {result && (
@@ -117,7 +118,7 @@ export default function TextFormatterPage() {
                 : 'bg-bg-card border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
             }`}
           >
-            {copied ? '✓ Đã copy!' : '📋 Copy kết quả'}
+            {copied ? <><Check size={14} className="inline mr-1" /> Đã copy!</> : <><Clipboard size={14} className="inline mr-1" /> Copy kết quả</>}
           </button>
         )}
       </div>
@@ -137,20 +138,20 @@ export default function TextFormatterPage() {
           <div className="mt-4">
             <div className="flex items-center justify-between mb-2">
               <label htmlFor="output-text" className="text-sm font-medium text-text-secondary">
-                📤 Kết quả đã format
+                <UploadCloud size={14} className="inline mr-1 -mt-0.5" /> Kết quả đã format
               </label>
               <div className="flex items-center gap-2">
                 <button
                   onClick={() => setShowFullscreen(true)}
                   className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
                 >
-                  <span>⛶</span> Xem toàn màn
+                  <Maximize2 size={14} /> Xem toàn màn
                 </button>
                 <button
                   onClick={handleCopy}
                   className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
                 >
-                  {copied ? '✓ Copied' : '📋 Copy'}
+                  {copied ? <><Check size={12} className="inline mr-1" /> Copied</> : <><Clipboard size={12} className="inline mr-1" /> Copy</>}
                 </button>
               </div>
             </div>

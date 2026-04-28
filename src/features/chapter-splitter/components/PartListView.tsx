@@ -1,5 +1,6 @@
 import type { PartData } from '../utils/splitter';
 import Pagination from './Pagination';
+import { ClipboardList, Save, Check, Clipboard } from 'lucide-react';
 
 interface PartListViewProps {
   paginatedParts: { part: PartData; globalIndex: number }[];
@@ -19,7 +20,7 @@ export default function PartListView({
   return (
     <div className="bg-bg-card border border-border-main rounded-xl overflow-hidden">
       <div className="flex items-center justify-between p-3 border-b border-border-main bg-bg-secondary/50">
-        <span className="text-sm font-semibold text-text-primary">📋 Danh sách phần</span>
+        <span className="text-sm font-semibold text-text-primary"><ClipboardList size={14} className="inline mr-1 -mt-0.5" /> Danh sách phần</span>
         <span className="text-xs text-text-dim">Trang {listPage + 1}/{totalPages}</span>
       </div>
 
@@ -53,7 +54,7 @@ export default function PartListView({
                   className="text-xs font-medium px-2 py-1 rounded-md transition-all duration-200 active:scale-95 bg-bg-secondary border border-border-main text-text-dim opacity-0 group-hover:opacity-100 hover:text-jade hover:border-jade/50"
                   title="Tải về"
                 >
-                  💾
+                  <Save size={14} className="inline" />
                 </button>
                 <button
                   onClick={() => onCopy(part.text, globalIndex)}
@@ -64,7 +65,7 @@ export default function PartListView({
                   }`}
                   title="Copy"
                 >
-                  {copiedIndex === globalIndex ? '✓' : '📋'}
+                  {copiedIndex === globalIndex ? <Check size={14} className="inline" /> : <Clipboard size={14} className="inline" />}
                 </button>
               </div>
             </div>

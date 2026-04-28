@@ -3,6 +3,7 @@ import { SYNC_MODE_LABELS } from '../types';
 import type { LocalSortMode, UnlockTimer } from '@/features/settings/types';
 import Select from '@/shared/components/Select';
 import { useState, useEffect } from 'react';
+import { Folder, RefreshCw, Upload, Coins, Unlock, Check, X } from 'lucide-react';
 
 /**
  * A number input that buffers keystrokes and only calls onChange 500ms after typing stops,
@@ -166,7 +167,7 @@ export function UploadToolbar({
             className="px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-primary hover:border-gold/50 transition-colors cursor-pointer flex items-center gap-1.5"
             title="Chọn folder chứa file chương (.txt)"
           >
-            <span>📁</span> Chọn Folder
+            <Folder size={14} /> Chọn Folder
           </button>
           {folderPath && (
             <div className="flex items-center gap-1">
@@ -178,7 +179,7 @@ export function UploadToolbar({
                 className="p-1 hover:bg-bg-hover text-text-dim hover:text-gold rounded transition-colors cursor-pointer"
                 title="Tải lại folder"
               >
-                🔄
+                <RefreshCw size={14} />
               </button>
             </div>
           )}
@@ -326,7 +327,7 @@ export function UploadToolbar({
 
           {/* VIP */}
           <div className="flex items-center gap-1.5">
-            <label className="text-[11px] text-text-dim whitespace-nowrap">💰 VIP:</label>
+            <label className="text-[11px] text-text-dim whitespace-nowrap"><Coins size={12} className="inline mr-1 text-gold" /> VIP:</label>
             <BufferedNumberInput
               value={chapterPrice}
               onChange={onChapterPriceChange}
@@ -340,7 +341,7 @@ export function UploadToolbar({
           {chapterPrice > 0 && (
             <>
               <div className="flex items-center gap-1.5">
-                <label className="text-[11px] text-text-dim whitespace-nowrap">🔓</label>
+                <label className="text-[11px] text-text-dim whitespace-nowrap"><Unlock size={12} className="inline" /></label>
                 <Select
                   value={unlockTimer}
                   onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
@@ -372,7 +373,7 @@ export function UploadToolbar({
                 onClick={onUpload}
                 className="w-full px-4 py-1.5 bg-gold text-bg-primary font-bold text-xs rounded-lg hover:bg-gold/90 transition-colors cursor-pointer flex items-center justify-center gap-1.5"
               >
-                <span>🚀</span> Upload
+                <span><Upload size={14} /></span> Upload
               </button>
             ) : (
               <div className="w-full flex flex-col justify-center">
@@ -392,8 +393,8 @@ export function UploadToolbar({
                 </div>
                 {(progress.success > 0 || progress.failed > 0) && (
                   <div className="flex gap-2 text-[10px] mt-1 justify-end">
-                    {progress.success > 0 && <span className="text-jade">✓ {progress.success}</span>}
-                    {progress.failed > 0 && <span className="text-crimson">✗ {progress.failed}</span>}
+                    {progress.success > 0 && <span className="text-jade"><Check size={10} className="inline mr-0.5 -mt-0.5" /> {progress.success}</span>}
+                    {progress.failed > 0 && <span className="text-crimson"><X size={10} className="inline mr-0.5 -mt-0.5" /> {progress.failed}</span>}
                   </div>
                 )}
                 {(progress.status === 'done' || progress.status === 'error') ? (

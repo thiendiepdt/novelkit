@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { isTauri } from '@/shared/utils/platform';
+import { Settings, ArrowLeft } from 'lucide-react';
 import { DownloadQueueManager, UploadQueueManager } from '@/shared/components';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 
@@ -19,7 +20,7 @@ export default function Header() {
           to="/"
           className="flex items-center gap-2 text-gold text-lg md:text-xl font-bold whitespace-nowrap tracking-wide"
         >
-          <span className="text-xl md:text-2xl">⚙</span>
+          <span className="flex items-center justify-center mr-1"><Settings className="w-5 h-5 md:w-6 md:h-6" /></span>
           NovelKit
         </Link>
 
@@ -29,7 +30,7 @@ export default function Header() {
               to="/"
               className="text-sm text-text-secondary hover:text-gold transition-all duration-300 flex items-center gap-1.5"
             >
-              <span>←</span>
+              <ArrowLeft size={14} />
               <span className="hidden sm:inline">Trang chủ</span>
             </Link>
           )}
@@ -38,7 +39,7 @@ export default function Header() {
             className="text-text-secondary hover:text-gold transition-colors flex items-center justify-center text-lg cursor-pointer"
             title="Cài đặt hệ thống"
           >
-            ⚙️
+            <Settings size={20} />
           </button>
           <UploadQueueManager />
           <DownloadQueueManager />

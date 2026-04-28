@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import Select from './Select';
+import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 // ─── Constants ─────────────────────────────────────────────
 const LIMIT_OPTIONS = [10, 16, 20, 30, 50];
@@ -60,7 +61,7 @@ export default function Pagination({
         disabled={currentPage <= 1 || disabled}
         className="px-2.5 py-1 text-xs font-medium rounded-lg border border-border-main bg-bg-card text-text-secondary hover:border-gold hover:text-gold transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        ← Trước
+        <ArrowLeft size={14} className="inline mr-1" /> Trước
       </button>
 
       {/* Page number buttons */}
@@ -100,7 +101,7 @@ export default function Pagination({
         disabled={currentPage >= totalPages || disabled}
         className="px-2.5 py-1 text-xs font-medium rounded-lg border border-border-main bg-bg-card text-text-secondary hover:border-gold hover:text-gold transition-colors cursor-pointer disabled:opacity-30 disabled:cursor-not-allowed"
       >
-        Sau →
+        Sau <ArrowRight size={14} className="inline ml-1" />
       </button>
 
       {/* Go to page */}

@@ -1,12 +1,13 @@
 import { Link, useLocation } from 'react-router-dom';
+import { Home, FileText, Scissors, Zap, Upload, Download } from 'lucide-react';
 
 const navItems = [
-  { id: 'home', icon: '🏠', path: '/', title: 'Trang chủ' },
-  { id: 'text-formatter', icon: '📝', path: '/text-formatter', title: 'Format Truyện' },
-  { id: 'chapter-splitter', icon: '✂️', path: '/chapter-splitter', title: 'Chia Chương' },
-  { id: 'quick-translator', icon: '⚡', path: '/quick-translator', title: 'Dịch Nhanh' },
-  { id: 'ttc-uploader', icon: '📤', path: '/ttc-uploader', title: 'TTC Uploader' },
-  { id: 'downloads', icon: '⬇️', path: '/downloads', title: 'Quản lý tải xuống' },
+  { id: 'home', icon: <Home size={20} />, path: '/', title: 'Trang chủ' },
+  { id: 'text-formatter', icon: <FileText size={20} />, path: '/text-formatter', title: 'Format Truyện' },
+  { id: 'chapter-splitter', icon: <Scissors size={20} />, path: '/chapter-splitter', title: 'Chia Chương' },
+  { id: 'quick-translator', icon: <Zap size={20} />, path: '/quick-translator', title: 'Dịch Nhanh' },
+  { id: 'ttc-uploader', icon: <Upload size={20} />, path: '/ttc-uploader', title: 'TTC Uploader' },
+  { id: 'downloads', icon: <Download size={20} />, path: '/downloads', title: 'Quản lý tải xuống' },
 ];
 
 export default function Sidebar() {

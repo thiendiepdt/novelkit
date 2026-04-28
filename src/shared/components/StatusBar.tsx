@@ -1,5 +1,5 @@
 import { useLocation } from 'react-router-dom';
-
+import { Settings } from 'lucide-react';
 const routeNames: Record<string, string> = {
   '/': 'Trang chủ',
   '/text-formatter': 'Format Truyện',
@@ -26,7 +26,7 @@ export default function StatusBar() {
       <div className="flex items-center gap-4">
         <span className="hover:text-gold transition-colors cursor-default">Tauri Workspace</span>
         <span className="text-text-dim/50">|</span>
-        <span className="font-medium text-gold/80 hover:text-gold transition-colors cursor-default">⚙ NovelKit</span>
+        <span className="flex items-center gap-1.5 font-medium text-gold/80 hover:text-gold transition-colors cursor-default"><Settings size={14} /> NovelKit</span>
       </div>
     </div>
   );

@@ -1,5 +1,6 @@
 import type { TtcChapter, ParsedChapter, SyncMode } from '../types';
 import { useMemo, useState, useEffect } from 'react';
+import { Scale, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
 
 const ROWS_PER_PAGE = 100;
 
@@ -90,7 +91,7 @@ export function ResyncComparisonTable({
       {/* Header & Recommendation */}
       <div className="flex-shrink-0 px-4 py-3 bg-bg-hover/50 border-b border-border-main z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2 whitespace-nowrap">
-          <span>⚖️</span> So sánh dữ liệu Resync
+          <span><Scale size={18} /></span> So sánh dữ liệu Resync
           <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
             {localChapters.length} chương Local
           </span>
@@ -102,7 +103,7 @@ export function ResyncComparisonTable({
         {localChapters.length > 0 && (
           <div className="flex items-center gap-3 bg-bg-primary border border-border-main px-3 py-1.5 rounded-lg flex-1 sm:flex-none">
             <span className="text-[11px] text-text-secondary truncate" title={analysis.recommendationText}>
-              💡 {analysis.recommendationText}
+              <Lightbulb size={12} className="inline mr-1 -mt-0.5" /> {analysis.recommendationText}
             </span>
             {analysis.recommendedMode && (analysis.recommendedMode !== 'all' || analysis.recommendationText.includes('Ghi đè')) && (
               <button
@@ -128,7 +129,7 @@ export function ResyncComparisonTable({
               disabled={page === 0}
               className="px-2 py-0.5 text-[11px] rounded border border-border-main bg-bg-hover text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-default transition-colors"
             >
-              ‹ Trước
+              <ChevronLeft size={12} className="inline mr-0.5 -mt-0.5" /> Trước
             </button>
             <span className="text-[11px] text-text-dim px-2">
               {page + 1}/{totalPages}
@@ -138,7 +139,7 @@ export function ResyncComparisonTable({
               disabled={page >= totalPages - 1}
               className="px-2 py-0.5 text-[11px] rounded border border-border-main bg-bg-hover text-text-secondary hover:text-text-primary disabled:opacity-30 cursor-pointer disabled:cursor-default transition-colors"
             >
-              Sau ›
+              Sau <ChevronRight size={12} className="inline ml-0.5 -mt-0.5" />
             </button>
           </div>
         </div>
