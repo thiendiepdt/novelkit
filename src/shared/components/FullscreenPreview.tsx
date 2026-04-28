@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import type { ReactNode } from 'react';
 import { copyToClipboard } from '@/shared/utils/clipboard';
 import { Book, ChevronLeft, ChevronRight, Copy, Check, X } from 'lucide-react';
 
@@ -6,7 +7,7 @@ interface FullscreenPreviewProps {
   text: string;
   isOpen: boolean;
   onClose: () => void;
-  title?: string;
+  title?: string | ReactNode;
   onNext?: () => void;
   onPrev?: () => void;
   hasNext?: boolean;
