@@ -520,6 +520,8 @@ pub async fn ttc_download_all_chapters(
         return Err("Không tìm thấy chương nào để tải.".to_string());
     }
 
+    all_chapters.sort_by_key(|chapter| chapter.chapter_number);
+
     let mut success_count = 0;
     let mut failed_count = 0;
     let delay = std::time::Duration::from_millis(options.delay_ms.unwrap_or(100));
