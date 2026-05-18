@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
-use super::client::{get_client, TTC_BASE, USER_AGENT};
+use super::client::{get_client, get_ttc_base, USER_AGENT};
 
 // ─── Image Cache ──────────────────────────────────────────
 
@@ -24,16 +24,18 @@ impl Default for TtcImageCache {
 
 #[tauri::command]
 pub async fn ttc_proxy_image(app: AppHandle, path: String) -> Result<String, String> {
+    let base_url = get_ttc_base(&app).await?;
+    let url = format!("{}{}", base_url, path);
+
     // Check cache first
     {
         let cache = app.state::<TtcImageCache>();
         let guard = cache.cache.lock().unwrap();
-        if let Some(data_uri) = guard.get(&path) {
+        if let Some(data_uri) = guard.get(&url) {
             return Ok(data_uri.clone());
         }
     }
 
-    let url = format!("{}{}", TTC_BASE, path);
     let client = get_client(&app);
     let resp = client
         .get(&url)
@@ -60,7 +62,7 @@ pub async fn ttc_proxy_image(app: AppHandle, path: String) -> Result<String, Str
     // Store in cache
     {
         let cache = app.state::<TtcImageCache>();
-        cache.cache.lock().unwrap().insert(path, data_uri.clone());
+        cache.cache.lock().unwrap().insert(url, data_uri.clone());
     }
 
     Ok(data_uri)

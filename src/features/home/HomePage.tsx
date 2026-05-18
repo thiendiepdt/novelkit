@@ -40,7 +40,7 @@ const tools: Tool[] = [
     id: 'ttc-uploader',
     icon: <Upload size={36} strokeWidth={1.5} />,
     name: 'TTC Uploader',
-    description: 'Đăng chương hàng loạt lên tiemtruyenchu.com. Resync chương từ folder truyện trong máy.',
+    description: 'Đăng chương hàng loạt lên TTC. Resync chương từ folder truyện trong máy.',
     path: '/ttc-uploader',
     badge: 'Desktop',
     desktopOnly: true,

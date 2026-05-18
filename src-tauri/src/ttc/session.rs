@@ -2,7 +2,7 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
-use super::client::{get_client, TTC_BASE, USER_AGENT};
+use super::client::{get_client, get_ttc_base, USER_AGENT};
 
 const SESSION_FILE: &str = "ttc_session.dat";
 
@@ -63,7 +63,8 @@ pub async fn ttc_open_login(app: AppHandle) -> Result<(), String> {
         w.close().ok();
     }
 
-    let login_url = format!("{}/login", TTC_BASE);
+    let base_url = get_ttc_base(&app).await?;
+    let login_url = format!("{}/login", base_url);
     WebviewWindowBuilder::new(
         &app,
         "ttc-login",
@@ -91,7 +92,8 @@ pub async fn ttc_check_session(app: AppHandle) -> Result<Option<String>, String>
     };
 
     // Try to extract session cookie from the login webview
-    let url: url::Url = TTC_BASE.parse().unwrap();
+    let base_url = get_ttc_base(&app).await?;
+    let url = base_url.parse::<url::Url>().map_err(|e| e.to_string())?;
     let cookies = login_window
         .cookies_for_url(url)
         .map_err(|e| format!("Failed to read cookies: {}", e))?;
@@ -147,7 +149,8 @@ pub async fn ttc_verify_session(app: AppHandle) -> Result<bool, String> {
     };
 
     let client = get_client(&app);
-    let url = format!("{}/my-stories?limit=1&ajax=true", TTC_BASE);
+    let base_url = get_ttc_base(&app).await?;
+    let url = format!("{}/my-stories?limit=1&ajax=true", base_url);
     let resp = client
         .get(&url)
         .header("Cookie", format!("session={}", session))

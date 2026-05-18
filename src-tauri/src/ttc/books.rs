@@ -1,6 +1,6 @@
 use tauri::AppHandle;
 
-use super::client::{get_client, get_session, TTC_BASE, USER_AGENT};
+use super::client::{get_client, get_session, get_ttc_base, USER_AGENT};
 use super::types::TtcBooksResponse;
 
 // ─── Fetch Books Command ──────────────────────────────────
@@ -19,9 +19,10 @@ pub async fn ttc_fetch_books(
     let limit = limit.unwrap_or(20);
     let keyword = keyword.unwrap_or_default();
     let status = status.unwrap_or_else(|| "ongoing".to_string());
+    let base_url = get_ttc_base(&app).await?;
     let url = format!(
         "{}/my-stories?keyword={}&status={}&page={}&limit={}&sortBy=updated_at&sortDir=desc&ajax=true",
-        TTC_BASE,
+        base_url,
         urlencoding::encode(&keyword),
         urlencoding::encode(&status),
         page,
@@ -55,7 +56,8 @@ pub async fn ttc_fetch_books(
 pub async fn ttc_fetch_html(app: AppHandle, path: String) -> Result<String, String> {
     let session = get_session(&app)?;
 
-    let url = format!("{}{}", TTC_BASE, path);
+    let base_url = get_ttc_base(&app).await?;
+    let url = format!("{}{}", base_url, path);
     let client = get_client(&app);
     let resp = client
         .get(&url)
@@ -84,7 +86,8 @@ pub async fn ttc_submit_multipart(
 ) -> Result<String, String> {
     let session = get_session(&app)?;
 
-    let url = format!("{}{}", TTC_BASE, path);
+    let base_url = get_ttc_base(&app).await?;
+    let url = format!("{}{}", base_url, path);
 
     let mut form = reqwest::multipart::Form::new();
     for (k, v) in fields {
@@ -138,7 +141,8 @@ pub async fn ttc_upload_cover(
 
     let form = reqwest::multipart::Form::new().part("poster", part);
 
-    let url = format!("{}/upload-anh-bia/{}", TTC_BASE, book_id);
+    let base_url = get_ttc_base(&app).await?;
+    let url = format!("{}/upload-anh-bia/{}", base_url, book_id);
     let client = get_client(&app);
     let resp = client
         .post(&url)
