@@ -9,7 +9,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::time::sleep;
 
-use super::client::{get_client, get_session, TTC_BASE, USER_AGENT};
+use super::client::{get_client, get_session, get_ttc_base, USER_AGENT};
 use super::types::*;
 use super::utils::sanitize_filename;
 
@@ -26,9 +26,10 @@ pub async fn ttc_fetch_chapters(
 
     let page = page.unwrap_or(1);
     let limit = limit.unwrap_or(50);
+    let base_url = get_ttc_base(&app).await?;
     let url = format!(
         "{}/api/get-chapters/{}?page={}&limit={}",
-        TTC_BASE, book_id, page, limit
+        base_url, book_id, page, limit
     );
 
     let client = get_client(&app);
@@ -110,10 +111,11 @@ pub async fn ttc_read_folder_text(folder_path: String) -> Result<String, String>
 
 async fn ttc_fetch_upload_tokens(
     client: &reqwest::Client,
+    base_url: &str,
     session: &str,
     book_id: i64,
 ) -> Result<(String, String), String> {
-    let url = format!("{}/dang-chuong/{}", TTC_BASE, book_id);
+    let url = format!("{}/dang-chuong/{}", base_url, book_id);
     let resp = client
         .get(&url)
         .header("Cookie", format!("session={}", session))
@@ -163,10 +165,11 @@ pub async fn ttc_upload_chapters(
     let price = options.price.unwrap_or(0);
     let unlock_timer = options.unlock_timer.clone().unwrap_or_default();
     let client = get_client(&app);
+    let base_url = get_ttc_base(&app).await?;
 
     // Fetch Tokens
     let (csrf_token, upload_nonce) =
-        match ttc_fetch_upload_tokens(&client, &session, options.book_id).await {
+        match ttc_fetch_upload_tokens(&client, &base_url, &session, options.book_id).await {
             Ok(tokens) => tokens,
             Err(e) => return Err(e),
         };
@@ -229,7 +232,7 @@ pub async fn ttc_upload_chapters(
             serial_chunks_per_day: 5,
         };
 
-        let url = format!("{}/luu-cac-chuong/{}", TTC_BASE, options.book_id);
+        let url = format!("{}/luu-cac-chuong/{}", base_url, options.book_id);
 
         let mut attempts = 0;
         'retry_loop: while attempts < 3 {
@@ -239,10 +242,10 @@ pub async fn ttc_upload_chapters(
                 .post(&url)
                 .header("Cookie", format!("session={}", session))
                 .header("User-Agent", USER_AGENT)
-                .header("Origin", TTC_BASE)
+                .header("Origin", &base_url)
                 .header(
                     "Referer",
-                    format!("{}/dang-chuong/{}", TTC_BASE, options.book_id),
+                    format!("{}/dang-chuong/{}", base_url, options.book_id),
                 )
                 .header("x-csrf-token", &csrf_token)
                 .header("x-upload-nonce", &current_nonce)
@@ -401,7 +404,8 @@ pub async fn ttc_download_chapter(
 ) -> Result<DownloadedChapter, String> {
     let session = get_session(&app)?;
 
-    let url = format!("{}/sua-chuong/{}/{}", TTC_BASE, book_id, chapter_number);
+    let base_url = get_ttc_base(&app).await?;
+    let url = format!("{}/sua-chuong/{}/{}", base_url, book_id, chapter_number);
 
     let client = get_client(&app);
     let resp = client
@@ -515,6 +519,8 @@ pub async fn ttc_download_all_chapters(
     if total == 0 {
         return Err("Không tìm thấy chương nào để tải.".to_string());
     }
+
+    all_chapters.sort_by_key(|chapter| chapter.chapter_number);
 
     let mut success_count = 0;
     let mut failed_count = 0;

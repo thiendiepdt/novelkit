@@ -2,7 +2,8 @@ use std::path::PathBuf;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
-use super::client::{get_client, TTC_BASE, USER_AGENT};
+use super::client::{get_client, get_ttc_base, USER_AGENT};
+use super::types::TtcBooksResponse;
 
 const SESSION_FILE: &str = "ttc_session.dat";
 
@@ -54,6 +55,34 @@ fn delete_session_from_disk(app: &AppHandle) {
     }
 }
 
+async fn verify_session_cookie(
+    client: &reqwest::Client,
+    base_url: &str,
+    session: &str,
+) -> Result<bool, String> {
+    let url = format!("{}/my-stories?limit=1&ajax=true", base_url);
+    let resp = client
+        .get(&url)
+        .header("Cookie", format!("session={}", session))
+        .header("User-Agent", USER_AGENT)
+        .send()
+        .await
+        .map_err(|e| format!("Request failed: {}", e))?;
+
+    if !resp.status().is_success() {
+        return Ok(false);
+    }
+
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| format!("Read response failed: {}", e))?;
+
+    Ok(serde_json::from_str::<TtcBooksResponse>(&body)
+        .map(|books| books.success)
+        .unwrap_or(false))
+}
+
 // ─── Login Commands ────────────────────────────────────────
 
 #[tauri::command]
@@ -63,7 +92,8 @@ pub async fn ttc_open_login(app: AppHandle) -> Result<(), String> {
         w.close().ok();
     }
 
-    let login_url = format!("{}/login", TTC_BASE);
+    let base_url = get_ttc_base(&app).await?;
+    let login_url = format!("{}/login", base_url);
     WebviewWindowBuilder::new(
         &app,
         "ttc-login",
@@ -91,7 +121,8 @@ pub async fn ttc_check_session(app: AppHandle) -> Result<Option<String>, String>
     };
 
     // Try to extract session cookie from the login webview
-    let url: url::Url = TTC_BASE.parse().unwrap();
+    let base_url = get_ttc_base(&app).await?;
+    let url = base_url.parse::<url::Url>().map_err(|e| e.to_string())?;
     let cookies = login_window
         .cookies_for_url(url)
         .map_err(|e| format!("Failed to read cookies: {}", e))?;
@@ -99,6 +130,11 @@ pub async fn ttc_check_session(app: AppHandle) -> Result<Option<String>, String>
     for cookie in &cookies {
         if cookie.name() == "session" {
             let session_value = cookie.value().to_string();
+
+            let client = get_client(&app);
+            if !verify_session_cookie(&client, &base_url, &session_value).await? {
+                return Ok(None);
+            }
 
             // Store in state + persist to disk
             let state = app.state::<TtcSession>();
@@ -118,8 +154,20 @@ pub async fn ttc_check_session(app: AppHandle) -> Result<Option<String>, String>
 #[tauri::command]
 pub async fn ttc_get_session(app: AppHandle) -> Result<Option<String>, String> {
     let state = app.state::<TtcSession>();
-    let cookie = state.cookie.lock().unwrap().clone();
-    Ok(cookie)
+    let cookie = match state.cookie.lock().unwrap().clone() {
+        Some(cookie) => cookie,
+        None => return Ok(None),
+    };
+
+    let client = get_client(&app);
+    let base_url = get_ttc_base(&app).await?;
+    if verify_session_cookie(&client, &base_url, &cookie).await? {
+        return Ok(Some(cookie));
+    }
+
+    *state.cookie.lock().unwrap() = None;
+    delete_session_from_disk(&app);
+    Ok(None)
 }
 
 #[tauri::command]
@@ -147,14 +195,6 @@ pub async fn ttc_verify_session(app: AppHandle) -> Result<bool, String> {
     };
 
     let client = get_client(&app);
-    let url = format!("{}/my-stories?limit=1&ajax=true", TTC_BASE);
-    let resp = client
-        .get(&url)
-        .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
-        .send()
-        .await
-        .map_err(|e| format!("Request failed: {}", e))?;
-
-    Ok(resp.status().is_success())
+    let base_url = get_ttc_base(&app).await?;
+    verify_session_cookie(&client, &base_url, &session).await
 }
