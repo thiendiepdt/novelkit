@@ -188,6 +188,17 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
               </Select>
             </SettingsItem>
             
+            <SettingsItem 
+              label={<span>Bỏ qua số chương đầu trên web {renderOverrideIndicator('ttcUploader', 'skipChapters')}</span>} 
+              description="Số chương cũ muốn bỏ qua khi so sánh với web (chương local đầu tiên sẽ khớp với chương N+1 trên web)."
+            >
+              <SettingsNumber 
+                value={getValue('ttcUploader', 'skipChapters')} 
+                onChange={v => setValue('ttcUploader', 'skipChapters', v)} 
+                min={0} step={1}
+              />
+            </SettingsItem>
+            
             {isGlobal && (
               <>
                 <SettingsItem 
