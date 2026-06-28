@@ -110,16 +110,6 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }
   }, []);
 
-  // Auto-refetch remote chapters when upload completes
-  const prevUploadStatusRef = useRef<string | undefined>(undefined);
-  useEffect(() => {
-    const currentStatus = currentJob?.status;
-    if (prevUploadStatusRef.current === 'running' && currentStatus === 'done' && selectedBook) {
-      fetchRemoteChapters(selectedBook.id, 1, chaptersLimit);
-    }
-    prevUploadStatusRef.current = currentStatus;
-  }, [currentJob?.status, selectedBook, fetchRemoteChapters, chaptersLimit]);
-
   // Fetch ALL remote chapters for comparison
   const fetchAllRemoteChapters = useCallback(async (bookId: number) => {
     setLoadingAllRemote(true);
@@ -147,6 +137,20 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       setLoadingAllRemote(false);
     }
   }, []);
+
+  // Auto-refetch remote chapters when an upload completes (running → done).
+  // Refresh both the paginated list (ChapterTable) and the full comparison
+  // list so the resync tab and append-mode start index reflect what was just
+  // pushed, instead of staying on the pre-upload snapshot.
+  const prevUploadStatusRef = useRef<string | undefined>(undefined);
+  useEffect(() => {
+    const currentStatus = currentJob?.status;
+    if (prevUploadStatusRef.current === 'running' && currentStatus === 'done' && selectedBook) {
+      fetchRemoteChapters(selectedBook.id, 1, chaptersLimit);
+      fetchAllRemoteChapters(selectedBook.id);
+    }
+    prevUploadStatusRef.current = currentStatus;
+  }, [currentJob?.status, selectedBook, fetchRemoteChapters, fetchAllRemoteChapters, chaptersLimit]);
 
   // Load folder text from a given path
   const loadFolder = useCallback(async (path: string) => {
