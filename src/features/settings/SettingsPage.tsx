@@ -143,14 +143,28 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
               label={<span>Tự động chia chương khi Upload {renderOverrideIndicator('ttcUploader', 'enableSplit')}</span>} 
               description="Bật tính năng tự động chạy nội dung qua Chapter Splitter trước khi so sánh/đẩy lên TTC."
             >
-              <SettingsToggle 
-                checked={getValue('ttcUploader', 'enableSplit')} 
-                onChange={v => setValue('ttcUploader', 'enableSplit', v)} 
+              <SettingsToggle
+                checked={getValue('ttcUploader', 'enableSplit')}
+                onChange={v => setValue('ttcUploader', 'enableSplit', v)}
               />
             </SettingsItem>
 
-            <SettingsItem 
-              label={<span>Delay giữa các requests (ms) {renderOverrideIndicator('ttcUploader', 'uploadDelayMs')}</span>} 
+            <SettingsItem
+              label={<span>Sắp xếp chương local {renderOverrideIndicator('ttcUploader', 'localSortMode')}</span>}
+              description="Thứ tự sắp xếp chương khi đọc folder: theo tên chương (Chương 1, 2, 3…) hoặc theo thứ tự file trong folder."
+            >
+              <Select
+                value={getValue('ttcUploader', 'localSortMode')}
+                onChange={(e) => setValue('ttcUploader', 'localSortMode', e.target.value)}
+                className="py-1"
+              >
+                <option value="name" className="bg-bg-card text-text-primary">Tên chương</option>
+                <option value="file" className="bg-bg-card text-text-primary">Thứ tự file</option>
+              </Select>
+            </SettingsItem>
+
+            <SettingsItem
+              label={<span>Delay giữa các requests (ms) {renderOverrideIndicator('ttcUploader', 'uploadDelayMs')}</span>}
               description="Thời gian chờ giữa các lần push API để tránh bị rate-limit 429 từ TTC."
             >
               <SettingsNumber 
