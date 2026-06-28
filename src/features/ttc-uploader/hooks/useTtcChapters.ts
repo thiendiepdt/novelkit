@@ -210,13 +210,14 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       const numA = parseInt(matchA[1], 10);
       const numB = parseInt(matchB[1], 10);
       if (numA !== numB) return numA - numB;
-      // Same chapter number — compare full title (e.g., part suffixes)
-      return a.title.localeCompare(b.title, 'vi');
+      // Same chapter number — compare full title numerically so part suffixes
+      // like "(2/12)" sort before "(10/12)" instead of lexicographically.
+      return a.title.localeCompare(b.title, 'vi', { numeric: true });
     }
     // Chapters with numbers come first
     if (matchA) return -1;
     if (matchB) return 1;
-    return a.title.localeCompare(b.title, 'vi');
+    return a.title.localeCompare(b.title, 'vi', { numeric: true });
   }, []);
   
   useEffect(() => {
