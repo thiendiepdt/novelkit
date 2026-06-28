@@ -18,6 +18,7 @@ export interface TtcUploaderSettings {
   chapterPrice: number;
   unlockTimer: UnlockTimer;
   vipNewChaptersOnly: boolean;
+  skipChapters: number;
 }
 
 export interface AppSettings {
@@ -47,5 +48,6 @@ export const DEFAULT_SETTINGS: AppSettings = {
     chapterPrice: 0,
     unlockTimer: '',
     vipNewChaptersOnly: true,
+    skipChapters: 0,
   },
 };

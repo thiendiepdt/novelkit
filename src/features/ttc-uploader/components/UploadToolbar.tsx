@@ -93,6 +93,7 @@ interface UploadToolbarProps {
   chapterPrice: number;
   unlockTimer: UnlockTimer;
   vipNewChaptersOnly: boolean;
+  skipChapters: number;
   onPickFolder: () => void;
   onReloadFolder: () => void;
   onSyncModeChange: (mode: SyncMode) => void;
@@ -108,6 +109,7 @@ interface UploadToolbarProps {
   onChapterPriceChange: (value: number) => void;
   onUnlockTimerChange: (value: UnlockTimer) => void;
   onVipNewChaptersOnlyChange: (value: boolean) => void;
+  onSkipChaptersChange: (value: number) => void;
   onUpload: () => void;
   onCancelUpload: () => void;
   onRemoveJob: () => void;
@@ -134,6 +136,7 @@ export function UploadToolbar({
   chapterPrice,
   unlockTimer,
   vipNewChaptersOnly,
+  skipChapters,
   onPickFolder,
   onReloadFolder,
   onSyncModeChange,
@@ -149,6 +152,7 @@ export function UploadToolbar({
   onChapterPriceChange,
   onUnlockTimerChange,
   onVipNewChaptersOnlyChange,
+  onSkipChaptersChange,
   onUpload,
   onCancelUpload,
   onRemoveJob,
@@ -205,6 +209,21 @@ export function UploadToolbar({
                 <option value="name">📝 Tên chương</option>
                 <option value="file">📁 Thứ tự file</option>
               </Select>
+            </div>
+
+            <div className="h-5 w-px bg-border-main"></div>
+
+            {/* Skip Chapters (Bỏ qua N chương) */}
+            <div className="flex items-center gap-1.5">
+              <label className="text-[11px] text-text-dim" title="Bỏ qua N chương đầu trên web (chương local đầu tiên khớp với chương N+1 trên web)">Bỏ qua:</label>
+              <BufferedNumberInput
+                value={skipChapters}
+                onChange={onSkipChaptersChange}
+                min={0}
+                className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                title="Bỏ qua N chương đầu trên web (chương local đầu tiên khớp với chương N+1 trên web)"
+              />
+              <span className="text-[10px] text-text-dim">chương</span>
             </div>
 
             <div className="h-5 w-px bg-border-main"></div>

@@ -55,9 +55,15 @@ export function ResyncComparisonTable({
       return { local, remote, status, statusText };
     });
 
+    // Last local chapter's index (accounts for skipChapters offset, which makes
+    // indices run from 1+skip .. length+skip rather than 1 .. length).
+    const maxLocalIndex = localChapters.length > 0
+      ? localChapters[localChapters.length - 1].index
+      : 0;
+
     let recommendedMode: SyncMode = 'all';
     let recFromIndex = 1;
-    let recToIndex = localChapters.length;
+    let recToIndex = maxLocalIndex;
     let recommendationText = '';
 
     if (!hasChanges && newChaptersCount > 0) {
@@ -66,7 +72,7 @@ export function ResyncComparisonTable({
     } else if (hasChanges) {
       recommendedMode = 'range';
       recFromIndex = firstChangedIndex || 1;
-      recToIndex = localChapters.length;
+      recToIndex = maxLocalIndex;
       recommendationText = `Phát hiện thay đổi từ chương ${recFromIndex}. Đề xuất: Ghi đè theo vùng (Range) từ chương ${recFromIndex} đến ${recToIndex}.`;
     } else if (newChaptersCount === 0 && !hasChanges) {
       recommendedMode = 'all';

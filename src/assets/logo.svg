@@ -1,0 +1,40 @@
+<svg width="1024" height="1024" viewBox="0 0 1024 1024" xmlns="http://www.w3.org/2000/svg">
+  <defs>
+    <linearGradient id="bg" x1="0.1" y1="0" x2="0.9" y2="1">
+      <stop offset="0" stop-color="#4f9be8"/>
+      <stop offset="0.55" stop-color="#2f7bd0"/>
+      <stop offset="1" stop-color="#1a56a4"/>
+    </linearGradient>
+    <radialGradient id="sheen" cx="0.5" cy="0.18" r="0.7">
+      <stop offset="0" stop-color="#ffffff" stop-opacity="0.28"/>
+      <stop offset="1" stop-color="#ffffff" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="nPost" x1="0.15" y1="0.05" x2="0.55" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#cfe0f4"/>
+    </linearGradient>
+    <linearGradient id="nRibbon" x1="0.1" y1="0" x2="0.5" y2="1">
+      <stop offset="0" stop-color="#ffffff"/>
+      <stop offset="1" stop-color="#eaf3fe"/>
+    </linearGradient>
+  </defs>
+
+  <!-- vivid blue tile -->
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#bg)"/>
+  <rect x="32" y="32" width="960" height="960" rx="224" fill="url(#sheen)"/>
+  <rect x="33.5" y="33.5" width="957" height="957" rx="222" fill="none" stroke="#ffffff" stroke-opacity="0.22" stroke-width="3"/>
+
+  <!-- white N with soft shadow for depth -->
+  <g>
+    <g fill="#0e376e" opacity="0.18">
+      <rect x="350" y="358" width="80" height="320" rx="24"/>
+      <rect x="602" y="358" width="80" height="320" rx="24"/>
+      <path d="M358 366 L426 358 L682 680 L648 726 L614 680 Z"/>
+    </g>
+    <g fill="url(#nPost)">
+      <rect x="346" y="352" width="80" height="320" rx="24"/>
+      <rect x="598" y="352" width="80" height="320" rx="24"/>
+    </g>
+    <path d="M354 360 L422 352 L678 674 L644 720 L610 674 Z" fill="url(#nRibbon)"/>
+  </g>
+</svg>

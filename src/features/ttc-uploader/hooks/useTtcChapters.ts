@@ -54,7 +54,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
   // Chapter Splitter Settings
   const { maxWords, minWords, roundUp } = settings.splitter;
-  const { enableSplit, splitFromChapter, uploadDelayMs: delayMs, localSortMode, folderPath, chapterPrice, unlockTimer, vipNewChaptersOnly } = settings.ttcUploader;
+  const { enableSplit, splitFromChapter, uploadDelayMs: delayMs, localSortMode, folderPath, chapterPrice, unlockTimer, vipNewChaptersOnly, skipChapters } = settings.ttcUploader;
 
   const setEnableSplit = useCallback((v: boolean) => updateSettings('ttcUploader', { enableSplit: v }), [updateSettings]);
   const setSplitFromChapter = useCallback((v: number) => updateSettings('ttcUploader', { splitFromChapter: v }), [updateSettings]);
@@ -66,6 +66,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   const setLocalSortMode = useCallback((v: LocalSortMode) => updateSettings('ttcUploader', { localSortMode: v }), [updateSettings]);
   const setChapterPrice = useCallback((v: number) => updateSettings('ttcUploader', { chapterPrice: v }), [updateSettings]);
   const setUnlockTimer = useCallback((v: UnlockTimer) => updateSettings('ttcUploader', { unlockTimer: v }), [updateSettings]);
+  const setSkipChapters = useCallback((v: number) => updateSettings('ttcUploader', { skipChapters: v }), [updateSettings]);
 
   // Upload settings & progress
   const [syncMode, setSyncMode] = useState<SyncMode>('all');
@@ -237,8 +238,8 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
       let parsedChapters: ParsedChapter[] = result.parts.map((part, index) => {
         return {
-          index: index + 1,
-          title: part.title || `Chương ${index + 1}`,
+          index: index + 1 + (skipChapters || 0),
+          title: part.title || `Chương ${index + 1 + (skipChapters || 0)}`,
           content: part.content || part.text,
           word_count: part.wordCount,
           file_name: 'local_folder',
@@ -249,18 +250,19 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       if (localSortMode === 'name') {
         parsedChapters.sort(naturalTitleSort);
         // Re-index after sorting
-        parsedChapters = parsedChapters.map((ch, i) => ({ ...ch, index: i + 1 }));
+        parsedChapters = parsedChapters.map((ch, i) => ({ ...ch, index: i + 1 + (skipChapters || 0) }));
       }
       
       setChapters(parsedChapters);
       setProcessingChapters(false);
       if (parsedChapters.length > 0) {
-        setToIndex(parsedChapters.length);
+        setFromIndex(1 + (skipChapters || 0));
+        setToIndex(parsedChapters.length + (skipChapters || 0));
       }
     }, 400);
 
     return () => clearTimeout(debounceTimerRef.current);
-  }, [rawFolderText, reloadCounter, maxWords, minWords, roundUp, enableSplit, splitFromChapter, localSortMode, naturalTitleSort]);
+  }, [rawFolderText, reloadCounter, maxWords, minWords, roundUp, enableSplit, splitFromChapter, localSortMode, naturalTitleSort, skipChapters]);
 
   // Start chapter upload
   const handleUpload = useCallback(async () => {
@@ -394,6 +396,8 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     setMinWords,
     roundUp,
     setRoundUp,
+    skipChapters,
+    setSkipChapters,
     // Upload
     syncMode,
     setSyncMode,
