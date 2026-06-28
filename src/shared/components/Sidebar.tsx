@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, FileText, Scissors, Zap, Upload, Download } from 'lucide-react';
+import logoUrl from '@/assets/logo.svg';
 
 const navItems = [
   { id: 'home', icon: <Home size={20} />, path: '/', title: 'Trang chủ' },
@@ -15,6 +16,10 @@ export default function Sidebar() {
 
   return (
     <aside className="w-14 bg-bg-card border-r border-border-main flex flex-col items-center py-4 gap-2 flex-shrink-0 z-10">
+      <Link to="/" title="NovelKit" className="mb-1">
+        <img src={logoUrl} alt="NovelKit" className="w-9 h-9" draggable={false} />
+      </Link>
+      <div className="w-7 h-px bg-border-main mb-1" />
       {navItems.map((item) => {
         const isActive = location.pathname === item.path;
         return (
