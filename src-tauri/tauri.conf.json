@@ -1,7 +1,7 @@
 {
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "NovelKit",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "identifier": "com.novelkit.desktop",
   "build": {
     "frontendDist": "../dist",
@@ -36,6 +36,7 @@
   },
   "bundle": {
     "active": true,
+    "createUpdaterArtifacts": true,
     "targets": "all",
     "icon": [
       "icons/32x32.png",

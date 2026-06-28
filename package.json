@@ -1,7 +1,7 @@
 {
   "name": "novelkit",
   "private": false,
-  "version": "1.0.0",
+  "version": "1.0.1",
   "type": "module",
   "description": "Web & desktop toolkit for Chinese novel converters and translators",
   "author": "NovelKit Contributors",
