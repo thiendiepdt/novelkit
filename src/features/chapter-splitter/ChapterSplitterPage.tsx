@@ -8,6 +8,7 @@ import SplitterInput from './components/SplitterInput';
 import SplitterStats from './components/SplitterStats';
 import PartListView from './components/PartListView';
 import PartTabsView from './components/PartTabsView';
+import { Tooltip } from '@/shared/components';
 import { Scissors, Save, Maximize2, Sparkles, UploadCloud, Check, Clipboard, BookOpen } from 'lucide-react';
 
 export default function ChapterSplitterPage() {
@@ -79,16 +80,18 @@ export default function ChapterSplitterPage() {
 
       {/* Action Button */}
       <div className="flex items-center gap-3 mb-6" style={{ animation: 'fadeIn 0.4s ease-out 0.2s both' }}>
-        <button
-          onClick={splitter.handleSplit}
-          disabled={!splitter.input.trim() || !splitter.isValidInput}
-          className="flex-1 sm:flex-none bg-gold text-bg-primary font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-300 hover:bg-gold-light active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gold"
-          style={{
-            boxShadow: splitter.input.trim() && splitter.isValidInput ? '0 4px 20px rgba(201,169,110,0.3)' : 'none',
-          }}
-        >
-          {splitter.isMultiChapter ? <><Sparkles size={14} className="inline mr-1" /> Chia {splitter.chapterBoundaryCount} Chương</> : <><Sparkles size={14} className="inline mr-1" /> Chia Chương</>}
-        </button>
+        <Tooltip content="Bắt đầu chia nội dung thành các phần theo cài đặt" side="top" className="flex-1 sm:flex-none">
+          <button
+            onClick={splitter.handleSplit}
+            disabled={!splitter.input.trim() || !splitter.isValidInput}
+            className="w-full bg-gold text-bg-primary font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-300 hover:bg-gold-light active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gold"
+            style={{
+              boxShadow: splitter.input.trim() && splitter.isValidInput ? '0 4px 20px rgba(201,169,110,0.3)' : 'none',
+            }}
+          >
+            {splitter.isMultiChapter ? <><Sparkles size={14} className="inline mr-1" /> Chia {splitter.chapterBoundaryCount} Chương</> : <><Sparkles size={14} className="inline mr-1" /> Chia Chương</>}
+          </button>
+        </Tooltip>
       </div>
 
       {/* Results */}
@@ -102,28 +105,34 @@ export default function ChapterSplitterPage() {
               <UploadCloud size={14} className="inline mr-1 -mt-0.5" /> Kết quả chia ({result.parts.length} phần):
             </p>
             <div className="flex items-center gap-2">
-              <button
-                onClick={() => handleCopyPart(mergedText, -1)}
-                className={`text-xs font-medium transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1 ${
-                  copiedIndex === -1
-                    ? 'bg-jade/20 border border-jade/40 text-jade'
-                    : 'bg-bg-card border border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
-                }`}
-              >
-                {copiedIndex === -1 ? <><Check size={12} className="inline mr-1" /> Copied</> : <><Clipboard size={12} className="inline mr-1" /> Copy tất cả</>}
-              </button>
-              <button
-                onClick={handleDownloadOutput}
-                className="text-xs font-medium text-jade bg-jade/10 border border-jade/25 hover:bg-jade/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
-              >
-                <Save size={14} /> Tải .txt
-              </button>
-              <button
-                onClick={() => splitter.setShowFullscreen(true)}
-                className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
-              >
-                <Maximize2 size={14} /> Xem toàn màn
-              </button>
+              <Tooltip content="Sao chép toàn bộ kết quả vào clipboard" side="top">
+                <button
+                  onClick={() => handleCopyPart(mergedText, -1)}
+                  className={`text-xs font-medium transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1 ${
+                    copiedIndex === -1
+                      ? 'bg-jade/20 border border-jade/40 text-jade'
+                      : 'bg-bg-card border border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
+                  }`}
+                >
+                  {copiedIndex === -1 ? <><Check size={12} className="inline mr-1" /> Copied</> : <><Clipboard size={12} className="inline mr-1" /> Copy tất cả</>}
+                </button>
+              </Tooltip>
+              <Tooltip content="Tải toàn bộ kết quả về dưới dạng file .txt" side="top">
+                <button
+                  onClick={handleDownloadOutput}
+                  className="text-xs font-medium text-jade bg-jade/10 border border-jade/25 hover:bg-jade/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
+                >
+                  <Save size={14} /> Tải .txt
+                </button>
+              </Tooltip>
+              <Tooltip content="Xem kết quả ở chế độ toàn màn hình" side="top">
+                <button
+                  onClick={() => splitter.setShowFullscreen(true)}
+                  className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
+                >
+                  <Maximize2 size={14} /> Xem toàn màn
+                </button>
+              </Tooltip>
             </div>
           </div>
 

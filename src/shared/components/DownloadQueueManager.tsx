@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { useDownloadQueue } from '../context/useDownloadQueue';
 import type { DownloadJob } from '../context/downloadQueueDefs';
 import { isTauri } from '@/shared/utils/platform';
+import { Tooltip } from './Tooltip';
 import { Download, X, Folder } from 'lucide-react';
 
 export default function DownloadQueueManager() {
@@ -29,32 +30,35 @@ export default function DownloadQueueManager() {
 
   return (
     <div className="relative" ref={dropdownRef}>
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
-          activeJobs.length > 0 
-            ? 'bg-gold/10 text-gold hover:bg-gold/20' 
-            : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
-        }`}
-        title="Quản lý tiến trình tải"
-      >
-        <Download size={18} />
-        {activeJobs.length > 0 && (
-          <span className="text-xs font-bold">{activeJobs.length}</span>
-        )}
-      </button>
+      <Tooltip content="Quản lý tiến trình tải" side="bottom">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`flex items-center gap-2 px-3 py-1.5 rounded-lg transition-colors ${
+            activeJobs.length > 0
+              ? 'bg-gold/10 text-gold hover:bg-gold/20'
+              : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+          }`}
+        >
+          <Download size={18} />
+          {activeJobs.length > 0 && (
+            <span className="text-xs font-bold">{activeJobs.length}</span>
+          )}
+        </button>
+      </Tooltip>
 
       {isOpen && (
         <div className="absolute right-0 top-full mt-2 w-80 max-w-[calc(100vw-2rem)] bg-bg-card border border-border-main rounded-xl shadow-2xl overflow-hidden z-50 flex flex-col">
           <div className="px-4 py-3 border-b border-border-main flex justify-between items-center bg-bg-hover/50">
             <h3 className="text-sm font-semibold text-text-primary">Tiến trình tải</h3>
             {jobs.some(j => j.status === 'done' || j.status === 'error') && (
-              <button 
-                onClick={clearDone}
-                className="text-xs text-text-dim hover:text-gold transition-colors"
-              >
-                Xóa mục đã xong
-              </button>
+              <Tooltip content="Xóa các mục đã hoàn tất hoặc lỗi" side="bottom">
+                <button
+                  onClick={clearDone}
+                  className="text-xs text-text-dim hover:text-gold transition-colors"
+                >
+                  Xóa mục đã xong
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -103,13 +107,14 @@ function JobItem({ job, onRemove, onCancel }: { job: DownloadJob, onRemove: () =
         <h4 className="text-xs font-medium text-text-primary truncate pr-6" title={job.bookTitle}>
           {job.bookTitle}
         </h4>
-        <button 
-          onClick={onRemove}
-          className="absolute top-2.5 right-2.5 text-text-dim hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity"
-          title="Xóa"
-        >
-          <X size={14} />
-        </button>
+        <Tooltip content="Xóa khỏi danh sách" side="left" className="absolute top-2.5 right-2.5">
+          <button
+            onClick={onRemove}
+            className="text-text-dim hover:text-crimson opacity-0 group-hover:opacity-100 transition-opacity"
+          >
+            <X size={14} />
+          </button>
+        </Tooltip>
       </div>
 
       <div className="flex justify-between items-center text-[10px] mb-1.5">
@@ -140,6 +145,7 @@ function JobItem({ job, onRemove, onCancel }: { job: DownloadJob, onRemove: () =
 
       {isDone && (
         <div className="mt-2 flex justify-end">
+          <Tooltip content="Mở thư mục chứa file đã tải" side="top">
           <button
             onClick={async () => {
               if (!isTauri()) return;
@@ -159,17 +165,20 @@ function JobItem({ job, onRemove, onCancel }: { job: DownloadJob, onRemove: () =
             <Folder size={12} />
             Mở thư mục
           </button>
+          </Tooltip>
         </div>
       )}
 
       {(isDownloading || job.status === 'pending') && (
         <div className="mt-2 flex justify-end">
-          <button
-            onClick={onCancel}
-            className="text-[10px] px-2 py-0.5 border border-border-main text-text-dim hover:text-crimson hover:border-crimson rounded transition-colors flex items-center gap-1 cursor-pointer"
-          >
-            Hủy
-          </button>
+          <Tooltip content="Hủy tiến trình tải này" side="top">
+            <button
+              onClick={onCancel}
+              className="text-[10px] px-2 py-0.5 border border-border-main text-text-dim hover:text-crimson hover:border-crimson rounded transition-colors flex items-center gap-1 cursor-pointer"
+            >
+              Hủy
+            </button>
+          </Tooltip>
         </div>
       )}
 

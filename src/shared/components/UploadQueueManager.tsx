@@ -1,5 +1,6 @@
 import { useState, useRef, useEffect } from 'react';
 import { useUploadQueueContext } from '../context/UploadQueueContext';
+import { Tooltip } from './Tooltip';
 import { Upload, X, Check, AlertCircle } from 'lucide-react';
 
 export default function UploadQueueManager() {
@@ -27,20 +28,21 @@ export default function UploadQueueManager() {
   return (
     <div className="relative" ref={dropdownRef}>
       {/* Trigger Button */}
-      <button
-        onClick={() => setIsOpen(!isOpen)}
-        className={`relative flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
-          totalActive > 0 ? 'bg-gold/10 text-gold hover:bg-gold/20' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
-        }`}
-        title="Hàng đợi Đăng chương"
-      >
-        <Upload size={20} />
-        {totalActive > 0 && (
-          <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-crimson text-[10px] font-bold text-white shadow-sm ring-2 ring-bg-main">
-            {totalActive}
-          </span>
-        )}
-      </button>
+      <Tooltip content="Hàng đợi Đăng chương" side="bottom">
+        <button
+          onClick={() => setIsOpen(!isOpen)}
+          className={`relative flex items-center justify-center w-9 h-9 rounded-full transition-colors ${
+            totalActive > 0 ? 'bg-gold/10 text-gold hover:bg-gold/20' : 'text-text-secondary hover:bg-bg-hover hover:text-text-primary'
+          }`}
+        >
+          <Upload size={20} />
+          {totalActive > 0 && (
+            <span className="absolute -top-1 -right-1 flex h-4 w-4 items-center justify-center rounded-full bg-crimson text-[10px] font-bold text-white shadow-sm ring-2 ring-bg-main">
+              {totalActive}
+            </span>
+          )}
+        </button>
+      </Tooltip>
 
       {/* Dropdown Menu */}
       {isOpen && (
@@ -52,12 +54,14 @@ export default function UploadQueueManager() {
               Tiến trình Đăng chương
             </h3>
             {jobs.some(j => j.status === 'done' || j.status === 'error') && (
-              <button
-                onClick={clearDone}
-                className="text-xs text-text-dim hover:text-text-primary transition-colors flex items-center gap-1"
-              >
-                Xóa lịch sử
-              </button>
+              <Tooltip content="Xóa các mục đã xong hoặc lỗi" side="bottom">
+                <button
+                  onClick={clearDone}
+                  className="text-xs text-text-dim hover:text-text-primary transition-colors flex items-center gap-1"
+                >
+                  Xóa lịch sử
+                </button>
+              </Tooltip>
             )}
           </div>
 
@@ -82,21 +86,23 @@ export default function UploadQueueManager() {
                     
                     {/* Actions based on status */}
                     {(job.status === 'pending' || job.status === 'uploading') ? (
-                      <button
-                        onClick={() => cancelJob(job.id)}
-                        className="p-1 text-text-dim hover:text-crimson hover:bg-crimson/10 rounded transition-colors"
-                        title="Hủy tiến trình"
-                      >
-                        <X size={14} />
-                      </button>
+                      <Tooltip content="Hủy tiến trình đăng" side="left">
+                        <button
+                          onClick={() => cancelJob(job.id)}
+                          className="p-1 text-text-dim hover:text-crimson hover:bg-crimson/10 rounded transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </Tooltip>
                     ) : (
-                      <button
-                        onClick={() => removeJob(job.id)}
-                        className="p-1 text-text-dim hover:text-text-primary hover:bg-bg-hover rounded transition-colors"
-                        title="Xóa khỏi danh sách"
-                      >
-                        <X size={14} />
-                      </button>
+                      <Tooltip content="Xóa khỏi danh sách" side="left">
+                        <button
+                          onClick={() => removeJob(job.id)}
+                          className="p-1 text-text-dim hover:text-text-primary hover:bg-bg-hover rounded transition-colors"
+                        >
+                          <X size={14} />
+                        </button>
+                      </Tooltip>
                     )}
                   </div>
 

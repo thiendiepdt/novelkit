@@ -1,6 +1,7 @@
 import type { TtcChapter, ParsedChapter, SyncMode } from '../types';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Scale, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Tooltip } from '@/shared/components';
 
 const ROWS_PER_PAGE = 100;
 
@@ -133,9 +134,9 @@ export function ResyncComparisonTable({
       {/* Header & Recommendation */}
       <div className="flex-shrink-0 px-4 py-3 bg-bg-hover/50 border-b border-border-main z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
         <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2 whitespace-nowrap">
-          <span><Scale size={18} /></span> So sánh dữ liệu Resync
+          <span><Scale size={18} /></span> So sánh & Đồng bộ dữ liệu
           <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
-            {localChapters.length} chương Local
+            {localChapters.length} chương trong máy
           </span>
           <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
             {remoteChapters.length} chương TTC
@@ -148,12 +149,14 @@ export function ResyncComparisonTable({
               <Lightbulb size={12} className="inline mr-1 -mt-0.5" /> {analysis.recommendationText}
             </span>
             {analysis.recommendedMode && (analysis.recommendedMode !== 'all' || analysis.recommendationText.includes('Ghi đè')) && (
-              <button
-                onClick={() => onAutoSelectMode(analysis.recommendedMode, analysis.recFromIndex, analysis.recToIndex)}
-                className="text-xs px-2.5 py-1 bg-gold/10 border border-gold/30 text-gold rounded hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer font-medium whitespace-nowrap"
-              >
-                Chọn Mode này
-              </button>
+              <Tooltip content="Áp dụng chế độ đồng bộ được đề xuất vào thanh Upload" side="bottom">
+                <button
+                  onClick={() => onAutoSelectMode(analysis.recommendedMode, analysis.recFromIndex, analysis.recToIndex)}
+                  className="text-xs px-2.5 py-1 bg-gold/10 border border-gold/30 text-gold rounded hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer font-medium whitespace-nowrap"
+                >
+                  Chọn Mode này
+                </button>
+              </Tooltip>
             )}
           </div>
         )}
@@ -196,7 +199,7 @@ export function ResyncComparisonTable({
           </div>
         ) : localChapters.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-text-dim">
-            Vui lòng chọn Folder để phân tích chương Local.
+            Vui lòng chọn Folder để phân tích chương trong máy.
           </div>
         ) : (
           <table className="w-full text-left text-sm whitespace-nowrap">
@@ -205,8 +208,8 @@ export function ResyncComparisonTable({
                 <th className="px-4 py-2 font-medium w-16 text-center border-b border-border-main">Chương</th>
                 <th className="px-4 py-2 font-medium border-b border-border-main">Tên (TTC)</th>
                 <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main">Chữ (TTC)</th>
-                <th className="px-4 py-2 font-medium border-b border-border-main border-l bg-bg-primary/30">Tên (Local)</th>
-                <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main bg-bg-primary/30">Chữ (Local)</th>
+                <th className="px-4 py-2 font-medium border-b border-border-main border-l bg-bg-primary/30">Tên (Máy)</th>
+                <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main bg-bg-primary/30">Chữ (Máy)</th>
                 <th className="px-4 py-2 font-medium w-40 text-center border-b border-border-main">Đánh giá</th>
               </tr>
             </thead>

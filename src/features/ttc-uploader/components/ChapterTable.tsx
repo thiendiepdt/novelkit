@@ -1,4 +1,4 @@
-import { Pagination } from '@/shared/components';
+import { Pagination, Tooltip } from '@/shared/components';
 import type { TtcChapter, TtcStory } from '../types';
 import { ClipboardList, Download, RefreshCw, Lock } from 'lucide-react';
 
@@ -45,21 +45,23 @@ export function ChapterTable({
           </span>
         </h2>
         <div className="flex items-center gap-3">
-          <button
-            onClick={onDownloadAll}
-            className="text-xs px-2.5 py-1 bg-gold/10 border border-gold/30 text-gold rounded hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
-            title="Tải toàn bộ chương truyện về máy"
-          >
-            <Download size={14} /> Tải Cả Bộ
-          </button>
-          <button
-            onClick={onRefresh}
-            disabled={loading}
-            className="text-xs text-text-dim hover:text-gold transition-colors cursor-pointer disabled:opacity-50"
-            title="Làm mới danh sách"
-          >
-            <RefreshCw size={14} className="inline mr-1 -mt-0.5" /> Refresh
-          </button>
+          <Tooltip content="Tải toàn bộ chương truyện về máy" side="bottom">
+            <button
+              onClick={onDownloadAll}
+              className="text-xs px-2.5 py-1 bg-gold/10 border border-gold/30 text-gold rounded hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer flex items-center gap-1.5 font-medium"
+            >
+              <Download size={14} /> Tải Cả Bộ
+            </button>
+          </Tooltip>
+          <Tooltip content="Tải lại danh sách chương từ TTC" side="bottom">
+            <button
+              onClick={onRefresh}
+              disabled={loading}
+              className="text-xs text-text-dim hover:text-gold transition-colors cursor-pointer disabled:opacity-50"
+            >
+              <RefreshCw size={14} className="inline mr-1 -mt-0.5" /> Refresh
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -151,7 +153,6 @@ function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownlo
         <button
           onClick={() => onDownload(ch)}
           className="px-2 py-1 text-[10px] font-medium rounded border border-gold/30 bg-gold/10 text-gold hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer"
-          title={`Tải nội dung chương ${ch.chapterNumber}`}
         >
           <Download size={10} className="inline mr-0.5 -mt-0.5" /> Tải
         </button>

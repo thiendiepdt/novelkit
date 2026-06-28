@@ -1,4 +1,5 @@
 import { Upload, Lock } from 'lucide-react';
+import { Tooltip } from '@/shared/components';
 
 interface LoginViewProps {
   onLogin: () => void;
@@ -32,12 +33,14 @@ export function LoginView({ onLogin }: LoginViewProps) {
           <p className="text-sm text-text-secondary mb-6">
             Bạn cần đăng nhập vào TiemTruyenChu để xem danh sách truyện và sử dụng tính năng upload hàng loạt.
           </p>
-          <button
-            onClick={onLogin}
-            className="w-full py-2.5 bg-gold text-bg-primary font-bold text-sm rounded-lg hover:bg-gold/90 transition-colors cursor-pointer shadow-[0_0_15px_rgba(201,169,110,0.3)] hover:shadow-[0_0_20px_rgba(201,169,110,0.5)]"
-          >
-            Đăng nhập ngay
-          </button>
+          <Tooltip content="Mở cửa sổ đăng nhập TiemTruyenChu" side="top" className="w-full">
+            <button
+              onClick={onLogin}
+              className="w-full py-2.5 bg-gold text-bg-primary font-bold text-sm rounded-lg hover:bg-gold/90 transition-colors cursor-pointer shadow-[0_0_15px_rgba(201,169,110,0.3)] hover:shadow-[0_0_20px_rgba(201,169,110,0.5)]"
+            >
+              Đăng nhập ngay
+            </button>
+          </Tooltip>
         </div>
       </div>
     </>

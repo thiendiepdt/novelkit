@@ -2,6 +2,7 @@ import { useState, useCallback } from 'react';
 import Cropper from 'react-easy-crop';
 import { Scissors } from 'lucide-react';
 import type { Area } from 'react-easy-crop';
+import { Tooltip } from '@/shared/components';
 import { getCroppedImg } from '../utils/cropImage';
 
 interface CoverCropperModalProps {
@@ -50,13 +51,15 @@ export function CoverCropperModal({ imageSrc, onClose, onCropComplete }: CoverCr
           <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
             <span className="text-jade"><Scissors size={18} /></span> Cắt Ảnh Bìa
           </h2>
-          <button 
-            onClick={onClose}
-            disabled={isProcessing}
-            className="text-text-dim hover:text-crimson transition-colors w-8 h-8 flex items-center justify-center rounded hover:bg-bg-hover"
-          >
-            ✕
-          </button>
+          <Tooltip content="Đóng cửa sổ cắt ảnh" side="left">
+            <button
+              onClick={onClose}
+              disabled={isProcessing}
+              className="text-text-dim hover:text-crimson transition-colors w-8 h-8 flex items-center justify-center rounded hover:bg-bg-hover"
+            >
+              ✕
+            </button>
+          </Tooltip>
         </div>
 
         {/* Cropper Container */}
@@ -78,30 +81,34 @@ export function CoverCropperModal({ imageSrc, onClose, onCropComplete }: CoverCr
         <div className="p-4 bg-bg-primary border-b border-border-main flex flex-col gap-3">
           <div className="flex items-center gap-3">
             <span className="text-xs text-text-dim w-12 font-medium">Thu Phóng</span>
-            <input 
-              type="range"
-              value={zoom}
-              min={1}
-              max={3}
-              step={0.1}
-              aria-labelledby="Zoom"
-              onChange={(e) => setZoom(Number(e.target.value))}
-              className="flex-1 accent-gold"
-            />
+            <Tooltip content="Phóng to / thu nhỏ ảnh bìa trong khung cắt" side="top" className="flex-1">
+              <input
+                type="range"
+                value={zoom}
+                min={1}
+                max={3}
+                step={0.1}
+                aria-labelledby="Zoom"
+                onChange={(e) => setZoom(Number(e.target.value))}
+                className="flex-1 accent-gold"
+              />
+            </Tooltip>
             <span className="text-xs text-text-primary w-8 text-right">{zoom.toFixed(1)}x</span>
           </div>
           <div className="flex items-center gap-3">
             <span className="text-xs text-text-dim w-12 font-medium">Xoay</span>
-            <input 
-              type="range"
-              value={rotation}
-              min={0}
-              max={360}
-              step={1}
-              aria-labelledby="Rotation"
-              onChange={(e) => setRotation(Number(e.target.value))}
-              className="flex-1 accent-gold"
-            />
+            <Tooltip content="Xoay ảnh bìa theo độ (0–360°)" side="top" className="flex-1">
+              <input
+                type="range"
+                value={rotation}
+                min={0}
+                max={360}
+                step={1}
+                aria-labelledby="Rotation"
+                onChange={(e) => setRotation(Number(e.target.value))}
+                className="flex-1 accent-gold"
+              />
+            </Tooltip>
             <span className="text-xs text-text-primary w-8 text-right">{rotation}°</span>
           </div>
         </div>
@@ -112,14 +119,17 @@ export function CoverCropperModal({ imageSrc, onClose, onCropComplete }: CoverCr
             Kích thước chuẩn: <strong className="text-text-primary">195x260 px</strong>
           </div>
           <div className="flex gap-3">
-            <button 
-              onClick={onClose}
-              disabled={isProcessing}
-              className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-            >
-              Hủy
-            </button>
-            <button 
+            <Tooltip content="Hủy, không lưu ảnh bìa" side="top">
+              <button
+                onClick={onClose}
+                disabled={isProcessing}
+                className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+              >
+                Hủy
+              </button>
+            </Tooltip>
+            <Tooltip content="Cắt ảnh theo khung và tải lên làm ảnh bìa truyện" side="top">
+            <button
               onClick={handleSave}
               disabled={isProcessing}
               className="px-6 py-2 bg-jade text-white font-bold text-sm rounded-lg hover:bg-jade/90 transition-all cursor-pointer disabled:opacity-50 flex items-center gap-2"
@@ -133,6 +143,7 @@ export function CoverCropperModal({ imageSrc, onClose, onCropComplete }: CoverCr
                 'CẮT ẢNH & TẢI LÊN'
               )}
             </button>
+            </Tooltip>
           </div>
         </div>
       </div>

@@ -1,6 +1,7 @@
 import type { TtcStory } from '../types';
 import ProxiedImage from './ProxiedImage';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
+import { Tooltip } from '@/shared/components';
 import { Settings, ArrowLeft } from 'lucide-react';
 
 interface BookDetailHeaderProps {
@@ -16,12 +17,14 @@ export function BookDetailHeader({ book, onBack }: BookDetailHeaderProps) {
 
   return (
     <div className="flex items-start gap-4" style={{ animation: 'fadeIn 0.3s ease-out' }}>
-      <button
-        onClick={onBack}
-        className="mt-1 px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-secondary hover:text-gold hover:border-gold/50 transition-colors cursor-pointer flex-shrink-0"
-      >
-        <ArrowLeft size={14} className="inline mr-1" /> Quay lại
-      </button>
+      <Tooltip content="Quay lại danh sách truyện" side="bottom">
+        <button
+          onClick={onBack}
+          className="mt-1 px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-secondary hover:text-gold hover:border-gold/50 transition-colors cursor-pointer flex-shrink-0"
+        >
+          <ArrowLeft size={14} className="inline mr-1" /> Quay lại
+        </button>
+      </Tooltip>
       <ProxiedImage
         path={book.poster}
         alt={book.title}
@@ -35,14 +38,15 @@ export function BookDetailHeader({ book, onBack }: BookDetailHeaderProps) {
           {book.author} · {book.category}
         </p>
       </div>
-      <button
-        onClick={() => openSettings(book.id, book.title)}
-        className="mt-1 px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-secondary hover:text-gold hover:border-gold/50 transition-colors cursor-pointer flex-shrink-0 flex items-center gap-1.5"
-        title="Cấu hình riêng cho truyện này"
-      >
-        <Settings size={16} />
-        <span className="hidden sm:inline">Cấu hình</span>
-      </button>
+      <Tooltip content="Cấu hình riêng cho truyện này" side="bottom">
+        <button
+          onClick={() => openSettings(book.id, book.title)}
+          className="mt-1 px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-secondary hover:text-gold hover:border-gold/50 transition-colors cursor-pointer flex-shrink-0 flex items-center gap-1.5"
+        >
+          <Settings size={16} />
+          <span className="hidden sm:inline">Cấu hình</span>
+        </button>
+      </Tooltip>
     </div>
   );
 }

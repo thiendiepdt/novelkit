@@ -2,6 +2,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { isTauri } from '@/shared/utils/platform';
 import { Settings, ArrowLeft } from 'lucide-react';
 import { DownloadQueueManager, UploadQueueManager } from '@/shared/components';
+import { Tooltip } from './Tooltip';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 
 export default function Header() {
@@ -34,13 +35,14 @@ export default function Header() {
               <span className="hidden sm:inline">Trang chủ</span>
             </Link>
           )}
-          <button
-            onClick={() => openSettings()}
-            className="text-text-secondary hover:text-gold transition-colors flex items-center justify-center text-lg cursor-pointer"
-            title="Cài đặt hệ thống"
-          >
-            <Settings size={20} />
-          </button>
+          <Tooltip content="Cài đặt hệ thống" side="bottom">
+            <button
+              onClick={() => openSettings()}
+              className="text-text-secondary hover:text-gold transition-colors flex items-center justify-center text-lg cursor-pointer"
+            >
+              <Settings size={20} />
+            </button>
+          </Tooltip>
           <UploadQueueManager />
           <DownloadQueueManager />
         </div>

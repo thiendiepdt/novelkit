@@ -1,5 +1,6 @@
 import type { TtcStory } from '../types';
 import ProxiedImage from './ProxiedImage';
+import { Tooltip } from '@/shared/components';
 
 interface BookCardProps {
   book: TtcStory;
@@ -33,18 +34,22 @@ export function BookCard({ book, onEdit, onResync }: BookCardProps) {
           )}
         </div>
         <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
-          <button
-            onClick={() => onEdit(book.id)}
-            className="px-3 py-1 bg-jade/10 text-jade border border-jade/20 text-xs font-medium rounded-lg hover:bg-jade/20 hover:border-jade/30 transition-colors cursor-pointer"
-          >
-            ✏ Sửa
-          </button>
-          <button
-            onClick={() => onResync(book)}
-            className="px-3 py-1 bg-gold/15 text-gold text-xs font-medium rounded-lg hover:bg-gold/25 transition-colors cursor-pointer"
-          >
-            Resync
-          </button>
+          <Tooltip content="Sửa thông tin truyện (tác giả, thể loại, ảnh bìa...)" side="top">
+            <button
+              onClick={() => onEdit(book.id)}
+              className="px-3 py-1 bg-jade/10 text-jade border border-jade/20 text-xs font-medium rounded-lg hover:bg-jade/20 hover:border-jade/30 transition-colors cursor-pointer"
+            >
+              ✏ Sửa
+            </button>
+          </Tooltip>
+          <Tooltip content="Mở trang đồng bộ chương từ folder trong máy lên TTC" side="top">
+            <button
+              onClick={() => onResync(book)}
+              className="px-3 py-1 bg-gold/15 text-gold text-xs font-medium rounded-lg hover:bg-gold/25 transition-colors cursor-pointer"
+            >
+              Đồng bộ
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>

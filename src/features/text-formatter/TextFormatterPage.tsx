@@ -4,6 +4,7 @@ import { copyToClipboard } from '@/shared/utils/clipboard';
 import StatsPanel from './components/StatsPanel';
 import ChineseWarning from './components/ChineseWarning';
 import FullscreenPreview from '@/shared/components/FullscreenPreview';
+import { Tooltip } from '@/shared/components';
 import { FileText, Maximize2, DownloadCloud, Clipboard, Sparkles, Check, UploadCloud } from 'lucide-react';
 
 export default function TextFormatterPage() {
@@ -65,30 +66,36 @@ export default function TextFormatterPage() {
           </label>
           <div className="flex items-center gap-2">
             {input && (
-              <button
-                onClick={handleClear}
-                className="text-xs font-medium text-crimson bg-crimson/10 border border-crimson/25 hover:bg-crimson/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
-              >
-                ✕ Xóa
-              </button>
+              <Tooltip content="Xóa toàn bộ nội dung gốc và kết quả" side="bottom">
+                <button
+                  onClick={handleClear}
+                  className="text-xs font-medium text-crimson bg-crimson/10 border border-crimson/25 hover:bg-crimson/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
+                >
+                  ✕ Xóa
+                </button>
+              </Tooltip>
             )}
-            <button
-              onClick={handlePaste}
-              className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
-            >
-              <Clipboard size={12} className="inline mr-1" /> Dán
-            </button>
+            <Tooltip content="Dán nội dung từ clipboard vào ô gốc" side="bottom">
+              <button
+                onClick={handlePaste}
+                className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
+              >
+                <Clipboard size={12} className="inline mr-1" /> Dán
+              </button>
+            </Tooltip>
           </div>
         </div>
-        <textarea
-          id="input-text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Paste nội dung truyện vào đây..."
-          className="w-full bg-bg-card border border-border-main rounded-xl p-4 text-sm leading-relaxed text-text-primary placeholder:text-text-secondary/60 focus:outline-none focus:border-border-gold focus:ring-1 focus:ring-border-gold/30 transition-all duration-300 resize-none"
-          rows={8}
-          style={{ minHeight: '160px' }}
-        />
+        <Tooltip content="Dán hoặc nhập nội dung truyện cần định dạng" side="top" className="w-full">
+          <textarea
+            id="input-text"
+            value={input}
+            onChange={(e) => setInput(e.target.value)}
+            placeholder="Paste nội dung truyện vào đây..."
+            className="w-full bg-bg-card border border-border-main rounded-xl p-4 text-sm leading-relaxed text-text-primary placeholder:text-text-secondary/60 focus:outline-none focus:border-border-gold focus:ring-1 focus:ring-border-gold/30 transition-all duration-300 resize-none"
+            rows={8}
+            style={{ minHeight: '160px' }}
+          />
+        </Tooltip>
       </div>
 
       {/* Action Buttons */}
@@ -96,30 +103,34 @@ export default function TextFormatterPage() {
         className="flex items-center gap-3 mb-6"
         style={{ animation: 'fadeIn 0.4s ease-out 0.2s both' }}
       >
-        <button
-          id="btn-format"
-          onClick={handleFormat}
-          disabled={!input.trim()}
-          className="flex-1 sm:flex-none bg-gold text-bg-primary font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-300 hover:bg-gold-light active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gold"
-          style={{
-            boxShadow: input.trim() ? '0 4px 20px rgba(201,169,110,0.3)' : 'none',
-          }}
-        >
-          <Sparkles size={14} className="inline mr-1 -mt-0.5" /> Format
-        </button>
+        <Tooltip content="Định dạng văn bản: tách đoạn, xóa indent, chuẩn hóa" side="bottom" className="flex-1 sm:flex-none">
+          <button
+            id="btn-format"
+            onClick={handleFormat}
+            disabled={!input.trim()}
+            className="w-full sm:w-auto bg-gold text-bg-primary font-semibold text-sm px-6 py-3 rounded-xl transition-all duration-300 hover:bg-gold-light active:scale-[0.97] disabled:opacity-30 disabled:cursor-not-allowed disabled:hover:bg-gold"
+            style={{
+              boxShadow: input.trim() ? '0 4px 20px rgba(201,169,110,0.3)' : 'none',
+            }}
+          >
+            <Sparkles size={14} className="inline mr-1 -mt-0.5" /> Format
+          </button>
+        </Tooltip>
 
         {result && (
-          <button
-            id="btn-copy"
-            onClick={handleCopy}
-            className={`flex-1 sm:flex-none text-sm font-medium px-6 py-3 rounded-xl border transition-all duration-300 active:scale-[0.97] ${
-              copied
-                ? 'bg-jade/20 border-jade/40 text-jade'
-                : 'bg-bg-card border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
-            }`}
-          >
-            {copied ? <><Check size={14} className="inline mr-1" /> Đã copy!</> : <><Clipboard size={14} className="inline mr-1" /> Copy kết quả</>}
-          </button>
+          <Tooltip content="Sao chép kết quả đã format vào clipboard" side="bottom" className="flex-1 sm:flex-none">
+            <button
+              id="btn-copy"
+              onClick={handleCopy}
+              className={`w-full sm:w-auto text-sm font-medium px-6 py-3 rounded-xl border transition-all duration-300 active:scale-[0.97] ${
+                copied
+                  ? 'bg-jade/20 border-jade/40 text-jade'
+                  : 'bg-bg-card border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
+              }`}
+            >
+              {copied ? <><Check size={14} className="inline mr-1" /> Đã copy!</> : <><Clipboard size={14} className="inline mr-1" /> Copy kết quả</>}
+            </button>
+          </Tooltip>
         )}
       </div>
 
@@ -141,29 +152,35 @@ export default function TextFormatterPage() {
                 <UploadCloud size={14} className="inline mr-1 -mt-0.5" /> Kết quả đã format
               </label>
               <div className="flex items-center gap-2">
-                <button
-                  onClick={() => setShowFullscreen(true)}
-                  className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
-                >
-                  <Maximize2 size={14} /> Xem toàn màn
-                </button>
-                <button
-                  onClick={handleCopy}
-                  className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
-                >
-                  {copied ? <><Check size={12} className="inline mr-1" /> Copied</> : <><Clipboard size={12} className="inline mr-1" /> Copy</>}
-                </button>
+                <Tooltip content="Xem kết quả ở chế độ toàn màn hình" side="bottom">
+                  <button
+                    onClick={() => setShowFullscreen(true)}
+                    className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
+                  >
+                    <Maximize2 size={14} /> Xem toàn màn
+                  </button>
+                </Tooltip>
+                <Tooltip content="Sao chép kết quả đã format vào clipboard" side="bottom">
+                  <button
+                    onClick={handleCopy}
+                    className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
+                  >
+                    {copied ? <><Check size={12} className="inline mr-1" /> Copied</> : <><Clipboard size={12} className="inline mr-1" /> Copy</>}
+                  </button>
+                </Tooltip>
               </div>
             </div>
-            <textarea
-              id="output-text"
-              ref={outputRef}
-              readOnly
-              value={result.text}
-              className="w-full bg-bg-secondary border border-border-main rounded-xl p-4 text-sm leading-relaxed text-text-primary focus:outline-none resize-none"
-              rows={10}
-              style={{ minHeight: '200px' }}
-            />
+            <Tooltip content="Kết quả đã format (chỉ đọc). Dùng nút Copy để sao chép" side="top" className="w-full">
+              <textarea
+                id="output-text"
+                ref={outputRef}
+                readOnly
+                value={result.text}
+                className="w-full bg-bg-secondary border border-border-main rounded-xl p-4 text-sm leading-relaxed text-text-primary focus:outline-none resize-none"
+                rows={10}
+                style={{ minHeight: '200px' }}
+              />
+            </Tooltip>
           </div>
 
           {/* Fullscreen Preview */}

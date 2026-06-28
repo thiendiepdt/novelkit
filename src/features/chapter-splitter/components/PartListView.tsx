@@ -1,5 +1,6 @@
 import type { PartData } from '../utils/splitter';
 import Pagination from './Pagination';
+import { Tooltip } from '@/shared/components';
 import { ClipboardList, Save, Check, Clipboard } from 'lucide-react';
 
 interface PartListViewProps {
@@ -42,31 +43,34 @@ export default function PartListView({
                 {new Intl.NumberFormat('en-US').format(part.wordCount)} chữ
               </span>
               <div className="flex items-center gap-1 shrink-0">
-                <button
-                  onClick={() => onPreview(globalIndex)}
-                  className="text-xs font-medium px-2 py-1 rounded-md transition-all duration-200 active:scale-95 bg-bg-secondary border border-border-main text-text-dim opacity-0 group-hover:opacity-100 hover:text-gold hover:border-border-gold"
-                  title="Xem trước"
-                >
-                  👁
-                </button>
-                <button
-                  onClick={() => onDownload(part.text, globalIndex)}
-                  className="text-xs font-medium px-2 py-1 rounded-md transition-all duration-200 active:scale-95 bg-bg-secondary border border-border-main text-text-dim opacity-0 group-hover:opacity-100 hover:text-jade hover:border-jade/50"
-                  title="Tải về"
-                >
-                  <Save size={14} className="inline" />
-                </button>
-                <button
-                  onClick={() => onCopy(part.text, globalIndex)}
-                  className={`text-xs font-medium px-2 py-1 rounded-md transition-all duration-200 active:scale-95 ${
-                    copiedIndex === globalIndex
-                      ? 'bg-jade/20 border border-jade/40 text-jade'
-                      : 'bg-bg-secondary border border-border-main text-text-dim opacity-0 group-hover:opacity-100 hover:text-gold hover:border-border-gold'
-                  }`}
-                  title="Copy"
-                >
-                  {copiedIndex === globalIndex ? <Check size={14} className="inline" /> : <Clipboard size={14} className="inline" />}
-                </button>
+                <Tooltip content="Xem trước nội dung phần này" side="top">
+                  <button
+                    onClick={() => onPreview(globalIndex)}
+                    className="text-xs font-medium px-2 py-1 rounded-md transition-all duration-200 active:scale-95 bg-bg-secondary border border-border-main text-text-dim opacity-0 group-hover:opacity-100 hover:text-gold hover:border-border-gold"
+                  >
+                    👁
+                  </button>
+                </Tooltip>
+                <Tooltip content="Tải phần này về dưới dạng file .txt" side="top">
+                  <button
+                    onClick={() => onDownload(part.text, globalIndex)}
+                    className="text-xs font-medium px-2 py-1 rounded-md transition-all duration-200 active:scale-95 bg-bg-secondary border border-border-main text-text-dim opacity-0 group-hover:opacity-100 hover:text-jade hover:border-jade/50"
+                  >
+                    <Save size={14} className="inline" />
+                  </button>
+                </Tooltip>
+                <Tooltip content="Sao chép nội dung phần này vào clipboard" side="top">
+                  <button
+                    onClick={() => onCopy(part.text, globalIndex)}
+                    className={`text-xs font-medium px-2 py-1 rounded-md transition-all duration-200 active:scale-95 ${
+                      copiedIndex === globalIndex
+                        ? 'bg-jade/20 border border-jade/40 text-jade'
+                        : 'bg-bg-secondary border border-border-main text-text-dim opacity-0 group-hover:opacity-100 hover:text-gold hover:border-border-gold'
+                    }`}
+                  >
+                    {copiedIndex === globalIndex ? <Check size={14} className="inline" /> : <Clipboard size={14} className="inline" />}
+                  </button>
+                </Tooltip>
               </div>
             </div>
           );

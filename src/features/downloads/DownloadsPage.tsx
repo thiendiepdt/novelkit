@@ -2,6 +2,7 @@ import { useDownloadQueue } from '@/shared/context/useDownloadQueue';
 import { isTauri } from '@/shared/utils/platform';
 import { invoke } from '@tauri-apps/api/core';
 import { Download, Package, Folder } from 'lucide-react';
+import { Tooltip } from '@/shared/components';
 
 export default function DownloadsPage() {
   const { jobs, removeJob, cancelJob, clearDone } = useDownloadQueue();
@@ -33,12 +34,14 @@ export default function DownloadsPage() {
           <h1 className="text-xl md:text-2xl font-bold text-gold">Quản lý Tải xuống</h1>
         </div>
         {completedJobs.length > 0 && (
-          <button 
-            onClick={clearDone}
-            className="px-4 py-2 bg-bg-hover text-text-secondary text-sm font-medium rounded-lg hover:bg-bg-card hover:text-text-primary border border-border-main transition-colors cursor-pointer"
-          >
-            Xóa lịch sử hoàn tất
-          </button>
+          <Tooltip content="Xóa toàn bộ các mục đã hoàn tất khỏi lịch sử" side="left">
+            <button
+              onClick={clearDone}
+              className="px-4 py-2 bg-bg-hover text-text-secondary text-sm font-medium rounded-lg hover:bg-bg-card hover:text-text-primary border border-border-main transition-colors cursor-pointer"
+            >
+              Xóa lịch sử hoàn tất
+            </button>
+          </Tooltip>
         )}
       </div>
 
@@ -96,12 +99,14 @@ export default function DownloadsPage() {
                         )}
                       </div>
                       <div className="flex items-center gap-2 md:w-auto w-full justify-end flex-shrink-0 border-t md:border-t-0 border-border-main pt-3 md:pt-0">
-                        <button
-                          onClick={() => cancelJob(job.id)}
-                          className="px-4 py-2 border border-border-main text-text-dim text-sm font-medium rounded-lg hover:border-crimson hover:text-crimson hover:bg-crimson/5 transition-colors cursor-pointer"
-                        >
-                          Hủy tải
-                        </button>
+                        <Tooltip content="Dừng và hủy tiến trình tải truyện này" side="top">
+                          <button
+                            onClick={() => cancelJob(job.id)}
+                            className="px-4 py-2 border border-border-main text-text-dim text-sm font-medium rounded-lg hover:border-crimson hover:text-crimson hover:bg-crimson/5 transition-colors cursor-pointer"
+                          >
+                            Hủy tải
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   );
@@ -138,26 +143,30 @@ export default function DownloadsPage() {
                       </div>
                       <div className="flex items-center gap-2 md:w-auto w-full justify-end flex-shrink-0 border-t md:border-t-0 border-border-main pt-3 md:pt-0">
                         {isDone && (
-                          <button
-                            onClick={() => {
-                              let dir = job.options.save_dir;
-                              if (job.options.mode === 'single') {
-                                dir = dir.substring(0, Math.max(dir.lastIndexOf('\\'), dir.lastIndexOf('/')));
-                              }
-                              handleOpenFolder(dir);
-                            }}
-                            className="px-3 py-1.5 bg-bg-hover text-text-primary text-xs font-medium rounded-lg hover:bg-gold/20 hover:text-gold transition-colors flex items-center gap-1.5 cursor-pointer"
-                          >
-                            <Folder size={14} />
-                            Mở thư mục
-                          </button>
+                          <Tooltip content="Mở thư mục chứa truyện đã tải xuống" side="top">
+                            <button
+                              onClick={() => {
+                                let dir = job.options.save_dir;
+                                if (job.options.mode === 'single') {
+                                  dir = dir.substring(0, Math.max(dir.lastIndexOf('\\'), dir.lastIndexOf('/')));
+                                }
+                                handleOpenFolder(dir);
+                              }}
+                              className="px-3 py-1.5 bg-bg-hover text-text-primary text-xs font-medium rounded-lg hover:bg-gold/20 hover:text-gold transition-colors flex items-center gap-1.5 cursor-pointer"
+                            >
+                              <Folder size={14} />
+                              Mở thư mục
+                            </button>
+                          </Tooltip>
                         )}
-                        <button
-                          onClick={() => removeJob(job.id)}
-                          className="px-3 py-1.5 border border-border-main text-text-dim text-xs font-medium rounded-lg hover:border-text-primary hover:text-text-primary transition-colors cursor-pointer"
-                        >
-                          Xóa
-                        </button>
+                        <Tooltip content="Xóa mục này khỏi danh sách tải xuống" side="top">
+                          <button
+                            onClick={() => removeJob(job.id)}
+                            className="px-3 py-1.5 border border-border-main text-text-dim text-xs font-medium rounded-lg hover:border-text-primary hover:text-text-primary transition-colors cursor-pointer"
+                          >
+                            Xóa
+                          </button>
+                        </Tooltip>
                       </div>
                     </div>
                   );
