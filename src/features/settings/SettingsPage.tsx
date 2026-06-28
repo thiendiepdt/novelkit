@@ -4,7 +4,7 @@ import { SettingsSidebar, type SettingsCategory } from './components/SettingsSid
 import { SettingsItem, SettingsToggle, SettingsNumber } from './components/SettingsItem';
 import { useSettingsContext } from './context/SettingsContext';
 import { useSettingsModal } from './context/SettingsModalContext';
-import { Select } from '@/shared/components';
+import { Select, Tooltip } from '@/shared/components';
 import { useTtcAuth } from '@/features/ttc-uploader/hooks/useTtcAuth';
 import { useTtcBooks } from '@/features/ttc-uploader/hooks/useTtcBooks';
 import { Settings, X, RotateCcw } from 'lucide-react';
@@ -81,13 +81,14 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
     if (isGlobal) return null;
     if (isOverridden(section, key)) {
       return (
-        <button 
-          onClick={() => clearOverride(section, key)}
-          className="text-[10px] text-gold hover:text-crimson bg-gold/10 px-1.5 py-0.5 rounded ml-2 transition-colors cursor-pointer"
-          title="Xóa cấu hình riêng, dùng lại mặc định Global"
-        >
-          Đang Override (Reset)
-        </button>
+        <Tooltip content="Giá trị này đang được ghi đè riêng cho truyện hiện tại. Bấm để xóa và dùng lại mặc định Global." side="top">
+          <button
+            onClick={() => clearOverride(section, key)}
+            className="text-[10px] text-gold hover:text-crimson bg-gold/10 px-1.5 py-0.5 rounded ml-2 transition-colors cursor-pointer"
+          >
+            Đang Override (Reset)
+          </button>
+        </Tooltip>
       );
     }
     return null;
@@ -143,14 +144,28 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
               label={<span>Tự động chia chương khi Upload {renderOverrideIndicator('ttcUploader', 'enableSplit')}</span>} 
               description="Bật tính năng tự động chạy nội dung qua Chapter Splitter trước khi so sánh/đẩy lên TTC."
             >
-              <SettingsToggle 
-                checked={getValue('ttcUploader', 'enableSplit')} 
-                onChange={v => setValue('ttcUploader', 'enableSplit', v)} 
+              <SettingsToggle
+                checked={getValue('ttcUploader', 'enableSplit')}
+                onChange={v => setValue('ttcUploader', 'enableSplit', v)}
               />
             </SettingsItem>
 
-            <SettingsItem 
-              label={<span>Delay giữa các requests (ms) {renderOverrideIndicator('ttcUploader', 'uploadDelayMs')}</span>} 
+            <SettingsItem
+              label={<span>Sắp xếp chương trong máy {renderOverrideIndicator('ttcUploader', 'localSortMode')}</span>}
+              description="Thứ tự sắp xếp chương khi đọc folder: theo tên chương (Chương 1, 2, 3…) hoặc theo thứ tự file trong folder."
+            >
+              <Select
+                value={getValue('ttcUploader', 'localSortMode')}
+                onChange={(e) => setValue('ttcUploader', 'localSortMode', e.target.value)}
+                className="py-1"
+              >
+                <option value="name" className="bg-bg-card text-text-primary">Tên chương</option>
+                <option value="file" className="bg-bg-card text-text-primary">Thứ tự file</option>
+              </Select>
+            </SettingsItem>
+
+            <SettingsItem
+              label={<span>Delay giữa các requests (ms) {renderOverrideIndicator('ttcUploader', 'uploadDelayMs')}</span>}
               description="Thời gian chờ giữa các lần push API để tránh bị rate-limit 429 từ TTC."
             >
               <SettingsNumber 
@@ -190,7 +205,7 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
             
             <SettingsItem 
               label={<span>Bỏ qua số chương đầu trên web {renderOverrideIndicator('ttcUploader', 'skipChapters')}</span>} 
-              description="Số chương cũ muốn bỏ qua khi so sánh với web (chương local đầu tiên sẽ khớp với chương N+1 trên web)."
+              description="Số chương cũ muốn bỏ qua khi so sánh với web (chương trong máy đầu tiên sẽ khớp với chương N+1 trên web)."
             >
               <SettingsNumber 
                 value={getValue('ttcUploader', 'skipChapters')} 
@@ -247,7 +262,6 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
         <button
           onClick={onClose}
           className="p-1.5 rounded-lg hover:bg-bg-hover text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-          title="Đóng (Esc)"
         >
           <X size={18} />
         </button>
@@ -282,21 +296,24 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
         </div>
 
         {!isGlobal ? (
-          <button
-            onClick={() => clearBookSettings(selectedBookId!)}
-            className="ml-auto text-xs px-3 py-1.5 bg-crimson/10 text-crimson border border-crimson/30 rounded hover:bg-crimson/20 transition-colors cursor-pointer"
-          >
-            Xóa mọi Override của Truyện này
-          </button>
+          <Tooltip content="Xóa toàn bộ cấu hình riêng của truyện này, dùng lại mặc định Global" side="bottom" className="ml-auto">
+            <button
+              onClick={() => clearBookSettings(selectedBookId!)}
+              className="text-xs px-3 py-1.5 bg-crimson/10 text-crimson border border-crimson/30 rounded hover:bg-crimson/20 transition-colors cursor-pointer"
+            >
+              Xóa mọi Override của Truyện này
+            </button>
+          </Tooltip>
         ) : (
-          <button
-            onClick={() => resetGlobalSettings()}
-            className="ml-auto text-xs px-3 py-1.5 bg-crimson/10 text-crimson border border-crimson/30 rounded hover:bg-crimson/20 transition-colors cursor-pointer flex items-center gap-1"
-            title="Khôi phục toàn bộ cấu hình hệ thống về mặc định gốc"
-          >
-            <RotateCcw size={14} />
-            <span className="hidden sm:inline">Khôi phục mặc định</span>
-          </button>
+          <Tooltip content="Khôi phục toàn bộ cấu hình hệ thống về mặc định gốc" side="bottom" className="ml-auto">
+            <button
+              onClick={() => resetGlobalSettings()}
+              className="text-xs px-3 py-1.5 bg-crimson/10 text-crimson border border-crimson/30 rounded hover:bg-crimson/20 transition-colors cursor-pointer flex items-center gap-1"
+            >
+              <RotateCcw size={14} />
+              <span className="hidden sm:inline">Khôi phục mặc định</span>
+            </button>
+          </Tooltip>
         )}
       </div>
 

@@ -131,7 +131,7 @@ function TtcUploaderContent() {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            <ClipboardList size={16} className="inline mr-1 -mt-0.5" /> Danh sách TTC
+            <ClipboardList size={16} className="inline mr-1 -mt-0.5" /> Chương trên TTC
           </button>
           <button
             onClick={() => {
@@ -146,7 +146,7 @@ function TtcUploaderContent() {
                 : 'text-text-secondary hover:text-text-primary'
             }`}
           >
-            <Scale size={16} className="inline mr-1 -mt-0.5" /> So sánh Local
+            <Scale size={16} className="inline mr-1 -mt-0.5" /> So sánh & Upload
             {chapters.loadingAllRemote && <span className="ml-1.5 text-[10px] text-text-dim animate-pulse">(đang tải...)</span>}
           </button>
         </div>

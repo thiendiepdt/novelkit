@@ -1,5 +1,6 @@
 import { useState } from 'react';
 import { AlertTriangle } from 'lucide-react';
+import { Tooltip } from '@/shared/components';
 
 interface ChineseWarningProps {
   chineseChars: string[];
@@ -26,21 +27,27 @@ export default function ChineseWarning({ chineseChars }: ChineseWarningProps) {
           {/* Chinese characters display */}
           <div className="flex flex-wrap gap-1.5">
             {displayChars.map((char, i) => (
-              <span
+              <Tooltip
                 key={i}
-                className="inline-flex items-center justify-center bg-crimson/20 border border-crimson/30 text-crimson text-sm font-medium rounded-lg w-8 h-8 transition-all duration-200 hover:bg-crimson/30 hover:scale-110 cursor-default"
-                title={`U+${char.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')}`}
+                content={`Mã ký tự Unicode: U+${char.codePointAt(0)?.toString(16).toUpperCase().padStart(4, '0')}`}
+                side="top"
               >
-                {char}
-              </span>
+                <span
+                  className="inline-flex items-center justify-center bg-crimson/20 border border-crimson/30 text-crimson text-sm font-medium rounded-lg w-8 h-8 transition-all duration-200 hover:bg-crimson/30 hover:scale-110 cursor-default"
+                >
+                  {char}
+                </span>
+              </Tooltip>
             ))}
             {hasMore && !expanded && (
-              <button
-                onClick={() => setExpanded(true)}
-                className="inline-flex items-center justify-center bg-crimson/10 border border-crimson/20 text-crimson text-[10px] font-medium rounded-lg px-2 h-8 hover:bg-crimson/20 transition-colors duration-200"
-              >
-                +{chineseChars.length - displayLimit}
-              </button>
+              <Tooltip content="Hiện toàn bộ ký tự tiếng Trung còn lại" side="top">
+                <button
+                  onClick={() => setExpanded(true)}
+                  className="inline-flex items-center justify-center bg-crimson/10 border border-crimson/20 text-crimson text-[10px] font-medium rounded-lg px-2 h-8 hover:bg-crimson/20 transition-colors duration-200"
+                >
+                  +{chineseChars.length - displayLimit}
+                </button>
+              </Tooltip>
             )}
           </div>
         </div>

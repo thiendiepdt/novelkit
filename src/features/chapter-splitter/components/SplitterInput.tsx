@@ -1,6 +1,7 @@
 import type { RefObject } from 'react';
 import { useDragDrop } from '@/shared/hooks/useDragDrop';
 import MiniMapTextarea from '@/shared/components/MiniMapTextarea';
+import { Tooltip } from '@/shared/components';
 import { Library, BookOpen, Maximize2, FolderOpen, FileText, AlertTriangle, DownloadCloud, Clipboard } from 'lucide-react';
 
 interface SplitterInputProps {
@@ -59,19 +60,23 @@ export default function SplitterInput({
           )}
         </div>
         <div className="flex items-center gap-2">
-          <button
-            onClick={onShowFullscreen}
-            disabled={!input.trim()}
-            className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
-          >
-            <Maximize2 size={14} /> Toàn màn
-          </button>
-          <button
-            onClick={() => fileInputRef.current?.click()}
-            className="text-xs font-medium text-purple bg-purple/10 border border-purple/25 hover:bg-purple/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
-          >
-            <FolderOpen size={14} className="inline mr-1" /> Upload .txt
-          </button>
+          <Tooltip content="Xem nội dung gốc ở chế độ toàn màn hình" side="bottom">
+            <button
+              onClick={onShowFullscreen}
+              disabled={!input.trim()}
+              className="text-xs font-medium text-text-primary bg-bg-card border border-border-main hover:border-border-gold hover:text-gold transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 disabled:opacity-30 disabled:cursor-not-allowed flex items-center gap-1"
+            >
+              <Maximize2 size={14} /> Toàn màn
+            </button>
+          </Tooltip>
+          <Tooltip content="Chọn file .txt từ máy để tải nội dung lên" side="bottom">
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              className="text-xs font-medium text-purple bg-purple/10 border border-purple/25 hover:bg-purple/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95 flex items-center gap-1"
+            >
+              <FolderOpen size={14} className="inline mr-1" /> Upload .txt
+            </button>
+          </Tooltip>
           <input
             ref={fileInputRef}
             type="file"
@@ -80,19 +85,23 @@ export default function SplitterInput({
             className="hidden"
           />
           {input && (
-            <button
-              onClick={onClear}
-              className="text-xs font-medium text-crimson bg-crimson/10 border border-crimson/25 hover:bg-crimson/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
-            >
-              ✕ Xóa
-            </button>
+            <Tooltip content="Xóa toàn bộ nội dung gốc" side="bottom">
+              <button
+                onClick={onClear}
+                className="text-xs font-medium text-crimson bg-crimson/10 border border-crimson/25 hover:bg-crimson/20 transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
+              >
+                ✕ Xóa
+              </button>
+            </Tooltip>
           )}
-          <button
-            onClick={onPaste}
-            className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
-          >
-            <Clipboard size={12} className="inline mr-1" /> Dán
-          </button>
+          <Tooltip content="Dán nội dung từ clipboard vào ô nhập" side="bottom">
+            <button
+              onClick={onPaste}
+              className="text-xs font-medium text-gold bg-gold-glow/50 border border-border-gold hover:bg-gold-glow transition-all duration-200 px-2.5 py-1.5 rounded-lg active:scale-95"
+            >
+              <Clipboard size={12} className="inline mr-1" /> Dán
+            </button>
+          </Tooltip>
         </div>
       </div>
 
@@ -143,15 +152,17 @@ export default function SplitterInput({
             </div>
           </div>
         ) : (
-          <MiniMapTextarea
-            id="input-text"
-            value={input}
-            onChange={(e) => setInput(e.target.value)}
-            placeholder={'Chương 1: Bắt đầu\n\nĐoạn văn đầu tiên...\n\nChương 2: Tiếp theo\n\nĐoạn văn chương 2...\n\n— Paste, upload hoặc kéo thả file .txt vào đây —'}
-            className="w-full bg-bg-card border border-border-main rounded-xl p-4 text-sm leading-relaxed text-text-primary placeholder:text-text-secondary/60 focus:outline-none focus:border-border-gold focus:ring-1 focus:ring-border-gold/30 transition-all duration-300 resize-none"
-            rows={9}
-            style={{ minHeight: '160px' }}
-          />
+          <Tooltip content="Nhập, dán hoặc kéo thả văn bản chương truyện vào đây" side="top" className="w-full">
+            <MiniMapTextarea
+              id="input-text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder={'Chương 1: Bắt đầu\n\nĐoạn văn đầu tiên...\n\nChương 2: Tiếp theo\n\nĐoạn văn chương 2...\n\n— Paste, upload hoặc kéo thả file .txt vào đây —'}
+              className="w-full bg-bg-card border border-border-main rounded-xl p-4 text-sm leading-relaxed text-text-primary placeholder:text-text-secondary/60 focus:outline-none focus:border-border-gold focus:ring-1 focus:ring-border-gold/30 transition-all duration-300 resize-none"
+              rows={9}
+              style={{ minHeight: '160px' }}
+            />
+          </Tooltip>
         )}
       </div>
       {!isValidInput && (

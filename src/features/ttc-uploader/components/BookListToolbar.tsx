@@ -92,7 +92,6 @@ export function BookListToolbar({
               onClick={onRefresh}
               disabled={loadingBooks}
               className="text-xs text-text-secondary hover:text-gold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-bg-hover"
-              title="Làm mới"
             >
               <span>↻</span> <span className="hidden sm:inline">{loadingBooks ? 'Đang tải...' : 'Làm mới'}</span>
             </button>

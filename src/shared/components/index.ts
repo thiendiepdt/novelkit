@@ -9,5 +9,6 @@ export type { PaginationProps } from './Pagination';
 export { default as Sidebar } from './Sidebar';
 export { default as StatusBar } from './StatusBar';
 export { default as Select } from './Select';
+export { default as Tooltip } from './Tooltip';
 export { default as DownloadQueueManager } from './DownloadQueueManager';
 export { default as UploadQueueManager } from './UploadQueueManager';

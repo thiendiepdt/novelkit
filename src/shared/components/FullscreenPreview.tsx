@@ -1,6 +1,7 @@
 import { useState, useEffect, useCallback } from 'react';
 import type { ReactNode } from 'react';
 import { copyToClipboard } from '@/shared/utils/clipboard';
+import { Tooltip } from './Tooltip';
 import { Book, ChevronLeft, ChevronRight, Copy, Check, X } from 'lucide-react';
 
 interface FullscreenPreviewProps {
@@ -64,42 +65,48 @@ export default function FullscreenPreview({ text, isOpen, onClose, title, onNext
         <div className="flex items-center gap-2">
           {(hasPrev || hasNext) && (
             <div className="flex items-center gap-1 mr-1 bg-white/5 p-0.5 rounded-lg border border-white/5">
-              <button
-                onClick={onPrev}
-                disabled={!hasPrev}
-                className="text-text-secondary hover:text-gold disabled:opacity-30 disabled:hover:text-text-secondary disabled:cursor-not-allowed px-2.5 py-1.5 transition-colors"
-                title="Phần trước"
-              >
-                 <ChevronLeft size={16} />
-              </button>
+              <Tooltip content="Phần trước" side="bottom">
+                <button
+                  onClick={onPrev}
+                  disabled={!hasPrev}
+                  className="text-text-secondary hover:text-gold disabled:opacity-30 disabled:hover:text-text-secondary disabled:cursor-not-allowed px-2.5 py-1.5 transition-colors"
+                >
+                   <ChevronLeft size={16} />
+                </button>
+              </Tooltip>
               <div className="w-[1px] h-4 bg-white/10" />
-              <button
-                onClick={onNext}
-                disabled={!hasNext}
-                className="text-text-secondary hover:text-gold disabled:opacity-30 disabled:hover:text-text-secondary disabled:cursor-not-allowed px-2.5 py-1.5 transition-colors"
-                title="Phần tiếp theo"
-              >
-                <ChevronRight size={16} />
-              </button>
+              <Tooltip content="Phần tiếp theo" side="bottom">
+                <button
+                  onClick={onNext}
+                  disabled={!hasNext}
+                  className="text-text-secondary hover:text-gold disabled:opacity-30 disabled:hover:text-text-secondary disabled:cursor-not-allowed px-2.5 py-1.5 transition-colors"
+                >
+                  <ChevronRight size={16} />
+                </button>
+              </Tooltip>
             </div>
           )}
-          <button
-            onClick={handleCopy}
-            className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
-              copied
-                ? 'bg-jade/20 border-jade/40 text-jade'
-                : 'bg-bg-card border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
-            }`}
-          >
-            {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
-          </button>
-          <button
-            onClick={onClose}
-            className="text-text-dim hover:text-text-primary transition-colors duration-200 p-1.5 rounded-lg hover:bg-white/5 flex items-center justify-center"
-            aria-label="Đóng"
-          >
-            <X size={18} />
-          </button>
+          <Tooltip content="Sao chép toàn bộ nội dung" side="bottom">
+            <button
+              onClick={handleCopy}
+              className={`text-xs font-medium px-3 py-1.5 rounded-lg border transition-all duration-200 active:scale-95 flex items-center gap-1.5 ${
+                copied
+                  ? 'bg-jade/20 border-jade/40 text-jade'
+                  : 'bg-bg-card border-border-main text-text-secondary hover:border-border-gold hover:text-gold'
+              }`}
+            >
+              {copied ? <><Check size={14} /> Copied</> : <><Copy size={14} /> Copy</>}
+            </button>
+          </Tooltip>
+          <Tooltip content="Đóng xem trước (Esc)" side="bottom">
+            <button
+              onClick={onClose}
+              className="text-text-dim hover:text-text-primary transition-colors duration-200 p-1.5 rounded-lg hover:bg-white/5 flex items-center justify-center"
+              aria-label="Đóng"
+            >
+              <X size={18} />
+            </button>
+          </Tooltip>
         </div>
       </div>
 

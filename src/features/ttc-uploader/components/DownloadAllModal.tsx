@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react';
 import { useDownloadQueue } from '@/shared/context/useDownloadQueue';
-import { Select } from '@/shared/components';
+import { Select, Tooltip } from '@/shared/components';
 import type { TtcStory } from '../types';
 import type { DownloadAllOptions } from '@/shared/types/download';
 
@@ -68,12 +68,14 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
         {/* Header */}
         <div className="px-5 py-4 border-b border-border-main flex justify-between items-center">
           <h3 className="text-lg font-bold text-gold">Tải toàn bộ chương</h3>
-          <button
-            onClick={onClose}
-            className="text-text-dim hover:text-crimson transition-colors cursor-pointer"
-          >
-            ✕
-          </button>
+          <Tooltip content="Đóng cửa sổ" side="left">
+            <button
+              onClick={onClose}
+              className="text-text-dim hover:text-crimson transition-colors cursor-pointer"
+            >
+              ✕
+            </button>
+          </Tooltip>
         </div>
 
         {/* Body */}
@@ -84,6 +86,7 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
 
           <div className="space-y-2">
             <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Hình thức lưu file:</label>
+            <Tooltip content="Chọn cách lưu: gộp 1 file, chia theo khoảng, hoặc mỗi chương 1 file" side="top" className="w-full">
             <Select
               fullWidth
               value={dlOptions.mode}
@@ -94,37 +97,43 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
               <option value="chunked">Chia file theo khoảng ({dlOptions.chunk_size} chương / file)</option>
               <option value="split">Lưu mỗi chương thành 1 file riêng biệt</option>
             </Select>
+            </Tooltip>
           </div>
 
           {dlOptions.mode === 'chunked' && (
             <div className="space-y-2">
               <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Số chương mỗi file:</label>
-              <input
-                type="number"
-                value={dlOptions.chunk_size}
-                onChange={(e) => setDlOptions(prev => ({ ...prev, chunk_size: Number(e.target.value) }))}
-                min={10}
-                step={10}
-                className="w-full px-3 py-2 bg-bg-hover border border-border-main rounded-lg text-sm text-text-primary focus:outline-none focus:border-gold/50"
-              />
+              <Tooltip content="Số chương gộp vào mỗi file khi chia theo khoảng" side="top" className="w-full">
+                <input
+                  type="number"
+                  value={dlOptions.chunk_size}
+                  onChange={(e) => setDlOptions(prev => ({ ...prev, chunk_size: Number(e.target.value) }))}
+                  min={10}
+                  step={10}
+                  className="w-full px-3 py-2 bg-bg-hover border border-border-main rounded-lg text-sm text-text-primary focus:outline-none focus:border-gold/50"
+                />
+              </Tooltip>
             </div>
           )}
 
           <div className="flex gap-4">
             <div className="space-y-2 flex-1">
               <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Delay chống ban IP (ms):</label>
-              <input
-                type="number"
-                value={dlOptions.delay_ms}
-                onChange={(e) => setDlOptions(prev => ({ ...prev, delay_ms: Number(e.target.value) }))}
-                min={0}
-                step={50}
-                className="w-full px-3 py-2 bg-bg-hover border border-border-main rounded-lg text-sm text-text-primary focus:outline-none focus:border-gold/50"
-              />
+              <Tooltip content="Thời gian chờ giữa mỗi lần tải (ms) để tránh bị server chặn" side="top" className="w-full">
+                <input
+                  type="number"
+                  value={dlOptions.delay_ms}
+                  onChange={(e) => setDlOptions(prev => ({ ...prev, delay_ms: Number(e.target.value) }))}
+                  min={0}
+                  step={50}
+                  className="w-full px-3 py-2 bg-bg-hover border border-border-main rounded-lg text-sm text-text-primary focus:outline-none focus:border-gold/50"
+                />
+              </Tooltip>
             </div>
 
             <div className="space-y-2 flex-1">
               <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Số luồng tải:</label>
+              <Tooltip content="Số chương tải đồng thời; càng cao càng nhanh nhưng dễ bị chặn" side="top" className="w-full">
               <Select
                 fullWidth
                 value={dlOptions.threads}
@@ -135,6 +144,7 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
                   <option key={t} value={t}>{t} luồng</option>
                 ))}
               </Select>
+              </Tooltip>
             </div>
           </div>
           <p className="text-[10px] text-text-dim">Mặc định delay 100ms. Hạ xuống 0 sẽ tải nhanh hơn nhưng dễ bị server chặn kết nối. Tăng số luồng tải sẽ chia nhỏ các chương để tải đồng thời.</p>
@@ -142,18 +152,22 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border-main flex justify-end gap-3 bg-bg-hover/50 rounded-b-xl">
-          <button
-            onClick={onClose}
-            className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
-          >
-            Hủy
-          </button>
-          <button
-            onClick={handleStart}
-            className="px-4 py-2 bg-gold text-bg-primary font-bold text-sm rounded-lg hover:bg-gold/90 transition-colors cursor-pointer"
-          >
-            Bắt đầu tải
-          </button>
+          <Tooltip content="Đóng, không tải" side="top">
+            <button
+              onClick={onClose}
+              className="px-4 py-2 text-sm text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
+            >
+              Hủy
+            </button>
+          </Tooltip>
+          <Tooltip content="Chọn nơi lưu và bắt đầu tải toàn bộ chương" side="top">
+            <button
+              onClick={handleStart}
+              className="px-4 py-2 bg-gold text-bg-primary font-bold text-sm rounded-lg hover:bg-gold/90 transition-colors cursor-pointer"
+            >
+              Bắt đầu tải
+            </button>
+          </Tooltip>
         </div>
       </div>
     </div>

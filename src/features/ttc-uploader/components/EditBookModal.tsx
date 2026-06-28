@@ -19,13 +19,13 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
   const [uploadingCover, setUploadingCover] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  
+
   const [formConfig, setFormConfig] = useState<EditBookForm | null>(null);
   const [formData, setFormData] = useState<EditBookData | null>(null);
 
   useEffect(() => {
     let mounted = true;
-    
+
     const loadData = async () => {
       try {
         setLoading(true);
@@ -100,10 +100,10 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
       setUploadingCover(true);
       setError(null);
       await uploadCover(bookId, croppedBytes, mimeType);
-      
+
       if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
       setCropImageSrc(null);
-      
+
       onSuccess();
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Lỗi khi upload ảnh bìa');
@@ -115,7 +115,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease-out' }}>
-      <div 
+      <div
         className="bg-bg-card border border-border-main rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl"
         style={{ animation: 'slideUp 0.3s ease-out' }}
       >
@@ -124,7 +124,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
           <h2 className="text-lg font-bold text-text-primary flex items-center gap-2">
             <span className="text-gold">✏</span> Cập Nhật Truyện
           </h2>
-          <button 
+          <button
             onClick={onClose}
             className="text-text-dim hover:text-crimson transition-colors w-8 h-8 flex items-center justify-center rounded hover:bg-bg-hover"
           >
@@ -153,7 +153,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
 
           {formConfig && formData && (
             <form id="editBookForm" onSubmit={handleSubmit} className="flex flex-col gap-6">
-              
+
               {/* Error Alert */}
               {error && (
                 <div className="p-3 bg-crimson/10 border border-crimson/30 rounded-lg text-sm text-crimson mb-2">
@@ -177,11 +177,11 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                 </div>
                 <div className="flex flex-col gap-1 w-[45%] mt-2">
                   <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Link gốc</span>
-                  <a href={formData.chinese_link} target="_blank" rel="noreferrer" className="text-gold hover:underline truncate" title={formData.chinese_link}>
+                  <a href={formData.chinese_link} target="_blank" rel="noreferrer" className="text-gold hover:underline truncate">
                     {formData.chinese_link || 'Không có'}
                   </a>
                 </div>
-                
+
                 <div className="flex flex-col gap-2 w-full mt-2 border-t border-border-main/30 pt-3">
                   <div className="flex items-center justify-between">
                     <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Ảnh bìa</span>
@@ -210,8 +210,8 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">
                     Tên tác giả hiển thị <span className="text-crimson">*</span>
                   </label>
-                  <input 
-                    type="text" 
+                  <input
+                    type="text"
                     name="author"
                     value={formData.author}
                     onChange={handleChange}
@@ -224,7 +224,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">
                     Thể loại <span className="text-crimson">*</span>
                   </label>
-                  <Select 
+                  <Select
                     name="category"
                     value={formData.category}
                     onChange={handleChange as React.ChangeEventHandler<HTMLSelectElement>}
@@ -238,11 +238,11 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                     ))}
                   </Select>
                 </div>
-                
+
                 {/* Tính cách */}
                 <div className="space-y-2">
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Tính cách</label>
-                  <Select 
+                  <Select
                     value={formData.sub_categories[0] || ''}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleSubCategoryChange(0, e.target.value)}
                     fullWidth
@@ -258,7 +258,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                 {/* Bối cảnh */}
                 <div className="space-y-2">
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Bối cảnh</label>
-                  <Select 
+                  <Select
                     value={formData.sub_categories[1] || ''}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleSubCategoryChange(1, e.target.value)}
                     fullWidth
@@ -274,7 +274,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                 {/* Lưu phái */}
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Lưu phái</label>
-                  <Select 
+                  <Select
                     value={formData.sub_categories[2] || ''}
                     onChange={(e: React.ChangeEvent<HTMLSelectElement>) => handleSubCategoryChange(2, e.target.value)}
                     fullWidth
@@ -290,7 +290,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                 {/* Giới thiệu */}
                 <div className="space-y-2 md:col-span-2">
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Giới thiệu</label>
-                  <textarea 
+                  <textarea
                     name="description"
                     value={formData.description}
                     onChange={handleChange}
@@ -326,7 +326,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
 
         {/* Footer */}
         <div className="px-5 py-4 border-t border-border-main flex justify-end gap-3 bg-bg-hover/50 rounded-b-xl flex-shrink-0">
-          <button 
+          <button
             type="button"
             onClick={onClose}
             className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
@@ -334,7 +334,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
           >
             Hủy
           </button>
-          <button 
+          <button
             type="submit"
             form="editBookForm"
             disabled={submitting || loading || !formConfig}
@@ -352,7 +352,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
         </div>
       </div>
     </div>
-    
+
     {cropImageSrc && (
       <CoverCropperModal
         imageSrc={cropImageSrc}

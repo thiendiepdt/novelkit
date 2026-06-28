@@ -2,8 +2,15 @@ import type { SyncMode, UploadProgress, ParsedChapter } from '../types';
 import { SYNC_MODE_LABELS } from '../types';
 import type { LocalSortMode, UnlockTimer } from '@/features/settings/types';
 import Select from '@/shared/components/Select';
+import { Tooltip } from '@/shared/components';
 import { useState, useEffect } from 'react';
 import { Folder, RefreshCw, Upload, Coins, Unlock, Check, X } from 'lucide-react';
+
+const SYNC_MODE_TOOLTIPS: Record<SyncMode, string> = {
+  all: 'Đăng lại toàn bộ chương, ghi đè nội dung đã có trên web',
+  append: 'Chỉ đăng các chương trong máy chưa có trên web',
+  range: 'Chỉ đăng các chương trong khoảng số thứ tự đã chọn',
+};
 
 /**
  * A number input that buffers keystrokes and only calls onChange 500ms after typing stops,
@@ -166,25 +173,27 @@ export function UploadToolbar({
       <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
         {/* Folder Picker */}
         <div className="flex items-center gap-2">
-          <button
-            onClick={onPickFolder}
-            className="px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-primary hover:border-gold/50 transition-colors cursor-pointer flex items-center gap-1.5"
-            title="Chọn folder chứa file chương (.txt)"
-          >
-            <Folder size={14} /> Chọn Folder
-          </button>
+          <Tooltip content="Chọn folder chứa file chương (.txt) trên máy để upload" side="bottom">
+            <button
+              onClick={onPickFolder}
+              className="px-3 py-1.5 bg-bg-hover border border-border-main rounded-lg text-xs font-medium text-text-primary hover:border-gold/50 transition-colors cursor-pointer flex items-center gap-1.5"
+            >
+              <Folder size={14} /> Chọn Folder
+            </button>
+          </Tooltip>
           {folderPath && (
             <div className="flex items-center gap-1">
               <span className="text-[11px] text-text-dim font-mono max-w-[150px] truncate" title={folderPath}>
                 {folderPath.split(/[/\\]/).pop()}
               </span>
-              <button
-                onClick={onReloadFolder}
-                className="p-1 hover:bg-bg-hover text-text-dim hover:text-gold rounded transition-colors cursor-pointer"
-                title="Tải lại folder"
-              >
-                <RefreshCw size={14} />
-              </button>
+              <Tooltip content="Đọc lại các file chương từ folder đã chọn" side="bottom">
+                <button
+                  onClick={onReloadFolder}
+                  className="p-1 hover:bg-bg-hover text-text-dim hover:text-gold rounded transition-colors cursor-pointer"
+                >
+                  <RefreshCw size={14} />
+                </button>
+              </Tooltip>
             </div>
           )}
           {loadingChapters ? (
@@ -201,28 +210,31 @@ export function UploadToolbar({
             {/* Sort */}
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] text-text-dim">Sắp xếp:</label>
-              <Select
-                value={localSortMode}
-                onChange={(e) => onLocalSortModeChange(e.target.value as LocalSortMode)}
-                className="text-xs !py-1 !pl-2 !pr-7"
-              >
-                <option value="name">📝 Tên chương</option>
-                <option value="file">📁 Thứ tự file</option>
-              </Select>
+              <Tooltip content="Thứ tự sắp xếp chương: theo số trong tên hoặc theo tên file" side="bottom">
+                <Select
+                  value={localSortMode}
+                  onChange={(e) => onLocalSortModeChange(e.target.value as LocalSortMode)}
+                  className="text-xs !py-1 !pl-2 !pr-7"
+                >
+                  <option value="name">📝 Tên chương</option>
+                  <option value="file">📁 Thứ tự file</option>
+                </Select>
+              </Tooltip>
             </div>
 
             <div className="h-5 w-px bg-border-main"></div>
 
             {/* Skip Chapters (Bỏ qua N chương) */}
             <div className="flex items-center gap-1.5">
-              <label className="text-[11px] text-text-dim" title="Bỏ qua N chương đầu trên web (chương local đầu tiên khớp với chương N+1 trên web)">Bỏ qua:</label>
-              <BufferedNumberInput
-                value={skipChapters}
-                onChange={onSkipChaptersChange}
-                min={0}
-                className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-                title="Bỏ qua N chương đầu trên web (chương local đầu tiên khớp với chương N+1 trên web)"
-              />
+              <label className="text-[11px] text-text-dim">Bỏ qua:</label>
+              <Tooltip content="Bỏ qua N chương đầu trên web; chương trong máy đầu khớp chương N+1" side="bottom">
+                <BufferedNumberInput
+                  value={skipChapters}
+                  onChange={onSkipChaptersChange}
+                  min={0}
+                  className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                />
+              </Tooltip>
               <span className="text-[10px] text-text-dim">chương</span>
             </div>
 
@@ -230,53 +242,62 @@ export function UploadToolbar({
 
             {/* Split Toggle + Settings */}
             <div className="flex items-center gap-3">
-              <label className="flex items-center gap-1.5 cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={enableSplit}
-                  onChange={(e) => onEnableSplitChange(e.target.checked)}
-                  className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
-                />
-                <span className="text-[11px] font-medium text-gold" title="Tự động chia nhỏ chương dài hoặc gộp chương ngắn">Tự động chia</span>
-              </label>
+              <Tooltip content="Tự động chia nhỏ chương dài hoặc gộp chương ngắn theo số chữ" side="bottom">
+                <label className="flex items-center gap-1.5 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={enableSplit}
+                    onChange={(e) => onEnableSplitChange(e.target.checked)}
+                    className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                  />
+                  <span className="text-[11px] font-medium text-gold">Tự động chia</span>
+                </label>
+              </Tooltip>
               
               {enableSplit && (
                 <>
                   <div className="flex items-center gap-1.5">
                     <label className="text-[11px] text-text-dim">Max:</label>
-                    <BufferedNumberInput
-                      value={maxWords}
-                      onChange={onMaxWordsChange}
-                      className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-                    />
+                    <Tooltip content="Số chữ tối đa mỗi chương; chương dài hơn sẽ bị chia nhỏ" side="bottom">
+                      <BufferedNumberInput
+                        value={maxWords}
+                        onChange={onMaxWordsChange}
+                        className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                      />
+                    </Tooltip>
                   </div>
                   <div className="flex items-center gap-1.5">
                     <label className="text-[11px] text-text-dim">Min:</label>
-                    <BufferedNumberInput
-                      value={minWords}
-                      onChange={onMinWordsChange}
-                      className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-                    />
+                    <Tooltip content="Số chữ tối thiểu mỗi chương; chương ngắn hơn sẽ được gộp lại" side="bottom">
+                      <BufferedNumberInput
+                        value={minWords}
+                        onChange={onMinWordsChange}
+                        className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                      />
+                    </Tooltip>
                   </div>
                   <div className="flex items-center gap-1.5">
-                    <label className="text-[11px] text-text-dim" title="Chỉ chia từ chương số này trở đi (1 = chia tất cả)">Từ chương:</label>
-                    <BufferedNumberInput
-                      value={splitFromChapter}
-                      onChange={onSplitFromChapterChange}
-                      min={1}
-                      className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-                      title="Chỉ chia từ chương số này trở đi (1 = chia tất cả)"
-                    />
+                    <label className="text-[11px] text-text-dim">Từ chương:</label>
+                    <Tooltip content="Chỉ chia từ chương số này trở đi (1 = chia tất cả)" side="bottom">
+                      <BufferedNumberInput
+                        value={splitFromChapter}
+                        onChange={onSplitFromChapterChange}
+                        min={1}
+                        className="w-[72px] px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                      />
+                    </Tooltip>
                   </div>
-                  <label className="flex items-center gap-1 cursor-pointer">
-                    <input
-                      type="checkbox"
-                      checked={roundUp}
-                      onChange={(e) => onRoundUpChange(e.target.checked)}
-                      className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
-                    />
-                    <span className="text-[11px] text-text-dim">Round Up</span>
-                  </label>
+                  <Tooltip content="Làm tròn lên số phần khi chia chương để các phần đều chữ hơn" side="bottom">
+                    <label className="flex items-center gap-1 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={roundUp}
+                        onChange={(e) => onRoundUpChange(e.target.checked)}
+                        className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                      />
+                      <span className="text-[11px] text-text-dim">Round Up</span>
+                    </label>
+                  </Tooltip>
                 </>
               )}
             </div>
@@ -292,17 +313,18 @@ export function UploadToolbar({
             <label className="text-[11px] text-text-dim">Chế độ:</label>
             <div className="flex gap-0.5">
               {(Object.keys(SYNC_MODE_LABELS) as SyncMode[]).map((mode) => (
-                <button
-                  key={mode}
-                  onClick={() => onSyncModeChange(mode)}
-                  className={`px-2 py-1 text-[11px] rounded border transition-colors cursor-pointer ${
-                    syncMode === mode
-                      ? 'bg-gold/20 border-gold text-gold font-medium'
-                      : 'bg-bg-hover border-border-main text-text-secondary hover:border-border-hover'
-                  }`}
-                >
-                  {SYNC_MODE_LABELS[mode]}
-                </button>
+                <Tooltip key={mode} content={SYNC_MODE_TOOLTIPS[mode]} side="bottom">
+                  <button
+                    onClick={() => onSyncModeChange(mode)}
+                    className={`px-2 py-1 text-[11px] rounded border transition-colors cursor-pointer ${
+                      syncMode === mode
+                        ? 'bg-gold/20 border-gold text-gold font-medium'
+                        : 'bg-bg-hover border-border-main text-text-secondary hover:border-border-hover'
+                    }`}
+                  >
+                    {SYNC_MODE_LABELS[mode]}
+                  </button>
+                </Tooltip>
               ))}
             </div>
           </div>
@@ -311,21 +333,25 @@ export function UploadToolbar({
           {syncMode === 'range' && (
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] text-text-dim">Từ:</label>
-              <BufferedNumberInput
-                value={fromIndex}
-                onChange={onFromIndexChange}
-                min={1}
-                max={chapters.length}
-                className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-              />
+              <Tooltip content="Chương bắt đầu của khoảng cần upload" side="bottom">
+                <BufferedNumberInput
+                  value={fromIndex}
+                  onChange={onFromIndexChange}
+                  min={1}
+                  max={chapters.length}
+                  className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                />
+              </Tooltip>
               <label className="text-[11px] text-text-dim">Đến:</label>
-              <BufferedNumberInput
-                value={toIndex}
-                onChange={onToIndexChange}
-                min={1}
-                max={chapters.length}
-                className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-              />
+              <Tooltip content="Chương kết thúc của khoảng cần upload" side="bottom">
+                <BufferedNumberInput
+                  value={toIndex}
+                  onChange={onToIndexChange}
+                  min={1}
+                  max={chapters.length}
+                  className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                />
+              </Tooltip>
             </div>
           )}
 
@@ -334,54 +360,61 @@ export function UploadToolbar({
           {/* Delay */}
           <div className="flex items-center gap-1.5">
             <label className="text-[11px] text-text-dim whitespace-nowrap">Delay:</label>
-            <BufferedNumberInput
-              value={delayMs}
-              onChange={onDelayChange}
-              min={100}
-              step={100}
-              className="w-20 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-            />
+            <Tooltip content="Thời gian chờ giữa mỗi lần đăng chương (ms) để tránh bị chặn" side="bottom">
+              <BufferedNumberInput
+                value={delayMs}
+                onChange={onDelayChange}
+                min={100}
+                step={100}
+                className="w-20 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+              />
+            </Tooltip>
             <span className="text-[10px] text-text-dim">ms</span>
           </div>
 
           {/* VIP */}
           <div className="flex items-center gap-1.5">
             <label className="text-[11px] text-text-dim whitespace-nowrap"><Coins size={12} className="inline mr-1 text-gold" /> VIP:</label>
-            <BufferedNumberInput
-              value={chapterPrice}
-              onChange={onChapterPriceChange}
-              min={0}
-              step={1}
-              className="w-20 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
-              title="Số hoa (0 = miễn phí)"
-            />
+            <Tooltip content="Giá mở khóa chương tính bằng hoa (0 = miễn phí)" side="bottom">
+              <BufferedNumberInput
+                value={chapterPrice}
+                onChange={onChapterPriceChange}
+                min={0}
+                step={1}
+                className="w-20 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+              />
+            </Tooltip>
           </div>
 
           {chapterPrice > 0 && (
             <>
               <div className="flex items-center gap-1.5">
                 <label className="text-[11px] text-text-dim whitespace-nowrap"><Unlock size={12} className="inline" /></label>
-                <Select
-                  value={unlockTimer}
-                  onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
-                  className="text-xs !py-1 !pl-2 !pr-7"
-                >
-                  <option value="">Không mở khóa</option>
-                  <option value="8h">8 giờ</option>
-                  <option value="1d">1 ngày</option>
-                  <option value="3d">3 ngày</option>
-                  <option value="7d">7 ngày</option>
-                </Select>
+                <Tooltip content="Thời gian sau đó chương VIP tự động mở khóa miễn phí" side="bottom">
+                  <Select
+                    value={unlockTimer}
+                    onChange={(e) => onUnlockTimerChange(e.target.value as UnlockTimer)}
+                    className="text-xs !py-1 !pl-2 !pr-7"
+                  >
+                    <option value="">Không mở khóa</option>
+                    <option value="8h">8 giờ</option>
+                    <option value="1d">1 ngày</option>
+                    <option value="3d">3 ngày</option>
+                    <option value="7d">7 ngày</option>
+                  </Select>
+                </Tooltip>
               </div>
-              <label className="flex items-center gap-1 cursor-pointer ml-1">
-                <input
-                  type="checkbox"
-                  checked={vipNewChaptersOnly}
-                  onChange={(e) => onVipNewChaptersOnlyChange(e.target.checked)}
-                  className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
-                />
-                <span className="text-[11px] text-text-dim whitespace-nowrap" title="Chỉ đặt giá/khóa cho các chương chưa có trên web">Chỉ VIP chương mới</span>
-              </label>
+              <Tooltip content="Chỉ đặt giá/khóa cho các chương chưa có trên web" side="bottom" className="ml-1">
+                <label className="flex items-center gap-1 cursor-pointer">
+                  <input
+                    type="checkbox"
+                    checked={vipNewChaptersOnly}
+                    onChange={(e) => onVipNewChaptersOnlyChange(e.target.checked)}
+                    className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                  />
+                  <span className="text-[11px] text-text-dim whitespace-nowrap">Chỉ VIP chương mới</span>
+                </label>
+              </Tooltip>
             </>
           )}
 
@@ -417,19 +450,23 @@ export function UploadToolbar({
                   </div>
                 )}
                 {(progress.status === 'done' || progress.status === 'error') ? (
-                  <button
-                    onClick={onRemoveJob}
-                    className="mt-1.5 w-full py-1 text-[10px] font-medium bg-bg-hover text-text-secondary hover:text-text-primary rounded"
-                  >
-                    Đóng
-                  </button>
+                  <Tooltip content="Đóng và xóa kết quả tiến trình upload" side="top" className="mt-1.5 w-full">
+                    <button
+                      onClick={onRemoveJob}
+                      className="w-full py-1 text-[10px] font-medium bg-bg-hover text-text-secondary hover:text-text-primary rounded"
+                    >
+                      Đóng
+                    </button>
+                  </Tooltip>
                 ) : (
-                  <button
-                    onClick={onCancelUpload}
-                    className="mt-1.5 w-full py-1 text-[10px] font-medium bg-crimson/10 text-crimson hover:bg-crimson/20 rounded"
-                  >
-                    Hủy tiến trình
-                  </button>
+                  <Tooltip content="Dừng tiến trình upload đang chạy" side="top" className="mt-1.5 w-full">
+                    <button
+                      onClick={onCancelUpload}
+                      className="w-full py-1 text-[10px] font-medium bg-crimson/10 text-crimson hover:bg-crimson/20 rounded"
+                    >
+                      Hủy tiến trình
+                    </button>
+                  </Tooltip>
                 )}
               </div>
             )}

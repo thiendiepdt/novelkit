@@ -1,4 +1,5 @@
 import type { TranslatedToken } from '../engine/types';
+import { Tooltip } from '@/shared/components';
 
 interface Props {
   tokens: TranslatedToken[];
@@ -25,16 +26,16 @@ export default function TokenViewer({ tokens, onTokenClick }: Props) {
         const isMultiMeaning = token.hasOneMeaning === false;
 
         return (
-          <span
-            key={idx}
-            onClick={() => onTokenClick(token)}
-            className={`cursor-pointer transition-colors duration-150 inline-block px-0.5 rounded ${colorClass} hover:bg-gold-glow/20 active:scale-95`}
-            title={token.original} // browser Native tooltip
-          >
-            {isMultiMeaning ? <span className="text-text-dim opacity-70">[</span> : ''}
-            {displayText}
-            {isMultiMeaning ? <span className="text-text-dim opacity-70">]</span> : ''}
-          </span>
+          <Tooltip key={idx} content={`Bấm để sửa nghĩa cho "${token.original}"`} side="top">
+            <span
+              onClick={() => onTokenClick(token)}
+              className={`cursor-pointer transition-colors duration-150 inline-block px-0.5 rounded ${colorClass} hover:bg-gold-glow/20 active:scale-95`}
+            >
+              {isMultiMeaning ? <span className="text-text-dim opacity-70">[</span> : ''}
+              {displayText}
+              {isMultiMeaning ? <span className="text-text-dim opacity-70">]</span> : ''}
+            </span>
+          </Tooltip>
         );
       })}
     </div>

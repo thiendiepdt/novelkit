@@ -1,5 +1,6 @@
 import { Link } from 'react-router-dom';
 import { isTauri } from '@/shared/utils/platform';
+import { Tooltip } from '@/shared/components';
 import { FileText, Scissors, Zap, Upload, Sparkles, ArrowRight } from 'lucide-react';
 interface Tool {
   id: string;
@@ -7,6 +8,7 @@ interface Tool {
   name: string;
   description: string;
   path: string;
+  tooltip: string;
   badge?: string;
   desktopOnly?: boolean;
 }
@@ -18,6 +20,7 @@ const tools: Tool[] = [
     name: 'Format Truyện',
     description: 'Tự động format đoạn văn, xóa khoảng trắng đầu dòng, kiểm tra chữ Trung, đếm số chữ.',
     path: '/text-formatter',
+    tooltip: 'Format đoạn văn, xóa khoảng trắng thừa, kiểm tra chữ Trung và đếm số chữ.',
     badge: 'Mới',
   },
   {
@@ -26,6 +29,7 @@ const tools: Tool[] = [
     name: 'Chia Chương',
     description: 'Cắt một chương truyện dài thành nhiều phần nhỏ để đăng mượt mà, không bị cắt xén đoạn văn.',
     path: '/chapter-splitter',
+    tooltip: 'Cắt chương dài thành nhiều phần nhỏ để đăng mượt mà.',
     badge: 'Mới',
   },
   {
@@ -34,14 +38,16 @@ const tools: Tool[] = [
     name: 'Dịch Nhanh (QT Web)',
     description: 'Dịch Tiếng Trung siêu tốc sử dụng từ điển hệ QuickTranslator. Chỉnh sửa nghĩa bằng click.',
     path: '/quick-translator',
+    tooltip: 'Dịch Tiếng Trung siêu tốc bằng từ điển QuickTranslator.',
     badge: 'Đang phát triển',
   },
   {
     id: 'ttc-uploader',
     icon: <Upload size={36} strokeWidth={1.5} />,
     name: 'TTC Uploader',
-    description: 'Đăng chương hàng loạt lên TTC. Resync chương từ folder truyện trong máy.',
+    description: 'Đăng chương hàng loạt lên TTC. Đồng bộ chương từ folder truyện trong máy.',
     path: '/ttc-uploader',
+    tooltip: 'Đăng chương hàng loạt lên TTC và đồng bộ từ folder trong máy.',
     badge: 'Desktop',
     desktopOnly: true,
   },
@@ -70,30 +76,31 @@ export default function HomePage() {
       {/* Tools Grid */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 md:gap-6">
         {visibleTools.map((tool, i) => (
-          <Link
-            key={tool.id}
-            to={tool.path}
-            id={`tool-${tool.id}`}
-            className="group relative block bg-bg-card border border-border-main rounded-xl p-5 md:p-6 transition-all duration-300 hover:border-border-gold hover:shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_20px_rgba(212,165,116,0.15)] hover:-translate-y-1 active:scale-[0.98]"
-            style={{ animation: `slideUp 0.5s ease-out ${i * 0.1}s both` }}
-          >
-            {tool.badge && (
-              <span className="absolute top-3 right-3 bg-gold-dim text-gold text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
-                {tool.badge}
-              </span>
-            )}
-            <div className="text-3xl md:text-4xl mb-3">{tool.icon}</div>
-            <h2 className="text-lg md:text-xl font-semibold text-text-primary group-hover:text-gold transition-colors duration-300 mb-1.5">
-              {tool.name}
-            </h2>
-            <p className="text-sm text-text-secondary leading-relaxed">
-              {tool.description}
-            </p>
-            <div className="mt-4 flex items-center gap-1.5 text-xs text-text-dim group-hover:text-gold transition-colors duration-300">
-              <span>Mở tool</span>
-              <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
-            </div>
-          </Link>
+          <Tooltip key={tool.id} content={tool.tooltip} side="top" className="w-full">
+            <Link
+              to={tool.path}
+              id={`tool-${tool.id}`}
+              className="group relative block w-full bg-bg-card border border-border-main rounded-xl p-5 md:p-6 transition-all duration-300 hover:border-border-gold hover:shadow-[0_8px_40px_rgba(0,0,0,0.6),0_0_20px_rgba(212,165,116,0.15)] hover:-translate-y-1 active:scale-[0.98]"
+              style={{ animation: `slideUp 0.5s ease-out ${i * 0.1}s both` }}
+            >
+              {tool.badge && (
+                <span className="absolute top-3 right-3 bg-gold-dim text-gold text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider">
+                  {tool.badge}
+                </span>
+              )}
+              <div className="text-3xl md:text-4xl mb-3">{tool.icon}</div>
+              <h2 className="text-lg md:text-xl font-semibold text-text-primary group-hover:text-gold transition-colors duration-300 mb-1.5">
+                {tool.name}
+              </h2>
+              <p className="text-sm text-text-secondary leading-relaxed">
+                {tool.description}
+              </p>
+              <div className="mt-4 flex items-center gap-1.5 text-xs text-text-dim group-hover:text-gold transition-colors duration-300">
+                <span>Mở tool</span>
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform duration-300" />
+              </div>
+            </Link>
+          </Tooltip>
         ))}
 
         {/* Coming Soon placeholder */}

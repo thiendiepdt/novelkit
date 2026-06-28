@@ -1,4 +1,5 @@
 import { useRef, useState, useCallback, useEffect, useMemo } from 'react';
+import { Tooltip } from './Tooltip';
 
 export interface MiniMapMarker {
   /** Character offset in the text where this marker starts */
@@ -198,29 +199,29 @@ export default function MiniMapTextarea({ value, rows = 12, className = '', read
           {markerLines.map((marker, i) => {
             const topPercent = (marker.lineNumber / marker.totalLines) * 100;
             return (
-              <button
-                key={i}
-                onClick={() => scrollToCharOffset(marker.charOffset)}
-                className="absolute text-gold hover:text-gold-light hover:bg-gold/15 transition-all active:scale-95"
-                style={{
-                  top: `${topPercent}%`,
-                  right: '2px',
-                  transform: 'translateY(-50%)',
-                  fontSize: '9px',
-                  lineHeight: '14px',
-                  fontFamily: 'sans-serif',
-                  fontWeight: 700,
-                  cursor: 'pointer',
-                  background: 'rgba(18, 18, 18, 0.9)',
-                  padding: '2px 5px',
-                  borderRadius: '3px',
-                  border: '1px solid rgba(201, 169, 110, 0.35)',
-                  whiteSpace: 'nowrap',
-                }}
-                title={`Nhảy tới ${marker.label}`}
-              >
-                {marker.label}
-              </button>
+              <Tooltip key={i} content={`Nhảy tới ${marker.label}`} side="left">
+                <button
+                  onClick={() => scrollToCharOffset(marker.charOffset)}
+                  className="absolute text-gold hover:text-gold-light hover:bg-gold/15 transition-all active:scale-95"
+                  style={{
+                    top: `${topPercent}%`,
+                    right: '2px',
+                    transform: 'translateY(-50%)',
+                    fontSize: '9px',
+                    lineHeight: '14px',
+                    fontFamily: 'sans-serif',
+                    fontWeight: 700,
+                    cursor: 'pointer',
+                    background: 'rgba(18, 18, 18, 0.9)',
+                    padding: '2px 5px',
+                    borderRadius: '3px',
+                    border: '1px solid rgba(201, 169, 110, 0.35)',
+                    whiteSpace: 'nowrap',
+                  }}
+                >
+                  {marker.label}
+                </button>
+              </Tooltip>
             );
           })}
         </div>
