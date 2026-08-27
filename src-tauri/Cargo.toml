@@ -1,6 +1,6 @@
 [package]
 name = "novelkit"
-version = "1.0.1"
+version = "1.0.2"
 description = "Desktop toolkit for Chinese novel converters and translators"
 authors = ["NovelKit Contributors"]
 license = "GPL-3.0-only"
