@@ -170,11 +170,34 @@ pub async fn ttc_get_session(app: AppHandle) -> Result<Option<String>, String> {
     Ok(None)
 }
 
+/// Remove all TTC cookies from the shared webview cookie store, so the next
+/// login window starts logged-out instead of reusing the previous account.
+fn clear_webview_cookies(app: &AppHandle, base_url: &str) {
+    let url = match base_url.parse::<url::Url>() {
+        Ok(u) => u,
+        Err(_) => return,
+    };
+    // The cookie store is shared across all webviews of the app, so any
+    // window can be used to read and delete the cookies.
+    for window in app.webview_windows().values() {
+        if let Ok(cookies) = window.cookies_for_url(url.clone()) {
+            for cookie in cookies {
+                window.delete_cookie(cookie).ok();
+            }
+            return;
+        }
+    }
+}
+
 #[tauri::command]
 pub async fn ttc_logout(app: AppHandle) -> Result<(), String> {
     let state = app.state::<TtcSession>();
     *state.cookie.lock().unwrap() = None;
     delete_session_from_disk(&app);
+
+    if let Ok(base_url) = get_ttc_base(&app).await {
+        clear_webview_cookies(&app, &base_url);
+    }
 
     // Close login window if open
     if let Some(w) = app.get_webview_window("ttc-login") {
