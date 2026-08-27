@@ -173,7 +173,7 @@ export default function MiniMapTextarea({ value, rows = 12, className = '', read
   const showMinimap = !hideMinimap;
 
   return (
-    <div className="relative flex">
+    <div className="relative flex w-full">
       <textarea
         ref={textareaRef}
         readOnly={readOnly}
