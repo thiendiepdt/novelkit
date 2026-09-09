@@ -204,10 +204,12 @@ export function UploadToolbar({
             <span className="text-[10px] text-text-dim">Đang đọc file...</span>
           ) : chapters.length > 0 ? (
             <span className="text-[10px] text-gold font-medium">({chapters.length} chương)</span>
+          ) : folderPath ? (
+            <span className="text-[10px] text-crimson">(0 chương — không thấy tiêu đề "Chương X", thử bật "Dòng đầu = tên chương")</span>
           ) : null}
         </div>
 
-        {chapters.length > 0 && (
+        {folderPath && (
           <>
             <div className="h-5 w-px bg-border-main"></div>
 
