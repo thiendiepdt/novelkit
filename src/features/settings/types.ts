@@ -14,6 +14,8 @@ export interface TtcUploaderSettings {
   booksLimit: number;
   chaptersLimit: number;
   localSortMode: LocalSortMode;
+  /** Only with localSortMode = "file": first non-empty line of each file is the chapter title */
+  fileFirstLineTitle: boolean;
   folderPath: string;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
@@ -44,6 +46,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     booksLimit: 20,
     chaptersLimit: 10,
     localSortMode: 'name',
+    fileFirstLineTitle: false,
     folderPath: '',
     chapterPrice: 0,
     unlockTimer: '',

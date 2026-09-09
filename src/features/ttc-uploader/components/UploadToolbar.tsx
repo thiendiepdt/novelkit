@@ -97,6 +97,7 @@ interface UploadToolbarProps {
   minWords: number;
   roundUp: boolean;
   localSortMode: LocalSortMode;
+  fileFirstLineTitle: boolean;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
   vipNewChaptersOnly: boolean;
@@ -113,6 +114,7 @@ interface UploadToolbarProps {
   onMinWordsChange: (value: number) => void;
   onRoundUpChange: (value: boolean) => void;
   onLocalSortModeChange: (value: LocalSortMode) => void;
+  onFileFirstLineTitleChange: (value: boolean) => void;
   onChapterPriceChange: (value: number) => void;
   onUnlockTimerChange: (value: UnlockTimer) => void;
   onVipNewChaptersOnlyChange: (value: boolean) => void;
@@ -140,6 +142,7 @@ export function UploadToolbar({
   minWords,
   roundUp,
   localSortMode,
+  fileFirstLineTitle,
   chapterPrice,
   unlockTimer,
   vipNewChaptersOnly,
@@ -156,6 +159,7 @@ export function UploadToolbar({
   onMinWordsChange,
   onRoundUpChange,
   onLocalSortModeChange,
+  onFileFirstLineTitleChange,
   onChapterPriceChange,
   onUnlockTimerChange,
   onVipNewChaptersOnlyChange,
@@ -220,6 +224,19 @@ export function UploadToolbar({
                   <option value="file">📁 Thứ tự file</option>
                 </Select>
               </Tooltip>
+              {localSortMode === 'file' && (
+                <Tooltip content="Mỗi file là một chương, lấy dòng đầu tiên của file làm tên chương thay vì tách theo quy ước 'Chương X'" side="bottom">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fileFirstLineTitle}
+                      onChange={(e) => onFileFirstLineTitleChange(e.target.checked)}
+                      className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                    />
+                    <span className="text-[11px] text-text-dim">Dòng đầu = tên chương</span>
+                  </label>
+                </Tooltip>
+              )}
             </div>
 
             <div className="h-5 w-px bg-border-main"></div>

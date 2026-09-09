@@ -165,6 +165,16 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
             </SettingsItem>
 
             <SettingsItem
+              label={<span>Dòng đầu file = tên chương {renderOverrideIndicator('ttcUploader', 'fileFirstLineTitle')}</span>}
+              description="Chỉ áp dụng khi sắp xếp theo thứ tự file: mỗi file là một chương, lấy dòng đầu tiên làm tên chương thay vì tách theo quy ước 'Chương X'. Dùng cho truyện có tên chương không theo format."
+            >
+              <SettingsToggle
+                checked={getValue('ttcUploader', 'fileFirstLineTitle')}
+                onChange={v => setValue('ttcUploader', 'fileFirstLineTitle', v)}
+              />
+            </SettingsItem>
+
+            <SettingsItem
               label={<span>Delay giữa các requests (ms) {renderOverrideIndicator('ttcUploader', 'uploadDelayMs')}</span>}
               description="Thời gian chờ giữa các lần push API để tránh bị rate-limit 429 từ TTC."
             >

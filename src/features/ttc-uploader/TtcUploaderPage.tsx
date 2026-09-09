@@ -101,6 +101,7 @@ function TtcUploaderContent() {
             minWords={chapters.minWords}
             roundUp={chapters.roundUp}
             localSortMode={chapters.localSortMode}
+            fileFirstLineTitle={chapters.fileFirstLineTitle}
             chapterPrice={chapters.chapterPrice}
             unlockTimer={chapters.unlockTimer}
             vipNewChaptersOnly={chapters.vipNewChaptersOnly}
@@ -111,6 +112,7 @@ function TtcUploaderContent() {
             onMinWordsChange={chapters.setMinWords}
             onRoundUpChange={chapters.setRoundUp}
             onLocalSortModeChange={chapters.setLocalSortMode}
+            onFileFirstLineTitleChange={chapters.setFileFirstLineTitle}
             onChapterPriceChange={chapters.setChapterPrice}
             onUnlockTimerChange={chapters.setUnlockTimer}
             onVipNewChaptersOnlyChange={chapters.setVipNewChaptersOnly}

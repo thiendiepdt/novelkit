@@ -1,5 +1,14 @@
 use serde::{Deserialize, Serialize};
 
+// ─── Local Folder Types ────────────────────────────────────
+
+/// One .txt file read from the local chapter folder.
+#[derive(Debug, Serialize, Deserialize, Clone)]
+pub struct FolderFile {
+    pub name: String,
+    pub text: String,
+}
+
 // ─── TTC API Response Types ────────────────────────────────
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
