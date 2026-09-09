@@ -139,14 +139,16 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }
   }, []);
 
-  // Auto-refetch remote chapters when an upload completes (running → done).
+  // Auto-refetch remote chapters when an upload finishes (uploading → done/error).
   // Refresh both the paginated list (ChapterTable) and the full comparison
   // list so the resync tab and append-mode start index reflect what was just
-  // pushed, instead of staying on the pre-upload snapshot.
+  // pushed, instead of staying on the pre-upload snapshot. An errored job may
+  // still have pushed some batches, so refetch in that case too.
   const prevUploadStatusRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const currentStatus = currentJob?.status;
-    if (prevUploadStatusRef.current === 'running' && currentStatus === 'done' && selectedBook) {
+    const finished = currentStatus === 'done' || currentStatus === 'error';
+    if (prevUploadStatusRef.current === 'uploading' && finished && selectedBook) {
       fetchRemoteChapters(selectedBook.id, 1, chaptersLimit);
       fetchAllRemoteChapters(selectedBook.id);
     }
