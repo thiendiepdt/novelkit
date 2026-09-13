@@ -102,6 +102,7 @@ interface UploadToolbarProps {
   unlockTimer: UnlockTimer;
   vipNewChaptersOnly: boolean;
   vipMinWords: number;
+  vipFromChapter: number;
   skipChapters: number;
   onPickFolder: () => void;
   onReloadFolder: () => void;
@@ -120,6 +121,7 @@ interface UploadToolbarProps {
   onUnlockTimerChange: (value: UnlockTimer) => void;
   onVipNewChaptersOnlyChange: (value: boolean) => void;
   onVipMinWordsChange: (value: number) => void;
+  onVipFromChapterChange: (value: number) => void;
   onSkipChaptersChange: (value: number) => void;
   onUpload: () => void;
   onCancelUpload: () => void;
@@ -149,6 +151,7 @@ export function UploadToolbar({
   unlockTimer,
   vipNewChaptersOnly,
   vipMinWords,
+  vipFromChapter,
   skipChapters,
   onPickFolder,
   onReloadFolder,
@@ -167,6 +170,7 @@ export function UploadToolbar({
   onUnlockTimerChange,
   onVipNewChaptersOnlyChange,
   onVipMinWordsChange,
+  onVipFromChapterChange,
   onSkipChaptersChange,
   onUpload,
   onCancelUpload,
@@ -450,6 +454,18 @@ export function UploadToolbar({
                   />
                 </Tooltip>
                 <span className="text-[10px] text-text-dim">chữ</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] text-text-dim whitespace-nowrap">Từ chương:</label>
+                <Tooltip content="Chỉ cài VIP từ số chương này trở đi (tính theo số chương trên web, đã gồm số chương bỏ qua). TTC không cho cài VIP các chương đầu. 0 = không giới hạn" side="bottom">
+                  <BufferedNumberInput
+                    value={vipFromChapter}
+                    onChange={onVipFromChapterChange}
+                    min={0}
+                    step={1}
+                    className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                  />
+                </Tooltip>
               </div>
             </>
           )}

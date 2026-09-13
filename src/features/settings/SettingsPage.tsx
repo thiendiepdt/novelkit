@@ -223,6 +223,17 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
                 min={0} step={50}
               />
             </SettingsItem>
+
+            <SettingsItem
+              label={<span>Cài VIP từ chương {renderOverrideIndicator('ttcUploader', 'vipFromChapter')}</span>}
+              description="TTC không cho cài VIP các chương đầu truyện. Chương có số thứ tự trên web nhỏ hơn mức này (đã tính số chương bỏ qua) sẽ được đăng miễn phí. 0 = không giới hạn."
+            >
+              <SettingsNumber
+                value={getValue('ttcUploader', 'vipFromChapter')}
+                onChange={v => setValue('ttcUploader', 'vipFromChapter', v)}
+                min={0} step={1}
+              />
+            </SettingsItem>
             
             <SettingsItem 
               label={<span>Bỏ qua số chương đầu trên web {renderOverrideIndicator('ttcUploader', 'skipChapters')}</span>} 

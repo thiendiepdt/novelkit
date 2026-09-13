@@ -106,6 +106,7 @@ function TtcUploaderContent() {
             unlockTimer={chapters.unlockTimer}
             vipNewChaptersOnly={chapters.vipNewChaptersOnly}
             vipMinWords={chapters.vipMinWords}
+            vipFromChapter={chapters.vipFromChapter}
             skipChapters={chapters.skipChapters}
             onEnableSplitChange={chapters.setEnableSplit}
             onSplitFromChapterChange={chapters.setSplitFromChapter}
@@ -118,6 +119,7 @@ function TtcUploaderContent() {
             onUnlockTimerChange={chapters.setUnlockTimer}
             onVipNewChaptersOnlyChange={chapters.setVipNewChaptersOnly}
             onVipMinWordsChange={chapters.setVipMinWords}
+            onVipFromChapterChange={chapters.setVipFromChapter}
             onSkipChaptersChange={chapters.setSkipChapters}
             onUpload={chapters.handleUpload}
             onCancelUpload={chapters.handleCancelUpload}
