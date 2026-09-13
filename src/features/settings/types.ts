@@ -20,6 +20,8 @@ export interface TtcUploaderSettings {
   chapterPrice: number;
   unlockTimer: UnlockTimer;
   vipNewChaptersOnly: boolean;
+  /** Chapters with fewer words than this are uploaded free (TTC rejects VIP on short chapters) */
+  vipMinWords: number;
   skipChapters: number;
 }
 
@@ -51,6 +53,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     chapterPrice: 0,
     unlockTimer: '',
     vipNewChaptersOnly: true,
+    vipMinWords: 1500,
     skipChapters: 0,
   },
 };

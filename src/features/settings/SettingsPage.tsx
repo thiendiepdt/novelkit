@@ -212,6 +212,17 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
                 <option value="7d" className="bg-bg-card text-text-primary">7 ngày</option>
               </Select>
             </SettingsItem>
+
+            <SettingsItem
+              label={<span>Số chữ tối thiểu để cài VIP {renderOverrideIndicator('ttcUploader', 'vipMinWords')}</span>}
+              description="TTC không cho cài VIP chương ngắn. Chương có số chữ nhỏ hơn mức này sẽ được đăng miễn phí thay vì VIP. 0 = không giới hạn."
+            >
+              <SettingsNumber
+                value={getValue('ttcUploader', 'vipMinWords')}
+                onChange={v => setValue('ttcUploader', 'vipMinWords', v)}
+                min={0} step={50}
+              />
+            </SettingsItem>
             
             <SettingsItem 
               label={<span>Bỏ qua số chương đầu trên web {renderOverrideIndicator('ttcUploader', 'skipChapters')}</span>} 
