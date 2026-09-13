@@ -149,7 +149,10 @@ Login Flow:
 
 Upload Flow (Queue-based):
   useTtcChapters.handlePickFolder()
-    → Tauri dialog → invoke('ttc_read_folder_text')
+    → Tauri dialog → invoke('ttc_read_folder_files') → FolderFile[] (name + text)
+    → Sort "Tên chương"/"Thứ tự file": files joined and split on "Chương X" headings
+    → Sort "Thứ tự file" + "Dòng đầu = tên chương": each file is one chapter,
+      first non-empty line is the title (splitFilesByFirstLine)
     → ParsedChapter[] rendered in UI
   useTtcChapters.handleUpload()
     → addJob(options, bookTitle) into UploadQueueContext

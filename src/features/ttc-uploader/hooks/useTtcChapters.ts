@@ -4,7 +4,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useSettings } from '@/features/settings/hooks/useSettings';
 import type { LocalSortMode, UnlockTimer } from '@/features/settings/types';
 import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
-import { splitMultipleChapters } from '@/features/chapter-splitter/utils/splitter';
+import { splitMultipleChapters, splitFilesByFirstLine, type ChapterFile } from '@/features/chapter-splitter/utils/splitter';
 import { DEFAULT_CHAPTERS_LIMIT } from '../constants';
 import type {
   TtcStory,
@@ -49,21 +49,24 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   // Local chapters (from folder)
   const [chapters, setChapters] = useState<ParsedChapter[]>([]);
   const [loadingChapters, setLoadingChapters] = useState(false);
-  const [rawFolderText, setRawFolderText] = useState<string>('');
+  const [folderFiles, setFolderFiles] = useState<ChapterFile[]>([]);
   const [reloadCounter, setReloadCounter] = useState(0);
 
   // Chapter Splitter Settings
   const { maxWords, minWords, roundUp } = settings.splitter;
-  const { enableSplit, splitFromChapter, uploadDelayMs: delayMs, localSortMode, folderPath, chapterPrice, unlockTimer, vipNewChaptersOnly, skipChapters } = settings.ttcUploader;
+  const { enableSplit, splitFromChapter, uploadDelayMs: delayMs, localSortMode, fileFirstLineTitle, folderPath, chapterPrice, unlockTimer, vipNewChaptersOnly, vipMinWords, vipFromChapter, skipChapters } = settings.ttcUploader;
 
   const setEnableSplit = useCallback((v: boolean) => updateSettings('ttcUploader', { enableSplit: v }), [updateSettings]);
   const setSplitFromChapter = useCallback((v: number) => updateSettings('ttcUploader', { splitFromChapter: v }), [updateSettings]);
   const setVipNewChaptersOnly = useCallback((v: boolean) => updateSettings('ttcUploader', { vipNewChaptersOnly: v }), [updateSettings]);
+  const setVipMinWords = useCallback((v: number) => updateSettings('ttcUploader', { vipMinWords: v }), [updateSettings]);
+  const setVipFromChapter = useCallback((v: number) => updateSettings('ttcUploader', { vipFromChapter: v }), [updateSettings]);
   const setMaxWords = useCallback((v: number) => updateSettings('splitter', { maxWords: v }), [updateSettings]);
   const setMinWords = useCallback((v: number) => updateSettings('splitter', { minWords: v }), [updateSettings]);
   const setRoundUp = useCallback((v: boolean) => updateSettings('splitter', { roundUp: v }), [updateSettings]);
   const setDelayMs = useCallback((v: number) => updateSettings('ttcUploader', { uploadDelayMs: v }), [updateSettings]);
   const setLocalSortMode = useCallback((v: LocalSortMode) => updateSettings('ttcUploader', { localSortMode: v }), [updateSettings]);
+  const setFileFirstLineTitle = useCallback((v: boolean) => updateSettings('ttcUploader', { fileFirstLineTitle: v }), [updateSettings]);
   const setChapterPrice = useCallback((v: number) => updateSettings('ttcUploader', { chapterPrice: v }), [updateSettings]);
   const setUnlockTimer = useCallback((v: UnlockTimer) => updateSettings('ttcUploader', { unlockTimer: v }), [updateSettings]);
   const setSkipChapters = useCallback((v: number) => updateSettings('ttcUploader', { skipChapters: v }), [updateSettings]);
@@ -138,14 +141,16 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }
   }, []);
 
-  // Auto-refetch remote chapters when an upload completes (running → done).
+  // Auto-refetch remote chapters when an upload finishes (uploading → done/error).
   // Refresh both the paginated list (ChapterTable) and the full comparison
   // list so the resync tab and append-mode start index reflect what was just
-  // pushed, instead of staying on the pre-upload snapshot.
+  // pushed, instead of staying on the pre-upload snapshot. An errored job may
+  // still have pushed some batches, so refetch in that case too.
   const prevUploadStatusRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const currentStatus = currentJob?.status;
-    if (prevUploadStatusRef.current === 'running' && currentStatus === 'done' && selectedBook) {
+    const finished = currentStatus === 'done' || currentStatus === 'error';
+    if (prevUploadStatusRef.current === 'uploading' && finished && selectedBook) {
       fetchRemoteChapters(selectedBook.id, 1, chaptersLimit);
       fetchAllRemoteChapters(selectedBook.id);
     }
@@ -156,14 +161,14 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   const loadFolder = useCallback(async (path: string) => {
     setLoadingChapters(true);
     try {
-      const rawText = await invoke<string>('ttc_read_folder_text', {
+      const files = await invoke<ChapterFile[]>('ttc_read_folder_files', {
         folderPath: path,
       });
-      setRawFolderText(rawText);
+      setFolderFiles(files);
       setReloadCounter(c => c + 1);
     } catch (e) {
       console.error('Parse error:', e);
-      setRawFolderText('');
+      setFolderFiles([]);
     } finally {
       setLoadingChapters(false);
     }
@@ -225,7 +230,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   }, []);
   
   useEffect(() => {
-    if (!rawFolderText) {
+    if (folderFiles.length === 0) {
       setChapters([]);
       setProcessingChapters(false);
       return;
@@ -238,18 +243,30 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       const actualMaxWords = enableSplit ? maxWords : Number.MAX_SAFE_INTEGER;
       const actualMinWords = enableSplit ? minWords : 0;
 
-      // splitMultipleChapters now handles duplicate title removal internally
-      const result = splitMultipleChapters(rawFolderText, actualMaxWords, roundUp, actualMinWords, splitFromChapter);
-
-      let parsedChapters: ParsedChapter[] = result.parts.map((part, index) => {
-        return {
+      let parsedChapters: ParsedChapter[];
+      if (localSortMode === 'file' && fileFirstLineTitle) {
+        // Each file is one chapter; its first non-empty line is the title.
+        const result = splitFilesByFirstLine(folderFiles, actualMaxWords, roundUp, actualMinWords, splitFromChapter);
+        parsedChapters = result.parts.map((part, index) => ({
+          index: index + 1 + (skipChapters || 0),
+          title: part.title,
+          content: part.content,
+          word_count: part.wordCount,
+          file_name: part.fileName,
+        }));
+      } else {
+        // Concatenate all files and split on "Chương X" headings.
+        // splitMultipleChapters handles duplicate title removal internally.
+        const rawFolderText = folderFiles.map(f => f.text).join('\n\n');
+        const result = splitMultipleChapters(rawFolderText, actualMaxWords, roundUp, actualMinWords, splitFromChapter);
+        parsedChapters = result.parts.map((part, index) => ({
           index: index + 1 + (skipChapters || 0),
           title: part.title || `Chương ${index + 1 + (skipChapters || 0)}`,
           content: part.content || part.text,
           word_count: part.wordCount,
           file_name: 'local_folder',
-        };
-      });
+        }));
+      }
 
       // Sort by chapter title (natural sort) if mode is 'name'
       if (localSortMode === 'name') {
@@ -267,7 +284,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }, 400);
 
     return () => clearTimeout(debounceTimerRef.current);
-  }, [rawFolderText, reloadCounter, maxWords, minWords, roundUp, enableSplit, splitFromChapter, localSortMode, naturalTitleSort, skipChapters]);
+  }, [folderFiles, reloadCounter, maxWords, minWords, roundUp, enableSplit, splitFromChapter, localSortMode, fileFirstLineTitle, naturalTitleSort, skipChapters]);
 
   // Start chapter upload
   const handleUpload = useCallback(async () => {
@@ -295,11 +312,14 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       : 0;
 
     let finalChaptersToUpload = chaptersToUpload;
-    if (vipNewChaptersOnly && chapterPrice > 0) {
+    if (chapterPrice > 0) {
       finalChaptersToUpload = chaptersToUpload.map(c => {
-        if (c.index <= latestRemote) {
-          return { ...c, price: 0 }; // Remove price for old chapters
-        }
+        // Old chapters (already on web) stay free when "VIP new only" is on
+        if (vipNewChaptersOnly && c.index <= latestRemote) return { ...c, price: 0 };
+        // TTC only allows VIP from a certain chapter number on (c.index already includes skipChapters)
+        if (vipFromChapter > 0 && c.index < vipFromChapter) return { ...c, price: 0 };
+        // TTC rejects VIP on short chapters, so upload those free
+        if (vipMinWords > 0 && c.word_count < vipMinWords) return { ...c, price: 0 };
         return { ...c, price: chapterPrice };
       });
     }
@@ -314,7 +334,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
     addJob(options, selectedBook.title);
 
-  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, vipNewChaptersOnly, chapters, allRemoteChapters, addJob]);
+  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, vipNewChaptersOnly, vipMinWords, vipFromChapter, chapters, allRemoteChapters, addJob]);
 
   // Cancel the ongoing upload job for the current book
   const handleCancelUpload = useCallback(() => {
@@ -362,7 +382,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
   // Reset state when book changes
   const resetState = useCallback(() => {
     setChapters([]);
-    setRawFolderText('');
+    setFolderFiles([]);
     setRemoteChapters([]);
     setAllRemoteChapters([]);
     setRemoteChapPage(1);
@@ -395,6 +415,8 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     setSplitFromChapter,
     localSortMode,
     setLocalSortMode,
+    fileFirstLineTitle,
+    setFileFirstLineTitle,
     maxWords,
     setMaxWords,
     minWords,
@@ -418,6 +440,10 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     setUnlockTimer,
     vipNewChaptersOnly,
     setVipNewChaptersOnly,
+    vipMinWords,
+    setVipMinWords,
+    vipFromChapter,
+    setVipFromChapter,
     progress,
     handleUpload,
     handleCancelUpload,

@@ -97,9 +97,12 @@ interface UploadToolbarProps {
   minWords: number;
   roundUp: boolean;
   localSortMode: LocalSortMode;
+  fileFirstLineTitle: boolean;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
   vipNewChaptersOnly: boolean;
+  vipMinWords: number;
+  vipFromChapter: number;
   skipChapters: number;
   onPickFolder: () => void;
   onReloadFolder: () => void;
@@ -113,9 +116,12 @@ interface UploadToolbarProps {
   onMinWordsChange: (value: number) => void;
   onRoundUpChange: (value: boolean) => void;
   onLocalSortModeChange: (value: LocalSortMode) => void;
+  onFileFirstLineTitleChange: (value: boolean) => void;
   onChapterPriceChange: (value: number) => void;
   onUnlockTimerChange: (value: UnlockTimer) => void;
   onVipNewChaptersOnlyChange: (value: boolean) => void;
+  onVipMinWordsChange: (value: number) => void;
+  onVipFromChapterChange: (value: number) => void;
   onSkipChaptersChange: (value: number) => void;
   onUpload: () => void;
   onCancelUpload: () => void;
@@ -140,9 +146,12 @@ export function UploadToolbar({
   minWords,
   roundUp,
   localSortMode,
+  fileFirstLineTitle,
   chapterPrice,
   unlockTimer,
   vipNewChaptersOnly,
+  vipMinWords,
+  vipFromChapter,
   skipChapters,
   onPickFolder,
   onReloadFolder,
@@ -156,9 +165,12 @@ export function UploadToolbar({
   onMinWordsChange,
   onRoundUpChange,
   onLocalSortModeChange,
+  onFileFirstLineTitleChange,
   onChapterPriceChange,
   onUnlockTimerChange,
   onVipNewChaptersOnlyChange,
+  onVipMinWordsChange,
+  onVipFromChapterChange,
   onSkipChaptersChange,
   onUpload,
   onCancelUpload,
@@ -200,10 +212,12 @@ export function UploadToolbar({
             <span className="text-[10px] text-text-dim">Đang đọc file...</span>
           ) : chapters.length > 0 ? (
             <span className="text-[10px] text-gold font-medium">({chapters.length} chương)</span>
+          ) : folderPath ? (
+            <span className="text-[10px] text-crimson">(0 chương — không thấy tiêu đề "Chương X", thử bật "Dòng đầu = tên chương")</span>
           ) : null}
         </div>
 
-        {chapters.length > 0 && (
+        {folderPath && (
           <>
             <div className="h-5 w-px bg-border-main"></div>
 
@@ -220,6 +234,19 @@ export function UploadToolbar({
                   <option value="file">📁 Thứ tự file</option>
                 </Select>
               </Tooltip>
+              {localSortMode === 'file' && (
+                <Tooltip content="Mỗi file là một chương, lấy dòng đầu tiên của file làm tên chương thay vì tách theo quy ước 'Chương X'" side="bottom">
+                  <label className="flex items-center gap-1.5 cursor-pointer">
+                    <input
+                      type="checkbox"
+                      checked={fileFirstLineTitle}
+                      onChange={(e) => onFileFirstLineTitleChange(e.target.checked)}
+                      className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
+                    />
+                    <span className="text-[11px] text-text-dim">Dòng đầu = tên chương</span>
+                  </label>
+                </Tooltip>
+              )}
             </div>
 
             <div className="h-5 w-px bg-border-main"></div>
@@ -415,6 +442,31 @@ export function UploadToolbar({
                   <span className="text-[11px] text-text-dim whitespace-nowrap">Chỉ VIP chương mới</span>
                 </label>
               </Tooltip>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] text-text-dim whitespace-nowrap">Tối thiểu:</label>
+                <Tooltip content="Chương có số chữ nhỏ hơn mức này sẽ được đăng miễn phí (TTC không cho cài VIP chương ngắn). 0 = không giới hạn" side="bottom">
+                  <BufferedNumberInput
+                    value={vipMinWords}
+                    onChange={onVipMinWordsChange}
+                    min={0}
+                    step={50}
+                    className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                  />
+                </Tooltip>
+                <span className="text-[10px] text-text-dim">chữ</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                <label className="text-[11px] text-text-dim whitespace-nowrap">Từ chương:</label>
+                <Tooltip content="Chỉ cài VIP từ số chương này trở đi (tính theo số chương trên web, đã gồm số chương bỏ qua). TTC không cho cài VIP các chương đầu. 0 = không giới hạn" side="bottom">
+                  <BufferedNumberInput
+                    value={vipFromChapter}
+                    onChange={onVipFromChapterChange}
+                    min={0}
+                    step={1}
+                    className="w-16 px-1.5 py-1 bg-bg-hover border border-border-main rounded text-xs text-text-primary text-center"
+                  />
+                </Tooltip>
+              </div>
             </>
           )}
 

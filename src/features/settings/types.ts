@@ -14,10 +14,16 @@ export interface TtcUploaderSettings {
   booksLimit: number;
   chaptersLimit: number;
   localSortMode: LocalSortMode;
+  /** Only with localSortMode = "file": first non-empty line of each file is the chapter title */
+  fileFirstLineTitle: boolean;
   folderPath: string;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
   vipNewChaptersOnly: boolean;
+  /** Chapters with fewer words than this are uploaded free (TTC rejects VIP on short chapters) */
+  vipMinWords: number;
+  /** Chapters (web number, skipChapters included) before this are uploaded free */
+  vipFromChapter: number;
   skipChapters: number;
 }
 
@@ -44,10 +50,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
     booksLimit: 20,
     chaptersLimit: 10,
     localSortMode: 'name',
+    fileFirstLineTitle: false,
     folderPath: '',
     chapterPrice: 0,
     unlockTimer: '',
     vipNewChaptersOnly: true,
+    vipMinWords: 1450,
+    vipFromChapter: 51,
     skipChapters: 0,
   },
 };

@@ -59,10 +59,13 @@ pub async fn ttc_fetch_chapters(
     Ok(body)
 }
 
-// ─── Read Folder Text Command (For Splitter) ────────────────
+// ─── Read Folder Files Command (For Splitter) ───────────────
 
+/// Read every .txt file in the folder (natural-sorted by the first number in
+/// the file name) and return them individually so the frontend can either
+/// concatenate them or treat each file as one chapter.
 #[tauri::command]
-pub async fn ttc_read_folder_text(folder_path: String) -> Result<String, String> {
+pub async fn ttc_read_folder_files(folder_path: String) -> Result<Vec<FolderFile>, String> {
     let dir = std::fs::read_dir(&folder_path).map_err(|e| format!("Cannot read folder: {}", e))?;
 
     let mut files: Vec<String> = dir
@@ -95,16 +98,15 @@ pub async fn ttc_read_folder_text(folder_path: String) -> Result<String, String>
         }
     });
 
-    let mut all_text = String::new();
-    for file_name in &files {
-        let file_path = std::path::Path::new(&folder_path).join(file_name);
+    let mut result = Vec::with_capacity(files.len());
+    for file_name in files {
+        let file_path = Path::new(&folder_path).join(&file_name);
         if let Ok(text) = std::fs::read_to_string(&file_path) {
-            all_text.push_str(&text);
-            all_text.push_str("\n\n");
+            result.push(FolderFile { name: file_name, text });
         }
     }
 
-    Ok(all_text)
+    Ok(result)
 }
 
 // ─── CSRF & Upload Nonce Helper ────────────────────────────

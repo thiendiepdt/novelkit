@@ -5,6 +5,7 @@ import {
   detectMultiChapterMode,
   splitChapter,
   splitMultipleChapters,
+  splitFilesByFirstLine,
 } from './splitter';
 
 describe('getWordCount', () => {
@@ -131,5 +132,73 @@ describe('splitMultipleChapters', () => {
     const result = splitMultipleChapters(input, 2000);
     expect(result.chapterCount).toBe(2);
     expect(result.parts.length).toBe(2);
+  });
+});
+
+describe('splitFilesByFirstLine', () => {
+  it('should return empty for no files', () => {
+    const result = splitFilesByFirstLine([], 2000);
+    expect(result.parts).toHaveLength(0);
+    expect(result.chapterCount).toBe(0);
+  });
+
+  it('should use the first non-empty line of each file as the chapter title', () => {
+    const files = [
+      { name: '0001.txt', text: '01 Ta nói ba câu\n\nNội dung 1\n\nĐoạn 2' },
+      { name: '0002.txt', text: '\n\n  02 Chuyện xấu đều là ta làm  \nNội dung 2' },
+    ];
+    const result = splitFilesByFirstLine(files, 2000);
+    expect(result.chapterCount).toBe(2);
+    expect(result.parts).toHaveLength(2);
+    expect(result.parts[0].title).toBe('01 Ta nói ba câu');
+    expect(result.parts[0].content).toBe('Nội dung 1\n\nĐoạn 2');
+    expect(result.parts[0].fileName).toBe('0001.txt');
+    expect(result.parts[1].title).toBe('02 Chuyện xấu đều là ta làm');
+    expect(result.parts[1].content).toBe('Nội dung 2');
+    expect(result.parts[1].fileName).toBe('0002.txt');
+  });
+
+  it('should skip empty files', () => {
+    const files = [
+      { name: 'blank.txt', text: '\n\n  \n' },
+      { name: '0001.txt', text: 'Tiêu đề\n\nNội dung' },
+    ];
+    const result = splitFilesByFirstLine(files, 2000);
+    expect(result.chapterCount).toBe(1);
+    expect(result.parts[0].title).toBe('Tiêu đề');
+  });
+
+  it('should handle a file that only has a title line', () => {
+    const result = splitFilesByFirstLine([{ name: 'a.txt', text: 'Chỉ có tiêu đề' }], 2000);
+    expect(result.parts).toHaveLength(1);
+    expect(result.parts[0].title).toBe('Chỉ có tiêu đề');
+    expect(result.parts[0].content).toBe('');
+  });
+
+  it('should split a long file into parts with (X/Y) suffix', () => {
+    const longContent = Array.from({ length: 30 }, (_, i) =>
+      `Đoạn ${i} dài dài dài dài dài dài dài.`
+    ).join('\n\n');
+    const result = splitFilesByFirstLine([{ name: 'a.txt', text: `Tiêu đề dài\n\n${longContent}` }], 30);
+    expect(result.chapterCount).toBe(1);
+    expect(result.parts.length).toBeGreaterThan(1);
+    expect(result.parts[0].title).toBe(`Tiêu đề dài (1/${result.parts.length})`);
+    expect(result.parts.every(p => p.fileName === 'a.txt')).toBe(true);
+  });
+
+  it('should not split chapters before splitFromChapter', () => {
+    const longContent = Array.from({ length: 30 }, (_, i) =>
+      `Đoạn ${i} dài dài dài dài dài dài dài.`
+    ).join('\n\n');
+    const files = [
+      { name: '1.txt', text: `Một\n\n${longContent}` },
+      { name: '2.txt', text: `Hai\n\n${longContent}` },
+    ];
+    const result = splitFilesByFirstLine(files, 30, true, 0, 2);
+    const fromOne = result.parts.filter(p => p.fileName === '1.txt');
+    const fromTwo = result.parts.filter(p => p.fileName === '2.txt');
+    expect(fromOne).toHaveLength(1);
+    expect(fromOne[0].title).toBe('Một');
+    expect(fromTwo.length).toBeGreaterThan(1);
   });
 });

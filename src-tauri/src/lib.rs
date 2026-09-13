@@ -31,7 +31,7 @@ pub fn run() {
             ttc::books::ttc_upload_cover,
             // Chapters
             ttc::chapters::ttc_fetch_chapters,
-            ttc::chapters::ttc_read_folder_text,
+            ttc::chapters::ttc_read_folder_files,
             ttc::chapters::ttc_upload_chapters,
             ttc::chapters::ttc_download_chapter,
             ttc::chapters::ttc_download_all_chapters,

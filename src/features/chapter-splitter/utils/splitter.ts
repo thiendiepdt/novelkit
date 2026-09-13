@@ -319,3 +319,57 @@ export function splitMultipleChapters(
     chapterCount: chapters.length,
   };
 }
+
+// ─── Per-file chapters (first line = title) ────────────────
+
+export interface ChapterFile {
+  name: string;
+  text: string;
+}
+
+export interface FilePartData extends PartData {
+  /** Name of the source file this part came from */
+  fileName: string;
+}
+
+export interface FileSplitResult {
+  parts: FilePartData[];
+  totalWords: number;
+  chapterCount: number;
+}
+
+/**
+ * Treat each file as exactly one chapter whose title is the first non-empty
+ * line of the file (kept verbatim, no "Chương X" convention required).
+ * Each chapter is then split by maxWords like `splitChapter`.
+ * Files with no text are skipped.
+ */
+export function splitFilesByFirstLine(
+  files: ChapterFile[],
+  maxWords: number,
+  roundUp: boolean = true,
+  minWords: number = 0,
+  splitFromChapter: number = 0
+): FileSplitResult {
+  const allParts: FilePartData[] = [];
+  let totalWords = 0;
+  let chapterCount = 0;
+
+  for (const file of files) {
+    if (!file.text.trim()) continue;
+    chapterCount++;
+
+    const skipSplit = splitFromChapter > 0 && chapterCount < splitFromChapter;
+    const effectiveMax = skipSplit ? Number.MAX_SAFE_INTEGER : maxWords;
+    const effectiveMin = skipSplit ? 0 : minWords;
+
+    // splitChapter takes the first paragraph (after formatting) as the title.
+    const result = splitChapter(file.text, effectiveMax, roundUp, effectiveMin);
+    totalWords += result.totalWords;
+    for (const part of result.parts) {
+      allParts.push({ ...part, fileName: file.name });
+    }
+  }
+
+  return { parts: allParts, totalWords, chapterCount };
+}
