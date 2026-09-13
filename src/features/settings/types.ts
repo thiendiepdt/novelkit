@@ -53,7 +53,7 @@ export const DEFAULT_SETTINGS: AppSettings = {
     chapterPrice: 0,
     unlockTimer: '',
     vipNewChaptersOnly: true,
-    vipMinWords: 1500,
+    vipMinWords: 1450,
     skipChapters: 0,
   },
 };
