@@ -484,7 +484,7 @@ export function UploadToolbar({
                 <div className="flex justify-between items-center text-[10px] text-text-dim mb-1 font-medium gap-2">
                   <span className="truncate flex-1" title={progress.current_title}>
                     {progress.status === 'done' || progress.status === 'error'
-                      ? (progress.status === 'error' ? (progress.message || 'Lỗi/Đã hủy') : (progress.failed > 0 ? 'Xong (Có lỗi)' : 'Hoàn tất')) 
+                      ? (progress.status === 'error' ? 'Đã dừng' : (progress.failed > 0 ? 'Xong (Có lỗi)' : 'Hoàn tất')) 
                       : (progress.current_title || 'Đang tải...')}
                   </span>
                   <span className="shrink-0">{progress.current}/{progress.total}</span>
@@ -499,6 +499,11 @@ export function UploadToolbar({
                   <div className="flex gap-2 text-[10px] mt-1 justify-end">
                     {progress.success > 0 && <span className="text-jade"><Check size={10} className="inline mr-0.5 -mt-0.5" /> {progress.success}</span>}
                     {progress.failed > 0 && <span className="text-crimson"><X size={10} className="inline mr-0.5 -mt-0.5" /> {progress.failed}</span>}
+                  </div>
+                )}
+                {progress.status === 'error' && (
+                  <div className="text-[10px] text-crimson mt-1 break-words max-w-[280px]">
+                    {progress.message || 'Lỗi/Đã hủy'}
                   </div>
                 )}
                 {(progress.status === 'done' || progress.status === 'error') ? (

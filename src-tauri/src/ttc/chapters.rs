@@ -236,6 +236,8 @@ pub async fn ttc_upload_chapters(
 
         let url = format!("{}/luu-cac-chuong/{}", base_url, options.book_id);
 
+        // Set when this batch is rejected; a failed batch aborts the whole job.
+        let mut batch_failure: Option<String> = None;
         let mut attempts = 0;
         'retry_loop: while attempts < 3 {
             attempts += 1;
@@ -302,6 +304,13 @@ pub async fn ttc_upload_chapters(
                             }
                             fail_count += chunk_size;
                             log::warn!("Upload failed for batch {}: {}", chunk_idx + 1, body_text);
+                            let reason = json_resp
+                                .message
+                                .clone()
+                                .filter(|m| !m.trim().is_empty())
+                                .unwrap_or_else(|| truncate_chars(&body_text, 200));
+                            batch_failure =
+                                Some(format!("{}: {}", chapter_range_label(chunk), reason));
                             break 'retry_loop;
                         }
                     } else {
@@ -353,14 +362,49 @@ pub async fn ttc_upload_chapters(
                         status,
                         body
                     );
+                    batch_failure = Some(format!(
+                        "{}: {}",
+                        chapter_range_label(chunk),
+                        describe_http_failure(status, &body)
+                    ));
                     break 'retry_loop;
                 }
                 Err(e) => {
                     fail_count += chunk_size;
                     log::error!("Upload error for batch {}: {}", chunk_idx + 1, e);
+                    batch_failure = Some(format!(
+                        "{}: Lỗi kết nối - {}",
+                        chapter_range_label(chunk),
+                        e
+                    ));
                     break 'retry_loop;
                 }
             }
+        }
+
+        // One failed batch aborts the whole book: report the reason and stop.
+        if let Some(reason) = batch_failure {
+            log::warn!(
+                "Upload job {} stopped at batch {}: {}",
+                job_id,
+                chunk_idx + 1,
+                reason
+            );
+            app.emit(
+                "ttc://upload-progress",
+                UploadProgressEvent {
+                    job_id: Some(job_id.clone()),
+                    current: success_count + fail_count,
+                    total,
+                    current_title: format!("Dừng tại batch {}", chunk_idx + 1),
+                    success: success_count,
+                    failed: fail_count,
+                    status: "error".into(),
+                    message: Some(reason.clone()),
+                },
+            )
+            .ok();
+            return Err(reason);
         }
 
         // Delay between chunks (except last)
@@ -394,6 +438,115 @@ pub async fn ttc_upload_chapters(
     .ok();
 
     Ok(())
+}
+
+// ─── Upload failure helpers ───────────────────────────────
+
+/// Human-readable chapter range for a batch, e.g. "Chương 1–100" or "Chương 7".
+fn chapter_range_label(chunk: &[&ParsedChapter]) -> String {
+    match (chunk.first(), chunk.last()) {
+        (Some(first), Some(last)) if first.index != last.index => {
+            format!("Chương {}–{}", first.index, last.index)
+        }
+        (Some(first), _) => format!("Chương {}", first.index),
+        _ => "Batch".to_string(),
+    }
+}
+
+/// Truncate to `max` characters (not bytes, so multi-byte Vietnamese stays intact).
+fn truncate_chars(s: &str, max: usize) -> String {
+    let mut out: String = s.chars().take(max).collect();
+    if s.chars().count() > max {
+        out.push('…');
+    }
+    out
+}
+
+/// Pull `message` out of a TTC JSON error body, if the body is JSON.
+fn extract_server_message(body: &str) -> Option<String> {
+    serde_json::from_str::<UploadChapterResponse>(body)
+        .ok()
+        .and_then(|r| r.message)
+        .filter(|m| !m.trim().is_empty())
+}
+
+/// Describe a non-2xx response: prefer TTC's JSON `message`, otherwise the
+/// status line (HTML error pages are not worth showing to the user).
+fn describe_http_failure(status: reqwest::StatusCode, body: &str) -> String {
+    if let Some(msg) = extract_server_message(body) {
+        return format!("HTTP {} - {}", status.as_u16(), msg);
+    }
+    let trimmed = body.trim();
+    if trimmed.is_empty() || trimmed.starts_with('<') {
+        format!("HTTP {}", status)
+    } else {
+        format!("HTTP {} - {}", status.as_u16(), truncate_chars(trimmed, 200))
+    }
+}
+
+#[cfg(test)]
+mod upload_failure_tests {
+    use super::*;
+
+    fn ch(index: usize) -> ParsedChapter {
+        ParsedChapter {
+            index,
+            title: String::new(),
+            content: String::new(),
+            word_count: 0,
+            file_name: String::new(),
+            price: None,
+        }
+    }
+
+    #[test]
+    fn range_label_for_multi_chapter_batch() {
+        let (a, b) = (ch(1), ch(100));
+        assert_eq!(chapter_range_label(&[&a, &b]), "Chương 1–100");
+    }
+
+    #[test]
+    fn range_label_for_single_chapter_batch() {
+        let a = ch(7);
+        assert_eq!(chapter_range_label(&[&a]), "Chương 7");
+    }
+
+    #[test]
+    fn extracts_message_from_ttc_json_error() {
+        let body = r#"{"success":false,"message":"⚠️ Tiêu đề chương có từ ngữ vi phạm (đĩ). Vui lòng chỉnh sửa!"}"#;
+        assert_eq!(
+            extract_server_message(body).as_deref(),
+            Some("⚠️ Tiêu đề chương có từ ngữ vi phạm (đĩ). Vui lòng chỉnh sửa!")
+        );
+    }
+
+    #[test]
+    fn html_body_yields_no_message() {
+        assert!(extract_server_message("<html><body>Forbidden</body></html>").is_none());
+    }
+
+    #[test]
+    fn http_failure_prefers_json_message() {
+        let body = r#"{"success":false,"message":"Sách không tồn tại"}"#;
+        assert_eq!(
+            describe_http_failure(reqwest::StatusCode::BAD_REQUEST, body),
+            "HTTP 400 - Sách không tồn tại"
+        );
+    }
+
+    #[test]
+    fn http_failure_with_html_body_shows_status_only() {
+        assert_eq!(
+            describe_http_failure(reqwest::StatusCode::FORBIDDEN, "<html>nope</html>"),
+            "HTTP 403 Forbidden"
+        );
+    }
+
+    #[test]
+    fn truncate_counts_chars_not_bytes() {
+        assert_eq!(truncate_chars("đĩ chương", 3), "đĩ …");
+        assert_eq!(truncate_chars("ok", 10), "ok");
+    }
 }
 
 // ─── Download Chapter Command ─────────────────────────────

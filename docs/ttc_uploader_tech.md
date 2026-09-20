@@ -129,6 +129,7 @@ UploadQueueContext (React context, wraps entire app)
 | **Cancellation via event** | Frontend emits `ttc://cancel-upload-{jobId}`, Rust listens with `AtomicBool` flag and checks it during delays |
 | **Native notifications** | Uses `tauri-plugin-notification` on desktop, Web Notification API on web — fires on job completion or error |
 | **Types split** | `UploadProgressEvent` (Rust event shape with `job_id`) vs `UploadProgress` (UI-facing shape with `'idle'`/`'pending'` states) |
+| **Stop on first failed batch** | A rejected batch (TTC `success:false`, non-2xx, or network error) aborts the job: Rust emits a final `status: "error"` event and returns `Err("Chương a–b: <TTC server message>")`. The queue stores it as `job.error`, which `UploadQueueManager`, `UploadToolbar` and the native notification all display, so the user sees *why* the upload stopped |
 
 ### Related files
 
