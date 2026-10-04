@@ -24,6 +24,9 @@ pub struct TtcStory {
     pub last_chap_updated: Option<String>,
     pub views: i64,
     pub follows: i64,
+    /// `false` while the story waits for a moderator ("Chờ duyệt"). Absent on old payloads.
+    #[serde(default)]
+    pub approved: Option<bool>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -177,4 +180,16 @@ pub struct DownloadAllProgressEvent {
     pub failed: usize,
     pub status: String,
     pub message: Option<String>,
+}
+
+// ─── Create Story Types ────────────────────────────────────
+
+/// JSON answer of `POST /dang-truyen` (sent back to the frontend unchanged).
+#[derive(Debug, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct TtcCreateStoryResponse {
+    pub success: bool,
+    pub message: Option<String>,
+    /// On success: the cover-upload page of the new story, which carries its id.
+    pub redirect_url: Option<String>,
 }

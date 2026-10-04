@@ -63,7 +63,7 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
   }, [book, dlOptions, addJob, onClose]);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" style={{ animation: 'overlayIn 0.2s ease-out' }}>
       <div className="bg-bg-card border border-border-main rounded-xl w-full max-w-md shadow-2xl" style={{ animation: 'slideUp 0.3s ease-out' }}>
         {/* Header */}
         <div className="px-5 py-4 border-b border-border-main flex justify-between items-center">

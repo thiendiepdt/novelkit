@@ -14,6 +14,8 @@ import {
   ResyncComparisonTable,
   DownloadAllModal,
   EditBookModal,
+  CreateBookModal,
+  DeleteBookModal,
 } from './components';
 import type { TtcStory } from './types';
 
@@ -43,6 +45,10 @@ function TtcUploaderContent() {
 
   // ─── Modal state ────────────────────────────────────────
   const [editingBookId, setEditingBookId] = useState<number | null>(null);
+  const [showCreateModal, setShowCreateModal] = useState(false);
+  const [deletingBook, setDeletingBook] = useState<TtcStory | null>(null);
+  /** Outcome of the last create/delete, shown above the list until dismissed. */
+  const [listNotice, setListNotice] = useState<string | null>(null);
   const [showDownloadAllModal, setShowDownloadAllModal] = useState(false);
   const [activeTab, setActiveTab] = useState<'remote' | 'local'>('remote');
 
@@ -104,7 +110,6 @@ function TtcUploaderContent() {
             fileFirstLineTitle={chapters.fileFirstLineTitle}
             chapterPrice={chapters.chapterPrice}
             unlockTimer={chapters.unlockTimer}
-            vipNewChaptersOnly={chapters.vipNewChaptersOnly}
             vipMinWords={chapters.vipMinWords}
             vipFromChapter={chapters.vipFromChapter}
             skipChapters={chapters.skipChapters}
@@ -117,7 +122,6 @@ function TtcUploaderContent() {
             onFileFirstLineTitleChange={chapters.setFileFirstLineTitle}
             onChapterPriceChange={chapters.setChapterPrice}
             onUnlockTimerChange={chapters.setUnlockTimer}
-            onVipNewChaptersOnlyChange={chapters.setVipNewChaptersOnly}
             onVipMinWordsChange={chapters.setVipMinWords}
             onVipFromChapterChange={chapters.setVipFromChapter}
             onSkipChaptersChange={chapters.setSkipChapters}
@@ -258,7 +262,21 @@ function TtcUploaderContent() {
               books.fetchBooks(1, books.searchKeyword, books.statusFilter.join(','), newLimit);
             }}
             onRefresh={books.refreshBooks}
+            onCreate={() => setShowCreateModal(true)}
           />
+
+          {listNotice && (
+            <div className="bg-jade/10 border border-jade/30 rounded-lg p-3 mb-3 text-sm text-jade flex items-center justify-between gap-3">
+              <span>{listNotice}</span>
+              <button
+                onClick={() => setListNotice(null)}
+                aria-label="Ẩn thông báo"
+                className="text-jade/70 hover:text-jade cursor-pointer"
+              >
+                ✕
+              </button>
+            </div>
+          )}
 
           {books.booksError && (
             <div className="bg-crimson/10 border border-crimson/30 rounded-lg p-3 mb-3 text-sm text-crimson">
@@ -275,6 +293,7 @@ function TtcUploaderContent() {
                   book={book}
                   onEdit={setEditingBookId}
                   onResync={handleSelectBook}
+                  onDelete={setDeletingBook}
                 />
               ))}
 
@@ -297,6 +316,34 @@ function TtcUploaderContent() {
           onClose={() => setEditingBookId(null)}
           onSuccess={() => {
             setEditingBookId(null);
+            books.refreshBooks();
+          }}
+        />
+      )}
+
+      {/* Create Book Modal */}
+      {showCreateModal && (
+        <CreateBookModal
+          onClose={() => setShowCreateModal(false)}
+          onSuccess={(result) => {
+            setShowCreateModal(false);
+            setListNotice(`Đã đăng truyện “${result.title}”. Bấm Đồng bộ ở truyện đó để upload chương.`);
+            books.refreshBooks();
+          }}
+        />
+      )}
+
+      {/* Delete (pending) Book Modal */}
+      {deletingBook && (
+        <DeleteBookModal
+          book={deletingBook}
+          onClose={() => setDeletingBook(null)}
+          onDeleted={(book, message) => {
+            setDeletingBook(null);
+            // TTC reports through a flash message; when it sends none, the refreshed list is the proof.
+            setListNotice(
+              message ?? `Đã gửi yêu cầu xóa truyện “${book.title}”. TTC không trả thông báo, hãy kiểm tra danh sách vừa làm mới.`,
+            );
             books.refreshBooks();
           }}
         />

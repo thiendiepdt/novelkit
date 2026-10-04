@@ -21,10 +21,23 @@ pub struct TtcClient {
     base_url: Mutex<Option<String>>,
 }
 
+/// Build the app's HTTP client.
+///
+/// Obsolete multi-line ("folded") response headers are accepted: www.qimao.com sends
+/// header lines that start with a space, which hyper rejects by default with
+/// "invalid HTTP header parsed" while browsers and curl simply read on.
+pub fn build_http_client() -> reqwest::Client {
+    reqwest::Client::builder()
+        .http1_allow_obsolete_multiline_headers_in_responses(true)
+        .build()
+        // Same failure mode as `reqwest::Client::new()`: only the TLS backend can fail to initialize.
+        .expect("failed to initialize the HTTP client")
+}
+
 impl Default for TtcClient {
     fn default() -> Self {
         Self {
-            inner: reqwest::Client::new(),
+            inner: build_http_client(),
             base_url: Mutex::new(None),
         }
     }

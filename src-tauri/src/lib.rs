@@ -1,5 +1,8 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
+mod ai;
+mod net;
+mod novel_source;
 mod ttc;
 
 use tauri::Manager;
@@ -28,6 +31,8 @@ pub fn run() {
             ttc::books::ttc_fetch_books,
             ttc::books::ttc_fetch_html,
             ttc::books::ttc_submit_multipart,
+            ttc::books::ttc_create_story,
+            ttc::books::ttc_delete_story,
             ttc::books::ttc_upload_cover,
             // Chapters
             ttc::chapters::ttc_fetch_chapters,
@@ -40,6 +45,11 @@ pub fn run() {
             ttc::image::ttc_read_local_file,
             // Utils
             ttc::utils::ttc_open_folder,
+            // Source novel sites (Fanqie / QQ / Qidian) for AI fill
+            novel_source::source_fetch_text,
+            novel_source::source_fetch_image,
+            // AI (Gemini / OpenAI-compatible)
+            ai::ai_generate_json,
         ])
         .setup(|app| {
             // Load persisted TTC session from app data dir

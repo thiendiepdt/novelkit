@@ -98,6 +98,17 @@ textarea {
   }
 }
 
+/* Full-screen modal backdrops: opacity only. Moving or blurring a viewport-sized layer
+   forces a repaint of everything behind it on every frame, which makes dialogs open with a stutter. */
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
 @keyframes slideUp {
   from {
     opacity: 0;

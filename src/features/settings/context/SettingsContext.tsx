@@ -1,16 +1,16 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
 import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
-import type { AppSettings, PerBookSettings } from '../types';
+import type { AppSettings, BookSettingsSection, PerBookSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 
 interface SettingsContextValue {
   globalSettings: AppSettings;
   updateGlobalSettings: <K extends keyof AppSettings>(section: K, overrides: Partial<AppSettings[K]>) => void;
   resetGlobalSettings: () => void;
-  
+
   bookSettings: Record<number, PerBookSettings>;
-  updateBookSettings: <K extends keyof AppSettings>(bookId: number, section: K, overrides: Partial<AppSettings[K]>) => void;
+  updateBookSettings: <K extends BookSettingsSection>(bookId: number, section: K, overrides: Partial<AppSettings[K]>) => void;
   clearBookSettings: (bookId: number) => void;
 
   getSettingsForBook: (bookId?: number) => AppSettings;
@@ -32,7 +32,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     }));
   }, [setGlobalSettings]);
 
-  const updateBookSettings = useCallback(<K extends keyof AppSettings>(bookId: number, section: K, overrides: Partial<AppSettings[K]>) => {
+  const updateBookSettings = useCallback(<K extends BookSettingsSection>(bookId: number, section: K, overrides: Partial<AppSettings[K]>) => {
     setBookSettings(prev => {
       const currentBookSettings = prev[bookId] || {};
       const currentSection = currentBookSettings[section] || {};
@@ -66,6 +66,12 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
     const mergedGlobalSettings: AppSettings = {
       splitter: { ...DEFAULT_SETTINGS.splitter, ...(globalSettings?.splitter || {}) },
       ttcUploader: { ...DEFAULT_SETTINGS.ttcUploader, ...(globalSettings?.ttcUploader || {}) },
+      // Settings saved before the AI section existed have no `ai` key: merge each level with defaults.
+      ai: {
+        provider: globalSettings?.ai?.provider ?? DEFAULT_SETTINGS.ai.provider,
+        gemini: { ...DEFAULT_SETTINGS.ai.gemini, ...(globalSettings?.ai?.gemini || {}) },
+        openai: { ...DEFAULT_SETTINGS.ai.openai, ...(globalSettings?.ai?.openai || {}) },
+      },
     };
 
     const getSettingsForBookMerged = (bookId?: number): AppSettings => {
@@ -81,7 +87,8 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         ttcUploader: {
           ...mergedGlobalSettings.ttcUploader,
           ...(specific.ttcUploader || {}),
-        }
+        },
+        ai: mergedGlobalSettings.ai,
       };
     };
 

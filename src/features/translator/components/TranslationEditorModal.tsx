@@ -35,7 +35,7 @@ export default function TranslationEditorModal({ token, isOpen, onClose, onSave 
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" style={{ animation: 'overlayIn 0.2s ease-out' }}>
       <div 
         className="w-full max-w-sm bg-bg-secondary border border-border-main rounded-2xl shadow-xl overflow-hidden"
         style={{ animation: 'slideUp 0.3s ease-out' }}

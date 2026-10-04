@@ -12,7 +12,12 @@ export interface TtcStory {
   last_chap_updated: string | null;
   views: number;
   follows: number;
+  /** `false` while the story waits for a moderator ("Chờ duyệt"); null/absent when unknown. */
+  approved?: boolean | null;
 }
+
+/** A story is pending only when TTC says so explicitly, exactly like the site's own list. */
+export const isPendingApproval = (book: TtcStory) => book.approved === false;
 
 export interface TtcBooksResponse {
   success: boolean;
@@ -144,5 +149,43 @@ export interface EditBookForm {
   csrfToken: string;
   data: EditBookData;
   options: EditBookOptions;
+}
+
+// ─── Create Book Types ─────────────────────────────────────
+
+export type BookType = 'truyen-cv' | 'truyen-dich' | 'sang-tac';
+
+/** Fields of TTC's "Đăng Truyện Mới" form. */
+export interface CreateBookData {
+  title: string;
+  gender: 'Nam' | 'Nữ';
+  type: BookType;
+  story_length: 'Truyện dài' | 'Truyện ngắn';
+  chinese_title: string;
+  chinese_link: string;
+  author: string;
+  author_original: string;
+  category: string;
+  /** Positional: [Tính cách, Bối cảnh, Lưu phái]; '' = not chosen. */
+  sub_categories: [string, string, string];
+  description: string;
+}
+
+/** What the create page provides besides the fields themselves. */
+export interface CreateBookForm {
+  csrfToken: string;
+  options: EditBookOptions;
+  /** The account's display name: TTC forces it as the author of "Sáng Tác" stories. */
+  displayName: string;
+  /** TTC's posting rules, as shown next to the form on the site. */
+  rules: string[];
+}
+
+/** A cover held in memory until the story exists (TTC uploads covers per story id). */
+export interface PendingCover {
+  bytes: number[];
+  mime: string;
+  /** Object URL for preview/cropping; owned by whoever holds the cover. */
+  previewUrl: string;
 }
 

@@ -50,13 +50,16 @@ src-tauri/                  # Tauri Rust backend (desktop only)
 ├── src/
 │   ├── main.rs             # Thin entry point
 │   ├── lib.rs              # App builder, plugin registration, managed state
+│   ├── ai.rs               # One-shot JSON generation via Gemini / OpenAI-compatible APIs
+│   ├── net.rs              # Readable descriptions of outbound HTTP failures
+│   ├── novel_source.rs     # Allowlisted fetches from Fanqie / QQ / Qidian / Qimao / SFACG (AI fill)
 │   └── ttc/                # TTC feature backend (modular)
 │       ├── mod.rs           # Module declarations
 │       ├── types.rs         # Serde structs for API payloads & responses
 │       ├── client.rs        # Shared reqwest::Client + session helper
 │       ├── session.rs       # Session persistence, login/logout commands
 │       ├── image.rs         # Image proxy with in-memory cache
-│       ├── books.rs         # Book CRUD: fetch list, HTML forms, cover upload
+│       ├── books.rs         # Book CRUD: fetch list, HTML forms, create story, cover upload
 │       ├── chapters.rs      # Chapter fetch, parse, upload, download commands
 │       └── utils.rs         # OS file manager opener, filename sanitization
 ├── capabilities/           # Tauri v2 permission/security config
@@ -124,7 +127,7 @@ The app uses a **Warm Charcoal Xianxia** dark theme. All colors are defined as C
 
 1. Use **TailwindCSS utility classes** — the project uses TailwindCSS v4 with `@theme` directives
 2. Custom colors are accessed via Tailwind: `text-gold`, `bg-bg-card`, `border-border-main`
-3. Animations are defined as `@keyframes` in `index.css`: `fadeIn`, `slideUp`, `pulse-gold`, `shimmer`, `copySuccess`
+3. Animations are defined as `@keyframes` in `index.css`: `fadeIn`, `overlayIn` (modal backdrops: opacity only, no blur), `slideUp`, `pulse-gold`, `shimmer`, `copySuccess`
 4. **No inline CSS** except for dynamic computed values (e.g., conditional boxShadow)
 5. The font stack is `'Be Vietnam Pro'` loaded from Google Fonts
 
@@ -202,16 +205,28 @@ TtcUploaderPage (orchestrator, ~200 lines)
 Components:
   LoginView, BookCard, BookListToolbar, BookDetailHeader,
   UploadToolbar, ChapterTable, DownloadAllModal,
-  EditBookModal, CoverCropperModal, ProxiedImage
+  EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage
+
+Create story (CreateBookModal → useCreateBook):
+  createBookApi.ts   → parse the /dang-truyen form, build fields, submit, copyright check
+  sources/           → detect link (Fanqie / QQ / Qidian / Qimao / SFACG) + parse the book metadata
+  ai/                → build the fill prompt, validate the JSON reply of the model
 ```
 
 **Rust backend** (`src-tauri/src/ttc/`):
 - `client.rs` — shared `TtcClient` (managed state, connection pooling) + `get_session()` helper
 - `session.rs` — `TtcSession` struct, disk persistence, login webview commands
 - `image.rs` — `TtcImageCache` + `ttc_proxy_image` (CORS bypass via Rust fetch)
-- `books.rs` — `ttc_fetch_books`, `ttc_fetch_html`, `ttc_submit_multipart`, `ttc_upload_cover`
+- `books.rs` — `ttc_fetch_books`, `ttc_fetch_html`, `ttc_submit_multipart`, `ttc_create_story`, `ttc_delete_story`, `ttc_upload_cover`
 - `chapters.rs` — `ttc_fetch_chapters`, `ttc_parse_chapters`, `ttc_upload_chapters`, `ttc_download_chapter`, `ttc_download_all_chapters`
 - `utils.rs` — `ttc_open_folder`, `sanitize_filename`
+
+**Rust backend outside `ttc/`** (used by the create-story AI fill):
+- `novel_source.rs` — `source_fetch_text`, `source_fetch_image`. Read-only, restricted to an allowlist of hosts (not a general proxy). Parsing happens in the frontend (`ttc-uploader/sources/`).
+- `ai.rs` — `ai_generate_json`. Speaks Gemini `generateContent` and OpenAI-compatible `chat/completions`; the prompt is built and the reply validated in the frontend (`ttc-uploader/ai/`).
+- Both reuse the shared `reqwest::Client` via `ttc::client::get_client()`. Adding a source means: a host in `TEXT_SOURCES` / `IMAGE_HOST_SUFFIXES` (Rust), a branch in `sources/detect.ts`, a parser in `sources/parse.ts`, and a line in the `#[ignore]` live test.
+
+**AI settings** live in `AppSettings.ai` (`features/settings/types.ts`): provider (`gemini` | `openai`), and per provider `apiKey` / `model` / `baseUrl`. They are global only (never per-book) and stored in localStorage with the other settings.
 
 **Key patterns**:
 - All commands use shared `TtcClient` (reqwest connection pooling) instead of creating per-request clients

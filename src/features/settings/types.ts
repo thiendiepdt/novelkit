@@ -19,7 +19,6 @@ export interface TtcUploaderSettings {
   folderPath: string;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
-  vipNewChaptersOnly: boolean;
   /** Chapters with fewer words than this are uploaded free (TTC rejects VIP on short chapters) */
   vipMinWords: number;
   /** Chapters (web number, skipChapters included) before this are uploaded free */
@@ -27,15 +26,41 @@ export interface TtcUploaderSettings {
   skipChapters: number;
 }
 
+/** `gemini` = Google's Gemini API; `openai` = OpenAI or any OpenAI-compatible hub (chat/completions). */
+export type AiProvider = 'gemini' | 'openai';
+
+export interface AiProviderSettings {
+  apiKey: string;
+  model: string;
+  /** Empty = the provider's official endpoint (see DEFAULT_AI_BASE_URLS). */
+  baseUrl: string;
+}
+
+export interface AiSettings {
+  provider: AiProvider;
+  gemini: AiProviderSettings;
+  openai: AiProviderSettings;
+}
+
+export const DEFAULT_AI_BASE_URLS: Record<AiProvider, string> = {
+  gemini: 'https://generativelanguage.googleapis.com',
+  openai: 'https://api.openai.com/v1',
+};
+
 export interface AppSettings {
   splitter: SplitterSettings;
   ttcUploader: TtcUploaderSettings;
+  /** Global only: AI credentials are never overridden per book. */
+  ai: AiSettings;
 }
 
 export type PerBookSettings = Partial<{
   splitter: Partial<SplitterSettings>;
   ttcUploader: Partial<TtcUploaderSettings>;
 }>;
+
+/** Sections that can be overridden per book. */
+export type BookSettingsSection = keyof PerBookSettings;
 
 export const DEFAULT_SETTINGS: AppSettings = {
   splitter: {
@@ -54,9 +79,13 @@ export const DEFAULT_SETTINGS: AppSettings = {
     folderPath: '',
     chapterPrice: 0,
     unlockTimer: '',
-    vipNewChaptersOnly: true,
     vipMinWords: 1450,
     vipFromChapter: 51,
     skipChapters: 0,
+  },
+  ai: {
+    provider: 'gemini',
+    gemini: { apiKey: '', model: 'gemini-3.8-flash', baseUrl: '' },
+    openai: { apiKey: '', model: 'gpt-5.6-sol', baseUrl: '' },
   },
 };

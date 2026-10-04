@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useSettingsContext } from '../context/SettingsContext';
-import type { AppSettings } from '../types';
+import type { AppSettings, BookSettingsSection } from '../types';
 
 /**
  * Hook for consuming settings.
@@ -13,8 +13,9 @@ export function useSettings(bookId?: number) {
   const settings = useMemo(() => getSettingsForBook(bookId), [getSettingsForBook, bookId]);
 
   const updateSettings = <K extends keyof AppSettings>(section: K, overrides: Partial<AppSettings[K]>) => {
-    if (bookId) {
-      updateBookSettings(bookId, section, overrides);
+    // The AI section is global only; everything else can be overridden per book.
+    if (bookId && section !== 'ai') {
+      updateBookSettings(bookId, section as BookSettingsSection, overrides as Partial<AppSettings[BookSettingsSection]>);
     } else {
       updateGlobalSettings(section, overrides);
     }

@@ -6,6 +6,8 @@ export { UploadToolbar } from './UploadToolbar';
 export { ChapterTable } from './ChapterTable';
 export { DownloadAllModal } from './DownloadAllModal';
 export { EditBookModal } from './EditBookModal';
+export { CreateBookModal } from './CreateBookModal';
+export { DeleteBookModal } from './DeleteBookModal';
 export { CoverCropperModal } from './CoverCropperModal';
 export { default as ProxiedImage } from './ProxiedImage';
 export { ResyncComparisonTable } from './ResyncComparisonTable';

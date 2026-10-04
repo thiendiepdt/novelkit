@@ -176,6 +176,82 @@ Download All Flow:
     → Cancel via 'ttc://cancel-download-{jobId}' event
 ```
 
+## Create Story + AI Fill
+
+"Đăng truyện mới" on the book list opens `CreateBookModal`, a port of the `/dang-truyen` form on TTC. The **AI fill** needs only the source link (a book page or, where the site allows it, a chapter page): everything else is read from the source site and translated by the configured model.
+
+### Flow
+
+```
+CreateBookModal → useCreateBook
+  load:    ttc_fetch_html('/dang-truyen') → parseCreateBookPage()
+             → csrf token, option lists (category + 3 sub_categories), display name, posting rules
+  AI fill: detectSource(link)                      (sources/detect.ts — Fanqie / QQ / Qidian / Qimao / SFACG)
+             ?? detectChapterLookup(link)          (chapter-only link: fetch the chapter page for the book id)
+             → source_fetch_text(fetchUrl)         (Rust, allowlisted hosts)
+             (+ extraFetchUrl, best effort)        (SFACG: tags live on a second page)
+             → parseFanqie / parseQidian / parseQq / parseQimao / parseSfacg → SourceBook
+             → fills chinese_title, chinese_link (canonical), author_original
+             → source_fetch_image(coverUrls…)      (background; pending cover, kept in memory)
+             → buildFillPrompt() → ai_generate_json (Rust) → parseFillResponse()
+             → fills title, author, gender, category, sub_categories, description
+  submit:  buildCreateBookFields() → ttc_create_story → { success, message, redirectUrl }
+             → bookIdFromRedirect(redirectUrl) → ttc_upload_cover(bookId, pending cover)
+```
+
+### Sources
+
+| Source | Link forms accepted | Metadata is read from | Signing |
+|--------|--------------------|-----------------------|---------|
+| Fanqie | `fanqienovel.com/page/{id}`, share links with `book_id=` | `window.__INITIAL_STATE__` in the book page | none |
+| QQ Reading | any `*.qq.com` book page (bid or `1e9 + bid`) | `detailadr.reader.qq.com/book/queryDetailPage` (public JSON) | none |
+| Qidian | `qidian.com/{book,info,chapter}/{id}` on any subdomain | SSR page context of `m.qidian.com/book/{id}/` | none |
+| Qimao | `qimao.com/shuku/{id}/`, chapter `shuku/{id}-{chapterId}/` | markup of the server-rendered book page (its `__NUXT__` state is a JS program, not data) | none |
+| SFACG | `book.sfacg.com/Novel/{id}/[…chapter]`, `m.sfacg.com/{b,i}/{id}/`, chapter `m.sfacg.com/c/{chapterId}/` | `m.sfacg.com/b/{id}/` (full synopsis) + `book.sfacg.com/Novel/{id}/` (tags) | none |
+
+`www.qidian.com` answers HTTP 202 with a JS probe, so the mobile site is used; no signing worker is involved. A Fanqie chapter link (`/reader/{itemId}`) carries no book id and is rejected.
+
+Chapter links are normalized to the book: most carry the book id in the path. `m.sfacg.com/c/{chapterId}/` does not, so `detectChapterLookup` + `sfacgBookIdFromChapter` read it from the back link of the chapter page (one extra fetch).
+
+www.qimao.com sends folded response headers (lines starting with a space), which hyper rejects by default; `ttc::client::build_http_client` enables `http1_allow_obsolete_multiline_headers_in_responses` for the shared client.
+
+### Key design decisions
+
+| Decision | Rationale |
+|----------|-----------|
+| **Fetch in Rust, parse in TS** | The webview cannot call the sites (CORS; WAFs reject a webview `Origin`). Parsing stays in TS where it is unit-tested against fixtures |
+| **Host allowlists** | `source_fetch_text` only talks to the three metadata hosts and `source_fetch_image` to their CDNs, so neither is a general-purpose proxy |
+| **Option lists from the live form** | Categories come from the TTC page, not a hardcoded list; the picks of the model are validated against them and anything else is dropped |
+| **Model reply is untrusted** | `parseFillResponse` accepts bare / fenced / prose-wrapped JSON, title-cases names, and never throws on a bad category (it leaves the field for the user) |
+| **Cover is pending until the story exists** | TTC uploads covers per story id, so the image is held in memory and uploaded right after `ttc_create_story`; a failed cover upload is reported without hiding that the story was created |
+| **Cover download tolerates a flaky CDN** | The cover CDNs (byteimg especially) can stall or drop a cold connection from outside mainland China. Each source yields ordered `coverUrls` (Fanqie: `…~tplv-shrink:640:0.image` first, `origin/…` as fallback); Rust retries transient failures (connection errors, 5xx, 429) once per URL; the download runs in the background, and the form offers "Tải lại ảnh bìa gốc" when every candidate failed. Errors name the cause (`net::describe_request_error`) instead of reqwest's bare "error sending request" |
+| **`ttc_create_story` returns the JSON answer of TTC** | `Accept: application/json` makes TTC answer `{ success, message }`; its message (duplicate story, banned words) is shown verbatim. A non-JSON answer (login page) is an error, not a silent success |
+| **AI call in Rust** | OpenAI-compatible hubs rarely send CORS headers. Gemini uses `generateContent` with `responseMimeType: application/json`; OpenAI-compatible uses `chat/completions` with `response_format: json_object` |
+
+### Related files
+
+| File | Purpose |
+|------|---------|
+| `components/CreateBookModal.tsx` | Form UI (fields mirror the TTC form, "Aa" title-case buttons, cover, rules) |
+| `hooks/useCreateBook.ts` | Form state, AI fill, copyright check, pending cover, submit |
+| `createBookApi.ts` | Page parsing, field building, submit, `/api/check-copyright` |
+| `sources/` | `detectSource`, per-site parsers, `fetchSourceBook` |
+| `ai/` | `buildFillPrompt`, `parseFillResponse`, `aiFillBook` |
+| `src-tauri/src/novel_source.rs` | `source_fetch_text`, `source_fetch_image` |
+| `src-tauri/src/ai.rs` | `ai_generate_json` |
+| `src-tauri/src/ttc/books.rs` | `ttc_create_story` |
+
+## Pending Stories: Badge + Delete
+
+The list JSON (`/my-stories?...&ajax=true`) carries `approved` per story. `approved === false` means the story is still waiting for a moderator: `BookCard` shows a "Chờ duyệt" badge and, only then, a delete button (same rule as the status column on the site).
+
+Deleting uses `POST /xoa-truyen/{id}` with the session CSRF token (form field `_csrf`). The site no longer renders a button for it, but the route is served. Details worth knowing:
+
+- `/my-stories` has no CSRF token, so `ttc_delete_story` reads it from the `/dang-truyen` form first.
+- TTC answers with a 302 to `/my-stories` and reports the outcome there as a flash message in `window.PAGE_DATA` (`successMsg` / `errorMsg`). reqwest follows the redirect, and `interpret_delete_result` maps the landing page to `Ok(Some(msg))`, `Ok(None)` (no message: re-check the list) or `Err(msg)`.
+- The route and its error path were verified against the live site with a non-existent story id. Which stories TTC actually allows to be deleted is decided by TTC; its answer is shown unchanged.
+- `DeleteBookModal` asks for confirmation first: the delete is irreversible.
+
 ## Known Limitations
 
 1. **Session expiry**: No auto-refresh — user must re-login when session expires
@@ -183,4 +259,6 @@ Download All Flow:
 3. **Cover crop**: Uses canvas-based cropping (no rotation support in output)
 4. **Download ordering**: Multi-threaded downloads may write chunks out-of-order for "single" mode
 5. **Upload queue is in-memory only**: Pending jobs are lost on app restart
+6. **AI key storage**: the AI API key is kept in localStorage with the other settings (plain text, this machine only)
+7. **Source sites can change**: the AI fill reads unsigned web pages/endpoints; a layout or anti-bot change on Fanqie / QQ / Qidian breaks that source until its parser is updated
 

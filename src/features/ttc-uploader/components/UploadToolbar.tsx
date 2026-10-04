@@ -100,7 +100,6 @@ interface UploadToolbarProps {
   fileFirstLineTitle: boolean;
   chapterPrice: number;
   unlockTimer: UnlockTimer;
-  vipNewChaptersOnly: boolean;
   vipMinWords: number;
   vipFromChapter: number;
   skipChapters: number;
@@ -119,7 +118,6 @@ interface UploadToolbarProps {
   onFileFirstLineTitleChange: (value: boolean) => void;
   onChapterPriceChange: (value: number) => void;
   onUnlockTimerChange: (value: UnlockTimer) => void;
-  onVipNewChaptersOnlyChange: (value: boolean) => void;
   onVipMinWordsChange: (value: number) => void;
   onVipFromChapterChange: (value: number) => void;
   onSkipChaptersChange: (value: number) => void;
@@ -149,7 +147,6 @@ export function UploadToolbar({
   fileFirstLineTitle,
   chapterPrice,
   unlockTimer,
-  vipNewChaptersOnly,
   vipMinWords,
   vipFromChapter,
   skipChapters,
@@ -168,7 +165,6 @@ export function UploadToolbar({
   onFileFirstLineTitleChange,
   onChapterPriceChange,
   onUnlockTimerChange,
-  onVipNewChaptersOnlyChange,
   onVipMinWordsChange,
   onVipFromChapterChange,
   onSkipChaptersChange,
@@ -431,17 +427,6 @@ export function UploadToolbar({
                   </Select>
                 </Tooltip>
               </div>
-              <Tooltip content="Chỉ đặt giá/khóa cho các chương chưa có trên web" side="bottom" className="ml-1">
-                <label className="flex items-center gap-1 cursor-pointer">
-                  <input
-                    type="checkbox"
-                    checked={vipNewChaptersOnly}
-                    onChange={(e) => onVipNewChaptersOnlyChange(e.target.checked)}
-                    className="rounded border-border-main text-gold focus:ring-gold bg-bg-hover"
-                  />
-                  <span className="text-[11px] text-text-dim whitespace-nowrap">Chỉ VIP chương mới</span>
-                </label>
-              </Tooltip>
               <div className="flex items-center gap-1.5">
                 <label className="text-[11px] text-text-dim whitespace-nowrap">Tối thiểu:</label>
                 <Tooltip content="Chương có số chữ nhỏ hơn mức này sẽ được đăng miễn phí (TTC không cho cài VIP chương ngắn). 0 = không giới hạn" side="bottom">

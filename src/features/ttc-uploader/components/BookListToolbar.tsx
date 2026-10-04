@@ -1,3 +1,4 @@
+import { Plus } from 'lucide-react';
 import { Pagination } from '@/shared/components';
 import { STATUS_OPTIONS } from '../constants';
 import type { BookStatus } from '../constants';
@@ -15,10 +16,11 @@ interface BookListToolbarProps {
   onPageChange: (page: number) => void;
   onLimitChange: (limit: number) => void;
   onRefresh: () => void;
+  onCreate: () => void;
 }
 
 /**
- * Toolbar for the book list: search input, status filter tabs, refresh, and pagination.
+ * Toolbar for the book list: search input, status filter tabs, refresh, create, and pagination.
  */
 export function BookListToolbar({
   totalStories,
@@ -33,6 +35,7 @@ export function BookListToolbar({
   onPageChange,
   onLimitChange,
   onRefresh,
+  onCreate,
 }: BookListToolbarProps) {
   return (
     <div className="flex-shrink-0">
@@ -94,6 +97,12 @@ export function BookListToolbar({
               className="text-xs text-text-secondary hover:text-gold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-bg-hover"
             >
               <span>↻</span> <span className="hidden sm:inline">{loadingBooks ? 'Đang tải...' : 'Làm mới'}</span>
+            </button>
+            <button
+              onClick={onCreate}
+              className="text-xs font-bold bg-gold text-bg-primary hover:bg-gold/90 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+            >
+              <Plus size={14} /> Đăng truyện mới
             </button>
           </div>
         </div>

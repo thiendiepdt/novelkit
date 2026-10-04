@@ -1,6 +1,31 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { EditBookForm, EditBookData, EditBookOptions, OptionItem } from './types';
 
+/**
+ * Option lists of TTC's story form (`#storyForm`), shared by the edit and create pages:
+ * one category select followed by three `sub_categories` selects (tính cách, bối cảnh, lưu phái).
+ */
+export function parseBookFormOptions(form: HTMLFormElement): EditBookOptions {
+  const parseOptions = (selectElem: HTMLSelectElement | null | undefined): OptionItem[] => {
+    if (!selectElem) return [];
+    return Array.from(selectElem.options)
+      .filter(opt => opt.value && !opt.disabled)
+      .map(opt => ({
+        value: opt.value,
+        label: opt.text.trim()
+      }));
+  };
+
+  const subCatSelects = Array.from(form.querySelectorAll('select[name="sub_categories"]')) as HTMLSelectElement[];
+
+  return {
+    categories: parseOptions(form.querySelector('select[name="category"]') as HTMLSelectElement | null),
+    subCategoriesTichCach: parseOptions(subCatSelects[0]),
+    subCategoriesBoiCanh: parseOptions(subCatSelects[1]),
+    subCategoriesLuuPhai: parseOptions(subCatSelects[2]),
+  };
+}
+
 export async function fetchEditBookForm(bookId: string | number): Promise<EditBookForm> {
   const html = await invoke<string>('ttc_fetch_html', {
     path: `/sua-truyen/${bookId}`
@@ -40,25 +65,7 @@ export async function fetchEditBookForm(bookId: string | number): Promise<EditBo
     }
   });
 
-  // Extract options
-  const parseOptions = (selectElem: HTMLSelectElement | null): OptionItem[] => {
-    if (!selectElem) return [];
-    return Array.from(selectElem.options)
-      .filter(opt => opt.value && !opt.disabled)
-      .map(opt => ({
-        value: opt.value,
-        label: opt.text.trim()
-      }));
-  };
-
-  const categorySelect = form.querySelector('select[name="category"]') as HTMLSelectElement;
-  
-  const options: EditBookOptions = {
-    categories: parseOptions(categorySelect),
-    subCategoriesTichCach: parseOptions(subCatSelects[0]),
-    subCategoriesBoiCanh: parseOptions(subCatSelects[1]),
-    subCategoriesLuuPhai: parseOptions(subCatSelects[2]),
-  };
+  const options = parseBookFormOptions(form);
 
   return { actionUrl, csrfToken, data, options };
 }
@@ -98,4 +105,13 @@ export async function uploadCover(bookId: number, imageBytes: number[], mimeType
     imageBytes,
     mimeType
   });
+}
+
+/**
+ * Delete one of the account stories on TTC. Irreversible: confirm with the user first.
+ * Resolves with the confirmation message of TTC, or null when TTC said nothing either way
+ * (re-check the list). Rejects with the reason when TTC refuses.
+ */
+export async function deleteBook(bookId: number): Promise<string | null> {
+  return invoke<string | null>('ttc_delete_story', { bookId });
 }

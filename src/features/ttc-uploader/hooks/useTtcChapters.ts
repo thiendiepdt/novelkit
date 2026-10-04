@@ -54,11 +54,10 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
   // Chapter Splitter Settings
   const { maxWords, minWords, roundUp } = settings.splitter;
-  const { enableSplit, splitFromChapter, uploadDelayMs: delayMs, localSortMode, fileFirstLineTitle, folderPath, chapterPrice, unlockTimer, vipNewChaptersOnly, vipMinWords, vipFromChapter, skipChapters } = settings.ttcUploader;
+  const { enableSplit, splitFromChapter, uploadDelayMs: delayMs, localSortMode, fileFirstLineTitle, folderPath, chapterPrice, unlockTimer, vipMinWords, vipFromChapter, skipChapters } = settings.ttcUploader;
 
   const setEnableSplit = useCallback((v: boolean) => updateSettings('ttcUploader', { enableSplit: v }), [updateSettings]);
   const setSplitFromChapter = useCallback((v: number) => updateSettings('ttcUploader', { splitFromChapter: v }), [updateSettings]);
-  const setVipNewChaptersOnly = useCallback((v: boolean) => updateSettings('ttcUploader', { vipNewChaptersOnly: v }), [updateSettings]);
   const setVipMinWords = useCallback((v: number) => updateSettings('ttcUploader', { vipMinWords: v }), [updateSettings]);
   const setVipFromChapter = useCallback((v: number) => updateSettings('ttcUploader', { vipFromChapter: v }), [updateSettings]);
   const setMaxWords = useCallback((v: number) => updateSettings('splitter', { maxWords: v }), [updateSettings]);
@@ -307,15 +306,11 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
       return;
     }
 
-    const latestRemote = allRemoteChapters.length > 0
-      ? allRemoteChapters[allRemoteChapters.length - 1].chapterNumber
-      : 0;
-
+    // The price applies to every uploaded chapter that qualifies, whether or not it is already
+    // on the web: re-uploading an existing VIP chapter must keep it VIP.
     let finalChaptersToUpload = chaptersToUpload;
     if (chapterPrice > 0) {
       finalChaptersToUpload = chaptersToUpload.map(c => {
-        // Old chapters (already on web) stay free when "VIP new only" is on
-        if (vipNewChaptersOnly && c.index <= latestRemote) return { ...c, price: 0 };
         // TTC only allows VIP from a certain chapter number on (c.index already includes skipChapters)
         if (vipFromChapter > 0 && c.index < vipFromChapter) return { ...c, price: 0 };
         // TTC rejects VIP on short chapters, so upload those free
@@ -334,7 +329,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
     addJob(options, selectedBook.title);
 
-  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, vipNewChaptersOnly, vipMinWords, vipFromChapter, chapters, allRemoteChapters, addJob]);
+  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, vipMinWords, vipFromChapter, chapters, allRemoteChapters, addJob]);
 
   // Cancel the ongoing upload job for the current book
   const handleCancelUpload = useCallback(() => {
@@ -438,8 +433,6 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     setChapterPrice,
     unlockTimer,
     setUnlockTimer,
-    vipNewChaptersOnly,
-    setVipNewChaptersOnly,
     vipMinWords,
     setVipMinWords,
     vipFromChapter,

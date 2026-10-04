@@ -114,7 +114,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
 
   return (
     <>
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/60 backdrop-blur-sm" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" style={{ animation: 'overlayIn 0.2s ease-out' }}>
       <div
         className="bg-bg-card border border-border-main rounded-xl w-full max-w-4xl max-h-[90vh] flex flex-col shadow-2xl"
         style={{ animation: 'slideUp 0.3s ease-out' }}
@@ -135,7 +135,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
         {/* Body */}
         <div className="flex-1 overflow-y-auto p-5 relative min-h-[300px]">
           {loading && (
-            <div className="absolute inset-0 flex items-center justify-center bg-bg-card/80 backdrop-blur-sm z-10">
+            <div className="absolute inset-0 flex items-center justify-center bg-bg-card/90 z-10">
               <div className="flex flex-col items-center gap-3">
                 <div className="w-8 h-8 border-4 border-border-main border-t-gold rounded-full animate-spin"></div>
                 <span className="text-sm text-text-secondary">Đang tải thông tin...</span>

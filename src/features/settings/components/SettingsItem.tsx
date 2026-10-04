@@ -51,4 +51,18 @@ export function SettingsNumber({ value, onChange, min, max, step }: { value: num
   );
 }
 
+export function SettingsText({ value, onChange, placeholder, secret }: { value: string, onChange: (v: string) => void, placeholder?: string, secret?: boolean }) {
+  return (
+    <input
+      type={secret ? 'password' : 'text'}
+      value={value}
+      onChange={(e) => onChange(e.target.value)}
+      placeholder={placeholder}
+      autoComplete="off"
+      spellCheck={false}
+      className="w-72 max-w-full px-3 py-1.5 bg-bg-card border border-border-main rounded-lg text-sm text-text-primary placeholder:text-text-dim focus:border-gold focus:outline-none transition-colors"
+    />
+  );
+}
+
 

@@ -41,7 +41,7 @@ export function CoverCropperModal({ imageSrc, onClose, onCropComplete }: CoverCr
   };
 
   return (
-    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+    <div className="fixed inset-0 z-[60] flex items-center justify-center p-4 bg-black/85" style={{ animation: 'overlayIn 0.2s ease-out' }}>
       <div 
         className="bg-bg-card border border-border-main rounded-xl w-full max-w-2xl flex flex-col shadow-2xl overflow-hidden"
         style={{ animation: 'slideUp 0.3s ease-out' }}

@@ -1,9 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { useState, useEffect } from 'react';
 import { SettingsSidebar, type SettingsCategory } from './components/SettingsSidebar';
-import { SettingsItem, SettingsToggle, SettingsNumber } from './components/SettingsItem';
+import { SettingsItem, SettingsToggle, SettingsNumber, SettingsText } from './components/SettingsItem';
 import { useSettingsContext } from './context/SettingsContext';
 import { useSettingsModal } from './context/SettingsModalContext';
+import { DEFAULT_AI_BASE_URLS, DEFAULT_SETTINGS } from './types';
+import type { AiProvider, AiProviderSettings } from './types';
 import { Select, Tooltip } from '@/shared/components';
 import { useTtcAuth } from '@/features/ttc-uploader/hooks/useTtcAuth';
 import { useTtcBooks } from '@/features/ttc-uploader/hooks/useTtcBooks';
@@ -13,18 +15,19 @@ interface SettingsPanelProps {
   onClose: () => void;
   initialBookId?: number;
   initialBookTitle?: string;
+  initialCategory?: SettingsCategory;
 }
 
 /**
  * Settings panel — the core UI, reusable as a modal overlay or route page.
  */
-export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: SettingsPanelProps) {
+export function SettingsPanel({ onClose, initialBookId, initialBookTitle, initialCategory }: SettingsPanelProps) {
   const { globalSettings, updateGlobalSettings, resetGlobalSettings, bookSettings, updateBookSettings, clearBookSettings } = useSettingsContext();
-  
+
   const auth = useTtcAuth();
   const { books } = useTtcBooks(auth.session);
 
-  const [activeCategory, setActiveCategory] = useState<SettingsCategory>('splitter');
+  const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory ?? 'splitter');
   const [scope, setScope] = useState<string>(initialBookId ? initialBookId.toString() : 'global');
 
   // Close on Escape
@@ -273,7 +276,74 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
             )}
           </div>
         );
-      
+
+      case 'ai': {
+        const ai = globalSettings.ai;
+        const provider = ai.provider;
+        const config = ai[provider];
+        const setProviderField = (field: keyof AiProviderSettings, value: string) =>
+          updateGlobalSettings('ai', { [provider]: { ...config, [field]: value } });
+
+        return (
+          <div className="flex flex-col gap-2">
+            <h3 className="text-lg font-medium text-text-primary mb-2 border-b border-border-main pb-2">AI</h3>
+
+            <div className="p-3 bg-bg-hover/50 rounded-xl border border-border-main text-xs text-text-secondary">
+              Dùng cho tính năng <strong className="text-gold">AI điền</strong> khi đăng truyện mới ở TTC Uploader.
+              Cấu hình này dùng chung cho mọi truyện, API key chỉ lưu trên máy này.
+            </div>
+
+            <SettingsItem
+              label="Nhà cung cấp"
+              description="Gemini API chính chủ của Google, hoặc bất kỳ dịch vụ nào tương thích OpenAI (chat/completions)."
+            >
+              <Select
+                value={provider}
+                onChange={(e) => updateGlobalSettings('ai', { provider: e.target.value as AiProvider })}
+                className="text-sm"
+              >
+                <option value="gemini">Gemini API</option>
+                <option value="openai">OpenAI compatible</option>
+              </Select>
+            </SettingsItem>
+
+            <SettingsItem
+              label="API key"
+              description={provider === 'gemini' ? 'Lấy tại Google AI Studio.' : 'API key của OpenAI hoặc của hub tương thích.'}
+            >
+              <SettingsText
+                value={config.apiKey}
+                onChange={(v) => setProviderField('apiKey', v)}
+                placeholder={provider === 'gemini' ? 'AIza...' : 'sk-...'}
+                secret
+              />
+            </SettingsItem>
+
+            <SettingsItem
+              label="Model"
+              description="Tên model gửi lên API."
+            >
+              <SettingsText
+                value={config.model}
+                onChange={(v) => setProviderField('model', v)}
+                placeholder={DEFAULT_SETTINGS.ai[provider].model}
+              />
+            </SettingsItem>
+
+            <SettingsItem
+              label="Base URL"
+              description="Để trống để dùng địa chỉ chính chủ. Điền khi dùng proxy hoặc hub riêng."
+            >
+              <SettingsText
+                value={config.baseUrl}
+                onChange={(v) => setProviderField('baseUrl', v)}
+                placeholder={DEFAULT_AI_BASE_URLS[provider]}
+              />
+            </SettingsItem>
+          </div>
+        );
+      }
+
       case 'general':
       default:
         return (
@@ -369,13 +439,13 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle }: Sett
  * Rendered once in App.tsx — always mounted but only visible when isOpen.
  */
 export function SettingsOverlay() {
-  const { isOpen, bookId, bookTitle, closeSettings } = useSettingsModal();
+  const { isOpen, bookId, bookTitle, category, closeSettings } = useSettingsModal();
 
   if (!isOpen) return null;
 
   return (
     <div className="fixed inset-0 z-[200] animate-fadeIn" style={{ background: '#121212' }}>
-      <SettingsPanel onClose={closeSettings} initialBookId={bookId} initialBookTitle={bookTitle} />
+      <SettingsPanel onClose={closeSettings} initialBookId={bookId} initialBookTitle={bookTitle} initialCategory={category} />
     </div>
   );
 }
