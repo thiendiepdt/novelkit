@@ -126,6 +126,12 @@ export function detectSource(input: string): SourceRef | null {
     return m ? sourceRef('ciweimao', m[1]) : null;
   }
 
+  // sangtacviet mirrors the Chinese sites under /truyen/{source}/{n}/{bookId}/[chapter...], on
+  // many domains and bare IPs that come and go. The path alone names the original book, so the
+  // host is ignored; the data is then read from the original site like any other link.
+  const mirror = url.pathname.match(/\/truyen\/(faloo|qidian|fanqie|ciweimao|jjwxc|sfacg|qimao)\/\d+\/(\d+)(?:\/|$)/i);
+  if (mirror) return sourceRef(mirror[1].toLowerCase() as SourceId, mirror[2]);
+
   return null;
 }
 

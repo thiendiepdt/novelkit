@@ -247,7 +247,7 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                       <Sparkles size={16} /> AI điền từ link truyện gốc
                     </div>
                     <p className="text-xs text-text-secondary">
-                      Dán link truyện hoặc link chương từ {SOURCE_NAMES} rồi bấm <strong>AI điền</strong>. Tên gốc, tác giả gốc và
+                      Dán link truyện hoặc link chương từ {SOURCE_NAMES} rồi bấm <strong>AI điền</strong>. Link sangtacviet cũng dùng được, app tự lần về trang gốc. Tên gốc, tác giả gốc và
                       ảnh bìa lấy thẳng từ trang gốc; AI dịch tên truyện, tác giả, văn án và chọn thể loại.{' '}
                       {data.type === 'truyen-dich'
                         ? 'Đang chọn Truyện Dịch: tên truyện được dịch thuần Việt, hạn chế Hán-Việt.'

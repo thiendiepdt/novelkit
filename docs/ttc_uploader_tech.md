@@ -211,6 +211,7 @@ CreateBookModal → useCreateBook
 | Faloo | `faloo.com/{id}.html`, chapter `{id}_{n}.html`, chapter list `html_{prefix}_{id}/` | `b.faloo.com/{id}.html`: Open Graph tags (declared with `name=`) + markup. **GB2312**, decoded in Rust | none |
 | JJWXC | `onebook.php?novelid={id}[&chapterid=n]`, mobile `/book2/{id}[/{chapter}]`, on any `jjwxc*` domain | `app.jjwxc.net/androidapi/novelbasicinfo` (UTF-8 JSON; the web pages are GB18030 HTML) | none |
 | Ciweimao | `{www,mip,wap}.ciweimao.com/book/{id}` | `www.ciweimao.com/book/{id}`: Open Graph tags + markup | none |
+| sangtacviet (mirror) | `/truyen/{faloo,qidian,fanqie,ciweimao,jjwxc,sfacg,qimao}/{n}/{id}/` on **any** host (the mirror moves between domains and bare IPs) | the original site, resolved from the path | none |
 
 `www.qidian.com` answers HTTP 202 with a JS probe, so the mobile site is used; no signing worker is involved. A Fanqie chapter link (`/reader/{itemId}`) carries no book id and is rejected.
 
