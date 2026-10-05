@@ -252,6 +252,18 @@ describe('CreateBookModal', () => {
     expect(callsOf('source_fetch_image')[0][1]).toEqual({ url: 'https://rs.sfacg.com/c.jpg' });
   });
 
+  it('points out a title that still says "Tôi" despite the house style', async () => {
+    setAiKey('KEY');
+    const reply = JSON.stringify({ ...JSON.parse(AI_REPLY), title: 'tôi có thể sao chép thiên phú' });
+    mockBackend({ ai_generate_json: () => reply });
+    renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+
+    await waitFor(() => expect(field('title').value).toBe('Tôi Có Thể Sao Chép Thiên Phú'));
+    expect(await screen.findByText(/Tên truyện còn chữ “Tôi”: quy ước là dùng “Ta”/)).toBeTruthy();
+  });
+
   it('requires all four tags and names the ones the model failed to pick', async () => {
     setAiKey('KEY');
     // The model leaves tinh_cach empty and invents a luu_phai that is not in the form.

@@ -4,6 +4,7 @@ import { open } from '@tauri-apps/plugin-dialog';
 import { useSettings } from '@/features/settings/hooks/useSettings';
 import { uploadCover } from '../api';
 import { aiFillBook, isAiConfigured } from '../ai/client';
+import { titleUsesToi } from '../ai/fill';
 import { checkCopyright, EMPTY_CREATE_BOOK, fetchCreateBookForm, submitCreateBook } from '../createBookApi';
 import { fetchSourceBook, fetchSourceCover, SOURCE_LABELS } from '../sources';
 import type { BookType, CreateBookData, CreateBookForm, PendingCover } from '../types';
@@ -274,6 +275,8 @@ export function useCreateBook() {
         [
           `Đã điền từ ${sourceLabel}.`,
           missing.length ? `AI chưa chọn được: ${missing.join(', ')}. Các mục này bắt buộc, hãy chọn tay.` : '',
+          // The prompt forbids it; say so when the model slips anyway.
+          titleUsesToi(filled.title) ? 'Tên truyện còn chữ “Tôi”: quy ước là dùng “Ta”, hãy sửa lại.' : '',
           'Hãy kiểm tra lại trước khi đăng.',
         ]
           .filter(Boolean)

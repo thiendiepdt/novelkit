@@ -2,6 +2,7 @@ import type { EditBookOptions, OptionItem } from '../types';
 import { SOURCE_LABELS } from '../sources/types';
 import type { SourceBook } from '../sources/types';
 import { toTitleCase } from '../utils/titleCase';
+import { TRANSLATION_STYLE_GUIDE } from './styleGuide';
 
 /** What the model fills in: the Vietnamese-facing fields of TTC's create-story form. */
 export interface AiFillResult {
@@ -18,26 +19,35 @@ export interface AiFillResult {
   description: string;
 }
 
-const SYSTEM_PROMPT = `Bạn là biên tập viên của một trang truyện convert Trung - Việt. Nhiệm vụ: từ thông tin gốc tiếng Trung của một bộ truyện, điền hồ sơ đăng truyện bằng tiếng Việt.
+const SYSTEM_PROMPT = `Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt, đang điền hồ sơ đăng truyện cho một trang truyện. Từ thông tin gốc tiếng Trung của một bộ truyện, hãy điền các trường bên dưới. Phần dịch là chuyển ngữ trung thành, không sáng tác lại hay biên tập nâng giọng.
 
-Quy tắc:
-- title: tên truyện tiếng Việt. Viết hoa chữ cái đầu mỗi từ. Không kèm tên tiếng Trung, không thêm chú thích. Cách dịch tùy theo "Loại truyện đăng":
-  + Truyện Convert: ưu tiên phiên âm Hán-Việt theo cách cộng đồng truyện convert vẫn đặt tên; chỗ nào Hán-Việt tối nghĩa thì dịch nghĩa cho tự nhiên.
-  + Truyện Dịch: dịch nghĩa sang tiếng Việt tự nhiên, đọc lên hiểu ngay như tên một bản dịch hoàn chỉnh. Chỉ giữ Hán-Việt cho tên riêng và các thuật ngữ thể loại đã quen thuộc (tu tiên, trùng sinh, hệ thống...). Không ghép từ Hán-Việt mà người đọc phổ thông không hiểu. Ví dụ: 高考 dịch là "Thi Đại Học", không viết "Cao Khảo"; 觉醒 dịch là "Thức Tỉnh", không viết "Giác Tỉnh".
+# Các trường cần điền
+- title: tên truyện tiếng Việt. Viết hoa chữ cái đầu mỗi từ. Không kèm tên tiếng Trung, không thêm chú thích.
+  + Ngôi thứ nhất trong tên truyện (我, 吾, 本人, 俺...) LUÔN là "Ta". TUYỆT ĐỐI KHÔNG dùng "Tôi" hay "Mình" trong tên truyện, ở mọi loại truyện và mọi bối cảnh. Ví dụ: 我能复制天赋 là "Ta Có Thể Sao Chép Thiên Phú", không phải "Tôi Có Thể Sao Chép Thiên Phú". Các đại từ khác theo bảng đại từ của Quy tắc dịch (他 là "Hắn", 她 là "Nàng" hoặc "Cô").
+  + Cách dịch tùy theo "Loại truyện đăng":
+    * Truyện Convert: ưu tiên phiên âm Hán-Việt theo cách cộng đồng truyện convert vẫn đặt tên; chỗ nào Hán-Việt tối nghĩa thì dịch nghĩa cho tự nhiên.
+    * Truyện Dịch: dịch nghĩa sang tiếng Việt tự nhiên theo đúng Quy tắc dịch, đọc lên hiểu ngay như tên một bản dịch hoàn chỉnh. Chỉ giữ Hán-Việt cho tên riêng và các thuật ngữ thể loại đã quen thuộc (tu tiên, trùng sinh, hệ thống, thiên phú...). Không ghép từ Hán-Việt mà người đọc phổ thông không hiểu. Ví dụ: 高考 dịch là "Thi Đại Học", không viết "Cao Khảo"; 觉醒 dịch là "Thức Tỉnh", không viết "Giác Tỉnh".
 - author: tên tác giả phiên âm Hán-Việt, viết hoa chữ cái đầu mỗi từ.
 - gender: "Nam" nếu là truyện nam tần, "Nữ" nếu là truyện nữ tần.
 - category: chọn ĐÚNG MỘT giá trị trong danh sách category.
 - tinh_cach, boi_canh, luu_phai: BẮT BUỘC, mỗi mục chọn ĐÚNG MỘT giá trị trong danh sách tương ứng. Không được để trống. Khi văn án không nói rõ (nhất là tính cách nhân vật chính), hãy suy luận từ thể loại, nhãn gốc và giọng văn rồi chọn giá trị gần nhất.
-- description: dịch văn án sang tiếng Việt tự nhiên, trôi chảy, giữ đủ ý và giữ nguyên cách chia đoạn (mỗi đoạn một dòng). Tên riêng phiên âm Hán-Việt. Bỏ các câu quảng cáo, kêu gọi đề cử/vote, thông báo nhóm chat, lịch ra chương. Không thêm nội dung không có trong văn án gốc.
-- Xưng hô trong description theo văn phong truyện convert, không theo lối nói thường ngày:
-  + Ngôi thứ nhất (我, 吾, 本人...): mặc định dịch là "ta", không dùng "tôi".
-  + Cha (爸, 爸爸, 父亲, 爹...): mặc định dịch là "cha", không dùng "bố"; "ông bố" thì viết là "người cha".
-  + Mẹ (妈, 妈妈, 母亲, 娘...): truyện bối cảnh cổ đại, tiên hiệp, huyền huyễn, võ hiệp thì dùng "nương" hoặc "mẫu thân", không dùng "mẹ".
-  + Các từ chỉ quan hệ khác xử lý cùng tinh thần đó: bối cảnh cổ dùng từ Hán-Việt, cổ phong (phụ thân, huynh, đệ, tỷ, muội...).
-  + Hai ngoại lệ cho cả nhóm quy tắc xưng hô này: (1) truyện bối cảnh hiện đại (đô thị, hiện đại, vườn trường, giới giải trí, thương trường...) thì dùng từ thường ngày như "tôi", "mẹ"; (2) trong câu đối thoại (lời nhân vật nói, thường nằm trong ngoặc kép) thì chọn cách xưng hô hợp với quan hệ và bối cảnh của nhân vật.
+- description: bản dịch văn án theo đúng Quy tắc dịch bên dưới. Dịch đủ mọi câu, mọi đoạn theo đúng thứ tự, mỗi đoạn một dòng. Ngoại lệ duy nhất của việc dịch đủ: bỏ các câu không thuộc nội dung truyện như quảng cáo, kêu gọi đề cử/vote, thông báo nhóm chat, lịch ra chương, lời nhắn của nền tảng phát hành.
 - Chỉ dùng đúng nguyên văn giá trị trong các danh sách, không tự đặt giá trị mới.
 
-Trả về DUY NHẤT một JSON object với đúng các khoá: title, author, gender, category, tinh_cach, boi_canh, luu_phai, description.`;
+${TRANSLATION_STYLE_GUIDE}
+
+# Đầu ra
+Trả về DUY NHẤT một JSON object với đúng các khoá: title, author, gender, category, tinh_cach, boi_canh, luu_phai, description. Không in phần suy nghĩ, không giải thích, không markdown.`;
+
+/**
+ * True when a title still carries the first-person "tôi", which the house style bans
+ * ("ta" is used instead). Reported to the user instead of auto-corrected, because "tôi"
+ * is also an ordinary word: "tôi luyện" (to temper), "bề tôi" / "tôi tớ" (servant).
+ */
+export function titleUsesToi(title: string): boolean {
+  const withoutOtherMeanings = title.replace(/tôi\s+(?:luyện|tớ|đòi|vôi)|(?:bề|vua)\s+tôi/giu, ' ');
+  return /(?<!\p{L})tôi(?!\p{L})/iu.test(withoutOtherMeanings);
+}
 
 const list = (items: OptionItem[]) => items.map((o) => o.value).join(' | ');
 

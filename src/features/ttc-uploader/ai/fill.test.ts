@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildFillPrompt, parseFillResponse } from './fill';
+import { buildFillPrompt, parseFillResponse, titleUsesToi } from './fill';
 import { toTitleCase } from '../utils/titleCase';
 import type { EditBookOptions } from '../types';
 import type { SourceBook } from '../sources/types';
@@ -50,13 +50,19 @@ describe('buildFillPrompt', () => {
     // The three sub-categories are mandatory on TTC: the model must not leave them empty.
     expect(system).toContain('tinh_cach, boi_canh, luu_phai: BẮT BUỘC');
     expect(system).toContain('Không được để trống');
-    // House style: first person is "ta" by default, "tôi" only for modern settings; dialogue follows the characters.
-    expect(system).toContain('mặc định dịch là "ta"');
-    expect(system).toContain('mặc định dịch là "cha", không dùng "bố"');
-    expect(system).toContain('"ông bố" thì viết là "người cha"');
-    expect(system).toContain('dùng "nương" hoặc "mẫu thân"');
-    expect(system).toContain('truyện bối cảnh hiện đại');
-    expect(system).toContain('trong câu đối thoại');
+    // House style (styleGuide.ts): the narrator is always "ta", in titles too; "tôi" lives only inside dialogue.
+    expect(system).toContain('LUÔN là "Ta"');
+    expect(system).toContain('TUYỆT ĐỐI KHÔNG dùng "Tôi" hay "Mình" trong tên truyện');
+    expect(system).toContain('TUYỆT ĐỐI không dùng "tôi" hay "mình" trong lời kể');
+    expect(system).toContain('Đây là chỗ duy nhất được phép có "tôi"');
+    // Requested deviations from the reference style.
+    expect(system).toContain('dịch là "cha", KHÔNG dùng "bố"');
+    expect(system).toContain('"ông bố" viết là "người cha"');
+    expect(system).toContain('"nương" hoặc "mẫu thân" (KHÔNG dùng mẹ)');
+    // Faithful, natural Vietnamese rather than character-by-character Hán-Việt.
+    expect(system).toContain('Chỉ dịch những gì nguyên tác thực sự có');
+    expect(system).toContain('Chỉ dùng Hán-Việt cho tên riêng');
+    expect(system).toContain('Dịch đủ mọi câu, mọi đoạn theo đúng thứ tự');
     expect(user).toContain('Tên truyện (tiếng Trung): 诡秘之主');
     expect(user).toContain('Tác giả (tiếng Trung): 爱潜水的乌贼');
     expect(user).toContain('Nhãn gốc: 异世大陆, 轻小说');
@@ -78,6 +84,25 @@ describe('buildFillPrompt', () => {
     expect(user).toContain('(không có văn án)');
     expect(user).toContain('Phân loại gốc: (không rõ)');
     expect(user).not.toContain('Đối tượng theo nguồn');
+  });
+});
+
+describe('titleUsesToi', () => {
+  it('flags the first-person "tôi" anywhere in a title', () => {
+    expect(titleUsesToi('Tôi Có Thể Sao Chép Thiên Phú')).toBe(true);
+    expect(titleUsesToi('Hệ Thống Của Tôi Quá Mạnh')).toBe(true);
+    expect(titleUsesToi('Trọng Sinh: tôi Là Đại Phản Phái')).toBe(true);
+  });
+
+  it('accepts "ta" and words that merely contain the letters', () => {
+    expect(titleUsesToi('Ta Có Thể Sao Chép Thiên Phú')).toBe(false);
+    expect(titleUsesToi('Tối Cường Hệ Thống')).toBe(false);
+    expect(titleUsesToi('Tội Ác Chi Thành')).toBe(false);
+  });
+
+  it('does not flag other meanings of the word', () => {
+    expect(titleUsesToi('Tôi Luyện Thành Thần')).toBe(false);
+    expect(titleUsesToi('Bề Tôi Trung Thành Nhất')).toBe(false);
   });
 });
 
