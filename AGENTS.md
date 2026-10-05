@@ -222,9 +222,9 @@ Create story (CreateBookModal → useCreateBook):
 - `utils.rs` — `ttc_open_folder`, `sanitize_filename`
 
 **Rust backend outside `ttc/`** (used by the create-story AI fill):
-- `novel_source.rs` — `source_fetch_text`, `source_fetch_image`. Read-only, restricted to an allowlist of hosts (not a general proxy). Parsing happens in the frontend (`ttc-uploader/sources/`).
+- `novel_source.rs` — `source_fetch_text` (allowlist of metadata hosts) and `source_fetch_image` (any public https domain, checked per redirect hop, body must be an image; it has its own process-wide client for that redirect policy). Read-only, not a general proxy. Parsing happens in the frontend (`ttc-uploader/sources/`).
 - `ai.rs` — `ai_generate_json`. Speaks Gemini `generateContent` and OpenAI-compatible `chat/completions`; the prompt is built and the reply validated in the frontend (`ttc-uploader/ai/`).
-- Both reuse the shared `reqwest::Client` via `ttc::client::get_client()`. Adding a source means: a host in `TEXT_SOURCES` / `IMAGE_HOST_SUFFIXES` (Rust), a branch in `sources/detect.ts`, a parser in `sources/parse.ts`, and a line in the `#[ignore]` live test.
+- Both reuse the shared `reqwest::Client` via `ttc::client::get_client()`. Adding a source means: a host in `TEXT_SOURCES` (Rust), a branch in `sources/detect.ts`, a parser in `sources/parse.ts`, and a line in the `#[ignore]` live test.
 
 **AI settings** live in `AppSettings.ai` (`features/settings/types.ts`): provider (`gemini` | `openai`), and per provider `apiKey` / `model` / `baseUrl`. They are global only (never per-book) and stored in localStorage with the other settings.
 

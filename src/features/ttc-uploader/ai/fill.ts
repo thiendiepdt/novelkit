@@ -2,7 +2,7 @@ import type { EditBookOptions, OptionItem } from '../types';
 import { SOURCE_LABELS } from '../sources/types';
 import type { SourceBook } from '../sources/types';
 import { toTitleCase } from '../utils/titleCase';
-import { TRANSLATION_STYLE_GUIDE } from './styleGuide';
+import { TASK_CONTEXT, TRANSLATION_STYLE_GUIDE } from './styleGuide';
 
 /** What the model fills in: the Vietnamese-facing fields of TTC's create-story form. */
 export interface AiFillResult {
@@ -20,6 +20,8 @@ export interface AiFillResult {
 }
 
 const SYSTEM_PROMPT = `Bạn là dịch giả tiểu thuyết Trung Quốc sang tiếng Việt, đang điền hồ sơ đăng truyện cho một trang truyện. Từ thông tin gốc tiếng Trung của một bộ truyện, hãy điền các trường bên dưới. Phần dịch là chuyển ngữ trung thành, không sáng tác lại hay biên tập nâng giọng.
+
+${TASK_CONTEXT}
 
 # Các trường cần điền
 - title: tên truyện tiếng Việt. Viết hoa chữ cái đầu mỗi từ. Không kèm tên tiếng Trung, không thêm chú thích.
@@ -67,6 +69,12 @@ export function buildFillPrompt(
   book: SourceBook,
   options: EditBookOptions,
   type: FillBookType,
+  /**
+   * Leave the synopsis out of the prompt. Used after a provider's content filter rejected
+   * the full prompt: the synopsis is by far the likeliest trigger, and the other fields can
+   * still be filled from the title, category and tags.
+   */
+  omitSynopsis = false,
 ): { system: string; user: string } {
   const lines = [
     `Loại truyện đăng: ${TYPE_LABELS[type]}`,
@@ -77,12 +85,12 @@ export function buildFillPrompt(
     `Nhãn gốc: ${book.tags.length ? book.tags.join(', ') : '(không có)'}`,
   ];
   if (book.genderHint) lines.push(`Đối tượng theo nguồn: truyện ${book.genderHint}`);
+  if (omitSynopsis) {
+    lines.push('Văn án gốc: (không gửi kèm). Để description là chuỗi rỗng "", chỉ điền các trường còn lại.', '');
+  } else {
+    lines.push('Văn án gốc:', '"""', book.intro || '(không có văn án)', '"""', '');
+  }
   lines.push(
-    'Văn án gốc:',
-    '"""',
-    book.intro || '(không có văn án)',
-    '"""',
-    '',
     `Danh sách category: ${list(options.categories)}`,
     `Danh sách tinh_cach: ${list(options.subCategoriesTichCach)}`,
     `Danh sách boi_canh: ${list(options.subCategoriesBoiCanh)}`,
@@ -91,9 +99,96 @@ export function buildFillPrompt(
   return { system: SYSTEM_PROMPT, user: lines.join('\n') };
 }
 
-/** Pull the JSON object out of a model reply (bare JSON, fenced, or wrapped in prose). */
-function extractJson(text: string): Record<string, unknown> {
-  const trimmed = text.trim();
+/**
+ * Make almost-JSON parseable. Models that are not held to a strict JSON mode (many
+ * OpenAI-compatible hubs) break it in predictable ways once a field carries a long
+ * translated text: real line breaks inside a string, dialogue in plain double quotes,
+ * a trailing comma. Only used after a strict parse has failed.
+ */
+export function repairJson(source: string): string {
+  let out = '';
+  let inString = false;
+  for (let i = 0; i < source.length; i++) {
+    const ch = source[i];
+
+    if (!inString) {
+      if (ch === '"') inString = true;
+      // Trailing comma before a closing bracket.
+      if (ch === ',' && /^\s*[}\]]/.test(source.slice(i + 1))) continue;
+      out += ch;
+      continue;
+    }
+
+    if (ch === '\\') {
+      out += ch + (source[i + 1] ?? '');
+      i++;
+    } else if (ch === '\n') {
+      out += '\\n';
+    } else if (ch === '\r') {
+      // dropped: the following \n carries the line break
+    } else if (ch === '\t') {
+      out += '\\t';
+    } else if (ch === '"') {
+      // A string really ends where JSON syntax continues; any other quote is part of the text.
+      const next = source.slice(i + 1).match(/^\s*([\s\S])/)?.[1];
+      if (next === undefined || next === ',' || next === '}' || next === ']' || next === ':') {
+        inString = false;
+        out += ch;
+      } else {
+        out += '\\"';
+      }
+    } else {
+      out += ch;
+    }
+  }
+  return out;
+}
+
+function parseObject(candidate: string): Record<string, unknown> | null {
+  try {
+    let parsed: unknown = JSON.parse(candidate);
+    // Some models wrap the single object in an array.
+    if (Array.isArray(parsed) && parsed.length === 1) parsed = parsed[0];
+    if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
+  } catch {
+    // not JSON as it stands
+  }
+  return null;
+}
+
+/** Enough of a bad reply to tell what went wrong (prose, a refusal, a cut-off answer...). */
+function replyExcerpt(reply: string): string {
+  const flat = reply.replace(/\s+/g, ' ').trim();
+  if (!flat) return 'model trả về rỗng';
+  return flat.length <= 220 ? `“${flat}”` : `đầu: “${flat.slice(0, 130)}” … cuối: “${flat.slice(-80)}”`;
+}
+
+/**
+ * The provider refused the prompt itself on content-policy grounds, as opposed to answering
+ * badly. Worth telling apart: the fix is a different prompt or provider, not a retry.
+ */
+export class AiContentBlockedError extends Error {
+  constructor(detail: string) {
+    super(detail);
+    this.name = 'AiContentBlockedError';
+  }
+}
+
+/**
+ * Recognize a content-policy refusal, whichever way it arrives: as the reply text itself
+ * (hubs in front of Gemini answer "The prompt could not be submitted. The prompt contains
+ * sensitive words that violate Google's Generative AI Prohibited Use policy..."), or as one of
+ * the errors the Rust side builds from a block reason, a content filter or a refusal.
+ */
+export function isContentBlock(message: string): boolean {
+  return /could not be submitted|prohibited use policy|sensitive words|content[_ ]filter|bộ lọc nội dung|không trả lời \(lý do|từ chối trả lời/i.test(
+    message,
+  );
+}
+
+/** Pull the JSON object out of a model reply (bare JSON, fenced, wrapped in prose, or slightly broken). */
+function extractJson(reply: string): Record<string, unknown> {
+  const trimmed = reply.trim();
   const candidates = [trimmed];
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);
   if (fenced) candidates.push(fenced[1].trim());
@@ -101,15 +196,17 @@ function extractJson(text: string): Record<string, unknown> {
   const end = trimmed.lastIndexOf('}');
   if (start !== -1 && end > start) candidates.push(trimmed.slice(start, end + 1));
 
+  // Strict first, so a valid reply is never touched by the repair heuristics.
   for (const candidate of candidates) {
-    try {
-      const parsed: unknown = JSON.parse(candidate);
-      if (parsed && typeof parsed === 'object' && !Array.isArray(parsed)) return parsed as Record<string, unknown>;
-    } catch {
-      // try the next candidate
-    }
+    const parsed = parseObject(candidate);
+    if (parsed) return parsed;
   }
-  throw new Error('AI trả về dữ liệu không đúng định dạng JSON');
+  for (const candidate of candidates) {
+    const parsed = parseObject(repairJson(candidate));
+    if (parsed) return parsed;
+  }
+  if (isContentBlock(reply)) throw new AiContentBlockedError(replyExcerpt(reply));
+  throw new Error(`AI trả về dữ liệu không đúng định dạng JSON (${replyExcerpt(reply)})`);
 }
 
 const text = (v: unknown) => (typeof v === 'string' ? v.trim() : '');

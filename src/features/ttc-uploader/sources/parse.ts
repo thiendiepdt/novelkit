@@ -292,6 +292,27 @@ export function parseFaloo(html: string, ref: SourceRef): SourceBook {
 }
 
 /**
+ * Cover candidates for an image hot-linked from Baidu (`*.bdstatic.com`), best first.
+ *
+ * JJWXC authors link their covers from anywhere, very often from Baidu, and often as a
+ * multi-megabyte original. Baidu's image host is slow and erratic from outside mainland
+ * China (measured for one 2.8MB cover: anything from 5s to "64KB in 40s"), so a
+ * 600px-wide rendition (`@w_600,q_80`, about 100KB) is tried before the original.
+ */
+export function baiduCovers(url: string): string[] {
+  let host = '';
+  try {
+    host = new URL(url).hostname.toLowerCase();
+  } catch {
+    return url ? [url] : [];
+  }
+  const onBaidu = host === 'bdstatic.com' || host.endsWith('.bdstatic.com');
+  // A URL that already carries processing parameters is left alone.
+  if (!onBaidu || /[@?]/.test(url.slice(url.indexOf(host) + host.length))) return [url];
+  return [`${url}@w_600,q_80`, url];
+}
+
+/**
  * JJWXC's app endpoint (app.jjwxc.net/androidapi/novelbasicinfo): public JSON in UTF-8,
  * unlike the GB18030 web pages. An unavailable book answers `{ code, message }`.
  */
@@ -311,8 +332,9 @@ export function parseJjwxc(body: string, ref: SourceRef): SourceBook {
     title: str(j.novelName),
     author: str(j.authorName),
     intro: cleanIntro(decodeEntities(str(j.novelIntro))),
-    // 300x420 rendition first, the original as a fallback.
-    coverUrls: uniq([j.novelCover, j.originalCover].map((url) => httpsUrl(str(url)))),
+    // JJWXC-hosted covers: 300x420 rendition first, the original as a fallback.
+    // Covers hot-linked from Baidu get a small rendition of their own (see baiduCovers).
+    coverUrls: uniq([j.novelCover, j.originalCover].map((url) => httpsUrl(str(url)))).flatMap(baiduCovers),
     // e.g. "原创-言情-架空历史-爱情-女主": origin, orientation, era, genre, point of view.
     category: str(j.novelClass),
     tags: uniq(str(j.novelTags).split(/[,，]/)),

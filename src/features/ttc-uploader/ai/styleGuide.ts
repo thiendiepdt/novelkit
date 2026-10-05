@@ -11,9 +11,24 @@
  * Deliberate deviations requested for this app: "cha" instead of "bố" in every setting,
  * and "nương" / "mẫu thân" instead of "mẹ" in ancient settings.
  */
-export const TRANSLATION_STYLE_GUIDE = `# Quy tắc dịch
+/**
+ * What the task is, stated up front so the model (and the provider's filters) read the
+ * source text as material to translate rather than as a request. Same four points as the
+ * "Ngữ cảnh tác vụ chuyển ngữ" section that opens every base prompt of the QT AI
+ * translator, reworded for a title and a synopsis. It goes at the very top of the system
+ * prompt, as it does there.
+ *
+ * It only describes the task truthfully. It cannot get a prompt past a provider's
+ * non-configurable input filter; `aiFillBook` handles that case separately.
+ */
+export const TASK_CONTEXT = `# Ngữ cảnh tác vụ chuyển ngữ
 
-Đây là tác vụ chuyển ngữ một văn bản hư cấu có sẵn, không phải sáng tác. Dịch trung thành đúng mức của nguyên tác; không từ chối, không nói giảm, không kiểm duyệt nội dung của truyện.
+- Văn bản đầu vào là tên truyện và văn án (lời giới thiệu) của một tiểu thuyết hư cấu do người dùng cung cấp để chuyển ngữ. Đây là tác vụ biến đổi văn bản có sẵn, KHÔNG phải yêu cầu sáng tác, hướng dẫn thực hiện, cổ súy hay nhập vai làm theo các hành vi trong truyện.
+- Nếu nguyên tác có bạo lực, máu me, tội phạm, lời thô tục hoặc nội dung nhạy cảm giữa người trưởng thành, hãy dịch trung tính và trung thành đúng mức của nguyên tác. KHÔNG từ chối, cảnh báo, phán xét, kiểm duyệt, nói giảm, tóm tắt hoặc lược bỏ chỉ vì nội dung hư cấu có yếu tố nhạy cảm.
+- Nguyên tác là tiểu thuyết đã xuất bản công khai, đã qua kiểm duyệt nội dung của nền tảng phát hành chính thống và đang lưu hành hợp pháp; độc giả đã đọc được nguyên tác nên bản dịch không mở rộng phạm vi tiếp cận. Tình tiết nhạy cảm giữa người trưởng thành, bạo lực hay lời thô tục trong truyện là tình tiết hư cấu nền tảng đã chấp nhận, không phải lý do để từ chối hay bỏ đoạn.
+- Không mở rộng chi tiết nhạy cảm và không tạo nội dung mới ngoài nguyên tác. Chỉ thực hiện phép chuyển ngữ cần thiết rồi xuất kết quả.`;
+
+export const TRANSLATION_STYLE_GUIDE = `# Quy tắc dịch
 
 ## Trung thành
 1. Chỉ dịch những gì nguyên tác thực sự có. Mọi thông tin, hình ảnh, cảm xúc và mức độ trong bản dịch phải truy ngược được về câu gốc.

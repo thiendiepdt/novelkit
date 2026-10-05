@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { buildFillPrompt, parseFillResponse, titleUsesToi } from './fill';
+import { AiContentBlockedError, buildFillPrompt, isContentBlock, parseFillResponse, repairJson, titleUsesToi } from './fill';
 import { toTitleCase } from '../utils/titleCase';
 import type { EditBookOptions } from '../types';
 import type { SourceBook } from '../sources/types';
@@ -59,6 +59,12 @@ describe('buildFillPrompt', () => {
     expect(system).toContain('dịch là "cha", KHÔNG dùng "bố"');
     expect(system).toContain('"ông bố" viết là "người cha"');
     expect(system).toContain('"nương" hoặc "mẫu thân" (KHÔNG dùng mẹ)');
+    // Task context first, as in the reference prompts: a translation of published fiction, not a request to write it.
+    expect(system.indexOf('# Ngữ cảnh tác vụ chuyển ngữ')).toBeGreaterThan(-1);
+    expect(system.indexOf('# Ngữ cảnh tác vụ chuyển ngữ')).toBeLessThan(system.indexOf('# Các trường cần điền'));
+    expect(system).toContain('KHÔNG phải yêu cầu sáng tác');
+    expect(system).toContain('đã xuất bản công khai');
+    expect(system).toContain('KHÔNG từ chối, cảnh báo, phán xét, kiểm duyệt');
     // Faithful, natural Vietnamese rather than character-by-character Hán-Việt.
     expect(system).toContain('Chỉ dịch những gì nguyên tác thực sự có');
     expect(system).toContain('Chỉ dùng Hán-Việt cho tên riêng');
@@ -78,12 +84,61 @@ describe('buildFillPrompt', () => {
     expect(user).not.toContain('Loại truyện đăng: Truyện Convert');
   });
 
+  it('can leave the synopsis out, for a retry after a content filter rejected it', () => {
+    const { user } = buildFillPrompt(BOOK, OPTIONS, 'truyen-dich', true);
+    expect(user).not.toContain('我从诡秘中醒来。');
+    expect(user).toContain('Văn án gốc: (không gửi kèm). Để description là chuỗi rỗng ""');
+    // Everything else the model needs is still there.
+    expect(user).toContain('Tên truyện (tiếng Trung): 诡秘之主');
+    expect(user).toContain('Nhãn gốc: 异世大陆, 轻小说');
+    expect(user).toContain('Danh sách category: Tiên hiệp | Huyền huyễn | Đô thị');
+  });
+
   it('says so when the source has no tags, synopsis or audience', () => {
     const { user } = buildFillPrompt({ ...BOOK, tags: [], intro: '', category: '', genderHint: undefined }, OPTIONS, 'truyen-cv');
     expect(user).toContain('Nhãn gốc: (không có)');
     expect(user).toContain('(không có văn án)');
     expect(user).toContain('Phân loại gốc: (không rõ)');
     expect(user).not.toContain('Đối tượng theo nguồn');
+  });
+});
+
+describe('content-policy refusals', () => {
+  // What a hub in front of Gemini returns as the "answer" when Google rejects the prompt.
+  const GOOGLE_REFUSAL = "The prompt could not be submitted. The prompt contains sensitive words that violate Google's [Generative AI Prohibited Use policy](https://policies.google.com/terms/generative-ai/use-policy). If you believe this is an error, [send feedback](https://ai.google.dev/gemini-api/docs/troubleshooting).";
+
+  it('recognizes a refusal that arrives as the reply text', () => {
+    expect(isContentBlock(GOOGLE_REFUSAL)).toBe(true);
+    expect(() => parseFillResponse(GOOGLE_REFUSAL, OPTIONS)).toThrow(AiContentBlockedError);
+  });
+
+  it('recognizes the block errors built on the Rust side', () => {
+    expect(isContentBlock('Gemini không trả lời (lý do: PROHIBITED_CONTENT)')).toBe(true);
+    expect(isContentBlock('Gemini không trả lời (lý do: SAFETY)')).toBe(true);
+    expect(isContentBlock('Model không trả lời (bị bộ lọc nội dung chặn)')).toBe(true);
+    expect(isContentBlock('Model từ chối trả lời: I cannot help with that.')).toBe(true);
+  });
+
+  it('does not mistake ordinary failures for a refusal', () => {
+    expect(isContentBlock('Gemini lỗi HTTP 400: API key not valid.')).toBe(false);
+    expect(isContentBlock('Không gọi được OpenAI: hết thời gian chờ (operation timed out)')).toBe(false);
+    expect(isContentBlock('Model trả lời bị cắt giữa chừng vì chạm giới hạn độ dài.')).toBe(false);
+    expect(() => parseFillResponse('Xin lỗi, tôi không thể giúp.', OPTIONS)).not.toThrow(AiContentBlockedError);
+  });
+});
+
+describe('repairJson', () => {
+  it('leaves valid JSON untouched', () => {
+    const valid = JSON.stringify({ a: 'x "y" z', b: ['1', '2'], c: 'dòng 1\ndòng 2' }, null, 2);
+    expect(repairJson(valid)).toBe(valid);
+  });
+
+  it('escapes raw control characters inside strings only', () => {
+    expect(JSON.parse(repairJson('{\n  "a": "dòng 1\r\ndòng 2\tcuối"\n}'))).toEqual({ a: 'dòng 1\ndòng 2\tcuối' });
+  });
+
+  it('removes trailing commas outside strings and keeps commas inside them', () => {
+    expect(JSON.parse(repairJson('{"a": "x, }", "b": [1, 2,], }'))).toEqual({ a: 'x, }', b: [1, 2] });
   });
 });
 
@@ -152,6 +207,42 @@ describe('parseFillResponse', () => {
       category: 'Huyền huyễn',
       sub_categories: ['Cơ Trí', 'Tây Phương Kỳ Huyền', 'Xuyên Không'],
     });
+  });
+
+  it('reads replies that are JSON except for raw line breaks, plain quotes or a trailing comma', () => {
+    // What a model outside strict JSON mode writes once the description is a long translated text.
+    const broken = `{
+  "title": "Bí Mật Với Con Trai Ông Chủ",
+  "author": "Tức Phong",
+  "gender": "Nữ",
+  "category": "Đô thị",
+  "tinh_cach": "Cơ Trí",
+  "boi_canh": "Tây Phương Kỳ Huyền",
+  "luu_phai": "Xuyên Không",
+  "description": "Lệ tiên sinh nói: "Cô phải chăm sóc đứa con út."
+Ban ngày, nàng chăm sóc nhị thiếu gia.",
+}`;
+    expect(() => JSON.parse(broken)).toThrow();
+
+    expect(parseFillResponse(broken, OPTIONS)).toMatchObject({
+      title: 'Bí Mật Với Con Trai Ông Chủ',
+      author: 'Tức Phong',
+      gender: 'Nữ',
+      description: 'Lệ tiên sinh nói: "Cô phải chăm sóc đứa con út."\n\nBan ngày, nàng chăm sóc nhị thiếu gia.',
+    });
+  });
+
+  it('accepts the object wrapped in a one-element array', () => {
+    expect(parseFillResponse(JSON.stringify([reply]), OPTIONS).title).toBe('Quỷ Bí Chi Chủ');
+  });
+
+  it('quotes the reply in the error, so a failure says what the model actually sent', () => {
+    expect(() => parseFillResponse('Xin lỗi, tôi không thể giúp với nội dung này.', OPTIONS)).toThrow(
+      'AI trả về dữ liệu không đúng định dạng JSON (“Xin lỗi, tôi không thể giúp với nội dung này.”)',
+    );
+    const long = '{"title": "A", "description": "' + 'x'.repeat(600);
+    expect(() => parseFillResponse(long, OPTIONS)).toThrow(/đầu: “\{"title": "A".*… cuối: “x+”/);
+    expect(() => parseFillResponse('   ', OPTIONS)).toThrow(/model trả về rỗng/);
   });
 
   it('throws on a non-JSON reply and on a reply without a title', () => {

@@ -3,10 +3,12 @@
 //! Used by the TTC "create story" AI-fill flow: the webview cannot call these
 //! sites itself (CORS, and their WAFs reject a webview `Origin`), so the request
 //! is made here and the body is parsed in the frontend (`ttc-uploader/sources`).
-//! Both commands only talk to an allowlist of hosts, so they cannot be used as a
-//! general-purpose proxy.
+//! Text is only fetched from an allowlist of hosts. Images may come from any public
+//! https host (covers are hot-linked from anywhere), with the checks described at
+//! `check_public_https`. Neither command is a general-purpose proxy.
 
 use serde::Serialize;
+use std::sync::OnceLock;
 use std::time::Duration;
 use tauri::AppHandle;
 use url::Url;
@@ -90,27 +92,62 @@ const TEXT_SOURCES: [TextSource; 9] = [
     },
 ];
 
-/// Cover images live on the sites' CDNs; match by registrable-domain suffix.
-const IMAGE_HOST_SUFFIXES: [&str; 12] = [
-    // Fanqie
-    "byteimg.com",
-    "fqnovelpic.com",
-    "yuewen.com",
-    "qidian.com",
-    "qq.com",
-    "myqcloud.com",
-    // Qimao
-    "wtzw.com",
-    // SFACG
-    "sfacg.com",
-    // Faloo
-    "faloo.com",
-    // JJWXC
-    "jjwxc.net",
-    // Ciweimao (covers are on kuangxiangit.com)
-    "ciweimao.com",
-    "kuangxiangit.com",
+/// Names that only resolve inside a private network.
+const LOCAL_DOMAIN_SUFFIXES: [&str; 7] = [
+    ".localhost",
+    ".local",
+    ".internal",
+    ".intranet",
+    ".lan",
+    ".home",
+    ".corp",
 ];
+
+/// A domain name on the public internet: dotted, and not a private-network name.
+fn is_public_domain(domain: &str) -> bool {
+    let domain = domain.trim_end_matches('.').to_ascii_lowercase();
+    domain.contains('.') && !LOCAL_DOMAIN_SUFFIXES.iter().any(|suffix| domain.ends_with(suffix))
+}
+
+/// Cover images cannot be held to a host list: JJWXC authors hot-link theirs from Baidu,
+/// Weibo or any image host. So the rule is about the *kind* of target instead: https, a
+/// public domain name (never an IP literal, `localhost` or an intranet name), the same
+/// for every redirect hop, and a body that really is an image. That keeps a URL taken
+/// from a third-party page from pointing this app at something on the local network.
+fn check_public_https(url: &Url) -> Result<(), String> {
+    if url.scheme() != "https" {
+        return Err("Chỉ hỗ trợ URL https".to_string());
+    }
+    match url.host() {
+        Some(url::Host::Domain(domain)) if is_public_domain(domain) => Ok(()),
+        _ => Err(format!(
+            "Máy chủ ảnh không hợp lệ: {}",
+            url.host_str().unwrap_or_default()
+        )),
+    }
+}
+
+/// Client for cover downloads: like the shared one, but it re-checks every redirect.
+/// Built once for the process (the redirect policy is a client-level setting in reqwest).
+fn image_client() -> &'static reqwest::Client {
+    static CLIENT: OnceLock<reqwest::Client> = OnceLock::new();
+    CLIENT.get_or_init(|| {
+        reqwest::Client::builder()
+            .http1_allow_obsolete_multiline_headers_in_responses(true)
+            .redirect(reqwest::redirect::Policy::custom(|attempt| {
+                if attempt.previous().len() >= 5 {
+                    attempt.error("too many redirects")
+                } else if check_public_https(attempt.url()).is_ok() {
+                    attempt.follow()
+                } else {
+                    // Hand back the 3xx itself: it is then reported as a failed download.
+                    attempt.stop()
+                }
+            }))
+            .build()
+            .expect("failed to initialize the image HTTP client")
+    })
+}
 
 fn parse_https(url: &str) -> Result<Url, String> {
     let parsed = Url::parse(url.trim()).map_err(|e| format!("URL không hợp lệ: {}", e))?;
@@ -131,18 +168,12 @@ fn text_source(url: &str) -> Result<(Url, &'static TextSource), String> {
 }
 
 fn image_url(url: &str) -> Result<Url, String> {
-    let parsed = parse_https(url)?;
-    let host = parsed.host_str().unwrap_or_default().to_ascii_lowercase();
-    let allowed = IMAGE_HOST_SUFFIXES
-        .iter()
-        .any(|suffix| host == *suffix || host.ends_with(&format!(".{}", suffix)));
-    if !allowed {
-        return Err(format!("Máy chủ ảnh không được hỗ trợ: {}", host));
-    }
+    let parsed = Url::parse(url.trim()).map_err(|e| format!("URL không hợp lệ: {}", e))?;
+    check_public_https(&parsed)?;
     Ok(parsed)
 }
 
-/// Image type from magic bytes, for CDNs that answer with a generic content type.
+/// Image type from magic bytes (the formats TTC accepts as a cover).
 fn sniff_image_mime(bytes: &[u8]) -> Option<&'static str> {
     if bytes.starts_with(&[0xFF, 0xD8, 0xFF]) {
         Some("image/jpeg")
@@ -228,13 +259,6 @@ async fn try_fetch_image(client: &reqwest::Client, url: Url) -> Result<SourceIma
         return Err(status_error(resp.status()));
     }
 
-    let header_mime = resp
-        .headers()
-        .get("content-type")
-        .and_then(|v| v.to_str().ok())
-        .map(|v| v.split(';').next().unwrap_or(v).trim().to_ascii_lowercase())
-        .filter(|v| v.starts_with("image/"));
-
     // A connection dropped mid-body is as transient as one that never opened.
     let bytes = resp
         .bytes()
@@ -245,10 +269,10 @@ async fn try_fetch_image(client: &reqwest::Client, url: Url) -> Result<SourceIma
         return Err(ImageError::Fatal("ảnh quá lớn (trên 10MB)".to_string()));
     }
 
+    // Magic bytes, not the Content-Type header: the host is not one we chose.
     let mime = sniff_image_mime(&bytes)
         .map(str::to_string)
-        .or(header_mime)
-        .ok_or_else(|| ImageError::Fatal("dữ liệu tải về không phải ảnh".to_string()))?;
+        .ok_or_else(|| ImageError::Fatal("dữ liệu tải về không phải ảnh JPEG, PNG, WebP hay GIF".to_string()))?;
 
     Ok(SourceImage {
         bytes: bytes.to_vec(),
@@ -282,8 +306,8 @@ pub async fn fetch_image(client: &reqwest::Client, url: &str) -> Result<SourceIm
 }
 
 #[tauri::command]
-pub async fn source_fetch_image(app: AppHandle, url: String) -> Result<SourceImage, String> {
-    fetch_image(&get_client(&app), &url).await
+pub async fn source_fetch_image(url: String) -> Result<SourceImage, String> {
+    fetch_image(image_client(), &url).await
 }
 
 #[cfg(test)]
@@ -333,21 +357,31 @@ mod tests {
     }
 
     #[test]
-    fn image_url_matches_cdn_suffixes_only() {
-        assert!(image_url("https://p6-novel.byteimg.com/origin/novel-pic/abc").is_ok());
+    fn image_url_accepts_any_public_https_host() {
+        assert!(image_url("https://p6-novel.byteimg.com/novel-pic/abc~tplv-shrink:640:0.image").is_ok());
         assert!(image_url("https://bookcover.yuewen.com/qdbimg/349573/1010868264/600").is_ok());
-        assert!(image_url("https://ccstatic-1252317822.file.myqcloud.com/c.jpg").is_ok());
-        assert!(image_url("https://bookcover.reader.qq.com/cover/432/59366432/t9_59366432.webp").is_ok());
+        // JJWXC covers are hot-linked from wherever the author uploaded them.
+        assert!(image_url("https://pic.rmb.bdstatic.com/bjh/portrait/e8210b76.jpeg").is_ok());
+        assert!(image_url("https://wx1.sinaimg.cn/large/abc.jpg").is_ok());
+    }
 
-        assert!(image_url("https://cdn.wtzw.com/bookimg/public/images/cover/f0e5/abc_360x480.png").is_ok());
-        assert!(image_url("https://rs.sfacg.com/web/novel/images/NovelCover/Big/2026/05/cover.jpg").is_ok());
-        assert!(image_url("https://img.faloo.com/Novel/498x705/1/1030/001030475.jpg").is_ok());
-        assert!(image_url("https://i4-static.jjwxc.net/tmp/backend/authorspace/s1/3/a_300_420.jpg").is_ok());
-        assert!(image_url("https://e1.kuangxiangit.com/uploads/allimg/c240806/a.jpg").is_ok());
-
-        assert!(image_url("https://notbyteimg.com/a.jpg").is_err());
-        assert!(image_url("https://byteimg.com.evil.example/a.jpg").is_err());
+    #[test]
+    fn image_url_rejects_anything_that_is_not_a_public_https_domain() {
+        // Not https.
         assert!(image_url("http://p6-novel.byteimg.com/origin/novel-pic/abc").is_err());
+        assert!(image_url("file:///C:/Windows/win.ini").is_err());
+        // IP literals in every spelling the URL parser normalizes.
+        assert!(image_url("https://127.0.0.1/a.jpg").is_err());
+        assert!(image_url("https://192.168.1.1/a.jpg").is_err());
+        assert!(image_url("https://[::1]/a.jpg").is_err());
+        assert!(image_url("https://2130706433/a.jpg").is_err());
+        assert!(image_url("https://0x7f.0.0.1/a.jpg").is_err());
+        // Names that stay inside the local network.
+        assert!(image_url("https://localhost/a.jpg").is_err());
+        assert!(image_url("https://router/a.jpg").is_err());
+        assert!(image_url("https://nas.local/a.jpg").is_err());
+        assert!(image_url("https://git.corp/a.jpg").is_err());
+        assert!(image_url("https://printer.lan./a.jpg").is_err());
     }
 
     #[test]
@@ -412,7 +446,7 @@ mod tests {
                 .expect("sfacg chapter");
             assert!(sfacg_chapter.contains("/b/759334/"), "sfacg chapter: no back link");
 
-            let cover = fetch_image(&client, "https://bookcover.yuewen.com/qdbimg/349573/1010868264/600")
+            let cover = fetch_image(image_client(), "https://bookcover.yuewen.com/qdbimg/349573/1010868264/600")
                 .await
                 .expect("cover");
             assert_eq!(cover.mime, "image/jpeg");
@@ -436,19 +470,21 @@ mod tests {
 
             for url in [
                 "https://img.faloo.com/Novel/498x705/1/1030/001030475.jpg",
+                // (Baidu-hosted JJWXC covers are deliberately not checked here: that host swings
+                // between seconds and a timeout from abroad, which would make this test flaky.)
                 "https://i4-static.jjwxc.net/tmp/backend/authorspace/s1/3/2087/208622/20230519211356_300_420.jpg",
                 // c1, not the e1/e2 hosts the pages link: those time out from outside mainland China.
                 "https://c1.kuangxiangit.com/uploads/allimg/c240806/06-08-24032600-43371.jpg",
                 "https://cdn.wtzw.com/bookimg/public/images/cover/f0e5/9c3c9ab728c51bde1b02ac5eb330216b_360x480.png",
                 "https://rs.sfacg.com/web/novel/images/NovelCover/Big/2026/05/dbdee7c5-9023-4c8d-989c-f1e81060aa57.jpg",
             ] {
-                let image = fetch_image(&client, url).await.expect(url);
+                let image = fetch_image(image_client(), url).await.expect(url);
                 assert!(image.mime.starts_with("image/"), "{}: {}", url, image.mime);
                 assert!(image.bytes.len() > 1000, "{}: too small", url);
             }
 
             let fanqie_cover = fetch_image(
-                &client,
+                image_client(),
                 "https://p6-novel.byteimg.com/novel-pic/83d326b67a551f57c169f851d100dfeb~tplv-shrink:640:0.image",
             )
             .await

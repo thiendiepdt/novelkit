@@ -60,6 +60,12 @@ export function useCreateBook() {
   const [sourceCoverUrls, setSourceCoverUrls] = useState<string[]>([]);
   /** Bumped per download so a slow, superseded one cannot overwrite a newer cover. */
   const coverRequest = useRef(0);
+  /** The source book the form was last filled from ("source:id"), to notice a switch to another book. */
+  const filledFrom = useRef<string | null>(null);
+  /** Which source book the pending cover depicts; null for an image the user picked from disk. */
+  const coverOwner = useRef<string | null>(null);
+  /** Owner of the image currently in the cropper (a re-crop keeps the owner of the cover it started from). */
+  const cropOwner = useRef<string | null>(null);
   /** Image shown in the cropper; `ownedCropUrl` marks a temporary URL this hook must revoke. */
   const [cropSrc, setCropSrc] = useState<string | null>(null);
   const ownedCropUrl = useRef<string | null>(null);
@@ -154,13 +160,16 @@ export function useCreateBook() {
    * CDNs can be slow) and reports failure through `coverError` instead of rejecting.
    */
   const loadSourceCover = useCallback(
-    async (urls: string[]): Promise<void> => {
+    async (urls: string[], owner: string | null): Promise<void> => {
       const request = ++coverRequest.current;
       setLoadingCover(true);
       setCoverError(null);
       try {
         const image = await fetchSourceCover(urls);
-        if (request === coverRequest.current) replaceCover(makeCover(image.bytes, image.mime));
+        if (request === coverRequest.current) {
+          coverOwner.current = owner;
+          replaceCover(makeCover(image.bytes, image.mime));
+        }
       } catch (e) {
         if (request === coverRequest.current) setCoverError(errorMessage(e, 'Không tải được ảnh bìa'));
       } finally {
@@ -178,7 +187,7 @@ export function useCreateBook() {
   }, []);
 
   const retrySourceCover = useCallback(() => {
-    if (sourceCoverUrls.length) void loadSourceCover(sourceCoverUrls);
+    if (sourceCoverUrls.length) void loadSourceCover(sourceCoverUrls, filledFrom.current);
   }, [sourceCoverUrls, loadSourceCover]);
 
   const closeCropper = useCallback(() => {
@@ -199,6 +208,7 @@ export function useCreateBook() {
       const bytes = await invoke<number[]>('ttc_read_local_file', { path: file as string });
       const url = URL.createObjectURL(new Blob([new Uint8Array(bytes)]));
       ownedCropUrl.current = url;
+      cropOwner.current = null;
       setCropSrc(url);
     } catch (e) {
       setError(errorMessage(e, 'Lỗi khi mở file ảnh'));
@@ -206,7 +216,9 @@ export function useCreateBook() {
   }, []);
 
   const recropCover = useCallback(() => {
-    if (cover) setCropSrc(cover.previewUrl);
+    if (!cover) return;
+    cropOwner.current = coverOwner.current;
+    setCropSrc(cover.previewUrl);
   }, [cover]);
 
   const handleCropComplete = useCallback(
@@ -215,6 +227,7 @@ export function useCreateBook() {
       coverRequest.current++;
       setLoadingCover(false);
       setCoverError(null);
+      coverOwner.current = cropOwner.current;
       replaceCover(makeCover(croppedBytes, mimeType));
       closeCropper();
     },
@@ -233,16 +246,37 @@ export function useCreateBook() {
       const book = await fetchSourceBook(data.chinese_link);
       const sourceLabel = SOURCE_LABELS[book.source];
 
+      // A different book than the one the form was filled from: everything derived from the
+      // previous book goes, so a failure further down cannot leave one book's translation and
+      // cover next to another book's source fields.
+      const bookKey = `${book.source}:${book.bookId}`;
+      const switchedBook = filledFrom.current !== null && filledFrom.current !== bookKey;
+      filledFrom.current = bookKey;
+      if (switchedBook) {
+        // A download still running for the previous book must not land on this one.
+        coverRequest.current++;
+        setLoadingCover(false);
+        setCoverError(null);
+        // A cover the user picked from disk is theirs to keep; one taken from the old book is not.
+        if (coverOwner.current !== null) {
+          coverOwner.current = null;
+          replaceCover(null);
+        }
+      }
+
       // The untranslated fields are final as soon as the source answers.
       setData((prev) => ({
         ...prev,
+        ...(switchedBook
+          ? { title: '', author: '', category: '', sub_categories: ['', '', ''] as [string, string, string], description: '' }
+          : {}),
         chinese_title: book.title,
         chinese_link: book.link,
         author_original: book.author,
       }));
       // The cover downloads in the background and reports in its own section of the form.
       setSourceCoverUrls(book.coverUrls);
-      if (book.coverUrls.length) void loadSourceCover(book.coverUrls);
+      if (book.coverUrls.length) void loadSourceCover(book.coverUrls, bookKey);
 
       if (!aiConfigured) {
         setNotice(
@@ -274,6 +308,9 @@ export function useCreateBook() {
       setNotice(
         [
           `Đã điền từ ${sourceLabel}.`,
+          filled.synopsisBlocked
+            ? 'Bộ lọc nội dung của nhà cung cấp AI chặn văn án của truyện này, nên Giới thiệu chưa được dịch: hãy dịch tay, hoặc đổi nhà cung cấp / model trong Cài đặt → AI. Các trường khác được điền từ tên truyện và nhãn gốc.'
+            : '',
           missing.length ? `AI chưa chọn được: ${missing.join(', ')}. Các mục này bắt buộc, hãy chọn tay.` : '',
           // The prompt forbids it; say so when the model slips anyway.
           titleUsesToi(filled.title) ? 'Tên truyện còn chữ “Tôi”: quy ước là dùng “Ta”, hãy sửa lại.' : '',
@@ -287,7 +324,7 @@ export function useCreateBook() {
     } finally {
       setAiStep(null);
     }
-  }, [form, aiStep, data.chinese_link, data.type, ai, aiConfigured, loadSourceCover]);
+  }, [form, aiStep, data.chinese_link, data.type, ai, aiConfigured, loadSourceCover, replaceCover]);
 
   // ─── Submit ───────────────────────────────────────────────
   /** Create the story, then upload the pending cover. Resolves with null when creation failed. */

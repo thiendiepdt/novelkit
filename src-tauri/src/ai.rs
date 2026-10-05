@@ -17,6 +17,9 @@ pub const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
+/// A reply cut off by the output limit is unusable here: the JSON is left open.
+const TRUNCATED_REPLY: &str = "Model trả lời bị cắt giữa chừng vì chạm giới hạn độ dài. Hãy thử lại, hoặc dùng model / hub cho phép trả lời dài hơn.";
+
 const GEMINI_SAFETY_CATEGORIES: [&str; 5] = [
     "HARM_CATEGORY_HARASSMENT",
     "HARM_CATEGORY_HATE_SPEECH",
@@ -134,6 +137,9 @@ pub fn parse_gemini(payload: &Value) -> Result<String, String> {
                 .collect()
         })
         .unwrap_or_default();
+    if payload.pointer("/candidates/0/finishReason").and_then(Value::as_str) == Some("MAX_TOKENS") {
+        return Err(TRUNCATED_REPLY.to_string());
+    }
     if !text.trim().is_empty() {
         return Ok(text);
     }
@@ -188,6 +194,9 @@ pub fn parse_openai(payload: &Value) -> Result<String, String> {
             .collect(),
         _ => String::new(),
     };
+    if payload.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
+        return Err(TRUNCATED_REPLY.to_string());
+    }
     if !text.trim().is_empty() {
         return Ok(text);
     }
@@ -361,6 +370,25 @@ mod tests {
         assert!(parse_openai(&filtered).unwrap_err().contains("bộ lọc"));
 
         assert_eq!(parse_openai(&json!({})).unwrap_err(), "Model không trả về nội dung");
+    }
+
+    #[test]
+    fn a_reply_cut_off_by_the_output_limit_is_an_error_not_half_a_json() {
+        let gemini = json!({ "candidates": [{
+            "finishReason": "MAX_TOKENS",
+            "content": { "parts": [{ "text": "{\"title\":\"A\",\"description\":\"Đoạn một" }] }
+        }] });
+        assert_eq!(parse_gemini(&gemini).unwrap_err(), TRUNCATED_REPLY);
+
+        let openai = json!({ "choices": [{
+            "finish_reason": "length",
+            "message": { "content": "{\"title\":\"A\",\"description\":\"Đoạn một" }
+        }] });
+        assert_eq!(parse_openai(&openai).unwrap_err(), TRUNCATED_REPLY);
+
+        // A normal stop is still returned as is.
+        let done = json!({ "choices": [{ "finish_reason": "stop", "message": { "content": "{}" } }] });
+        assert_eq!(parse_openai(&done).unwrap(), "{}");
     }
 
     #[test]

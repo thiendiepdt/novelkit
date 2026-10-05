@@ -252,6 +252,116 @@ describe('CreateBookModal', () => {
     expect(callsOf('source_fetch_image')[0][1]).toEqual({ url: 'https://rs.sfacg.com/c.jpg' });
   });
 
+  it('when the content filter rejects the synopsis, fills the rest from a second request without it', async () => {
+    setAiKey('KEY');
+    const refusal = "The prompt could not be submitted. The prompt contains sensitive words that violate Google's [Generative AI Prohibited Use policy](https://policies.google.com/terms/generative-ai/use-policy). If you believe this is an error, [send feedback](https://ai.google.dev/gemini-api/docs/troubleshooting).";
+    let aiCalls = 0;
+    mockBackend({
+      // Google refuses the full prompt; without the synopsis the same book goes through.
+      ai_generate_json: () => (++aiCalls === 1 ? refusal : AI_REPLY),
+    });
+    renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+
+    await waitFor(() => expect(field('title').value).toBe('Quỷ Bí Chi Chủ'));
+    expect(field('author').value).toBe('Ái Tiềm Thủy Đích Ô Tặc');
+    expect(screen.getByDisplayValue('Huyền huyễn')).toBeTruthy();
+    // The description is left for the user: whatever the model wrote without seeing the synopsis is not used.
+    expect(field('description').value).toBe('');
+    expect(await screen.findByText(/Bộ lọc nội dung của nhà cung cấp AI chặn văn án của truyện này/)).toBeTruthy();
+    expect(screen.queryByRole('alert')).toBeNull();
+
+    const prompts = callsOf('ai_generate_json').map((c) => (c[1] as { request: { user: string } }).request.user);
+    expect(prompts).toHaveLength(2);
+    expect(prompts[0]).toContain('我从诡秘中醒来。');
+    expect(prompts[1]).not.toContain('我从诡秘中醒来。');
+    expect(prompts[1]).toContain('Tên truyện (tiếng Trung): 诡秘之主');
+  });
+
+  it('says plainly that the provider refuses the book when even the short request is blocked', async () => {
+    setAiKey('KEY');
+    const refusal = "The prompt could not be submitted. The prompt contains sensitive words that violate Google's [Generative AI Prohibited Use policy](https://policies.google.com/terms/generative-ai/use-policy). If you believe this is an error, [send feedback](https://ai.google.dev/gemini-api/docs/troubleshooting).";
+    mockBackend({ ai_generate_json: () => refusal });
+    renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+
+    const alert = await screen.findByRole('alert');
+    expect(alert.textContent).toMatch(/Nhà cung cấp AI từ chối truyện này vì bộ lọc nội dung/);
+    expect(alert.textContent).toMatch(/Cài đặt → AI/);
+    // Not presented as a formatting problem, and not retried beyond the one fallback.
+    expect(alert.textContent).not.toMatch(/JSON/);
+    expect(callsOf('ai_generate_json')).toHaveLength(2);
+    // The fields read from the source are still there.
+    expect(field('chinese_title').value).toBe('诡秘之主');
+  });
+
+  it('clears what came from the previous book when another link is filled and the AI call fails', async () => {
+    setAiKey('KEY');
+    let aiCalls = 0;
+    mockBackend({
+      // Book A is read from Qidian, book B from JJWXC.
+      source_fetch_text: (args) =>
+        String(args.url).includes('jjwxc')
+          ? JSON.stringify({
+              novelName: '和雇主儿子的秘密关系',
+              authorName: '即枫',
+              novelClass: '原创-言情-近代现代-爱情-女主',
+              novelTags: '都市,甜文',
+              novelCover: 'https://pic.rmb.bdstatic.com/bjh/portrait/b.jpeg',
+              novelIntro: '赫赫有名的厉先生找上门。',
+            })
+          : QIDIAN_PAGE,
+      // The first fill succeeds; for the second book the model answers with something unusable.
+      ai_generate_json: () => (++aiCalls === 1 ? AI_REPLY : 'Xin lỗi, tôi không thể giúp.'),
+      // Book B's cover cannot be downloaded either.
+      source_fetch_image: (args) => {
+        if (String(args.url).includes('bdstatic')) throw 'Không tải được ảnh bìa: máy chủ ảnh trả về HTTP 403 Forbidden';
+        return { bytes: [0xff, 0xd8, 0xff], mime: 'image/jpeg' };
+      },
+    });
+    renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+    await waitFor(() => expect(field('title').value).toBe('Quỷ Bí Chi Chủ'));
+    await waitFor(() => expect(screen.getByAltText('Ảnh bìa')).toBeTruthy());
+
+    await fillLinkAndRunAi('https://www.jjwxc.net/onebook.php?novelid=9202298');
+    expect((await screen.findByRole('alert')).textContent).toMatch(/không đúng định dạng JSON \(“Xin lỗi, tôi không thể giúp\.”\)/);
+
+    // Book B's own fields are in...
+    expect(field('chinese_title').value).toBe('和雇主儿子的秘密关系');
+    expect(field('chinese_link').value).toBe('https://www.jjwxc.net/onebook.php?novelid=9202298');
+    expect(field('author_original').value).toBe('即枫');
+    // ...and nothing of book A is left to be posted under book B's name.
+    expect(field('title').value).toBe('');
+    expect(field('author').value).toBe('');
+    expect(field('description').value).toBe('');
+    const selects = Array.from(document.querySelectorAll('#createBookForm select')) as HTMLSelectElement[];
+    expect(selects.map((s) => s.value)).toEqual(['', '', '', '']);
+    expect(screen.queryByAltText('Ảnh bìa')).toBeNull();
+  });
+
+  it('keeps the filled form when the same book is filled again and the AI call fails', async () => {
+    setAiKey('KEY');
+    let aiCalls = 0;
+    mockBackend({ ai_generate_json: () => (++aiCalls === 1 ? AI_REPLY : 'Xin lỗi, tôi không thể giúp.') });
+    renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+    await waitFor(() => expect(field('title').value).toBe('Quỷ Bí Chi Chủ'));
+    await waitFor(() => expect(screen.getByAltText('Ảnh bìa')).toBeTruthy());
+
+    // Same book through another link form: a retry, not a switch.
+    await fillLinkAndRunAi('https://m.qidian.com/book/1010868264');
+    await screen.findByRole('alert');
+
+    expect(field('title').value).toBe('Quỷ Bí Chi Chủ');
+    expect(field('description').value).toBe('Trong làn sóng hơi nước và máy móc.\n\nTa tỉnh lại từ quỷ bí.');
+    expect(screen.getByAltText('Ảnh bìa')).toBeTruthy();
+  });
+
   it('points out a title that still says "Tôi" despite the house style', async () => {
     setAiKey('KEY');
     const reply = JSON.stringify({ ...JSON.parse(AI_REPLY), title: 'tôi có thể sao chép thiên phú' });

@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest';
 import { detectSource } from './detect';
-import { ciweimaoCovers, cleanIntro, parseCiweimao, parseFaloo, parseJjwxc } from './parse';
+import { baiduCovers, ciweimaoCovers, cleanIntro, parseCiweimao, parseFaloo, parseJjwxc } from './parse';
 
 describe('detectSource: Faloo', () => {
   const expected = {
@@ -151,6 +151,14 @@ describe('parseJjwxc', () => {
     });
   });
 
+  it('tries a small rendition first for a cover hot-linked from Baidu', () => {
+    const hotLinked = { ...payload, novelCover: 'https://pic.rmb.bdstatic.com/bjh/portrait/e8210b76.jpeg', originalCover: '' };
+    expect(parseJjwxc(JSON.stringify(hotLinked), ref).coverUrls).toEqual([
+      'https://pic.rmb.bdstatic.com/bjh/portrait/e8210b76.jpeg@w_600,q_80',
+      'https://pic.rmb.bdstatic.com/bjh/portrait/e8210b76.jpeg',
+    ]);
+  });
+
   it('surfaces the message of JJWXC when the book is unavailable', () => {
     const blocked = '{"code":"1062","message":"1062:该文已被屏蔽，无法查看","data":{}}';
     expect(() => parseJjwxc(blocked, ref)).toThrow('1062:该文已被屏蔽，无法查看');
@@ -172,6 +180,15 @@ describe('ciweimaoCovers', () => {
       'https://www.ciweimao.com/resources/images/tmp/cover.jpg',
     ]);
     expect(ciweimaoCovers('')).toEqual([]);
+  });
+});
+
+describe('baiduCovers', () => {
+  it('leaves other hosts and already-processed Baidu URLs alone', () => {
+    expect(baiduCovers('https://i4-static.jjwxc.net/tmp/backend/a_300_420.jpg')).toEqual(['https://i4-static.jjwxc.net/tmp/backend/a_300_420.jpg']);
+    expect(baiduCovers('https://pic.rmb.bdstatic.com/bjh/a.jpeg@w_300')).toEqual(['https://pic.rmb.bdstatic.com/bjh/a.jpeg@w_300']);
+    expect(baiduCovers('https://notbdstatic.com/a.jpeg')).toEqual(['https://notbdstatic.com/a.jpeg']);
+    expect(baiduCovers('')).toEqual([]);
   });
 });
 
