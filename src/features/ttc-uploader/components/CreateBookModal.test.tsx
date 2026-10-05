@@ -176,9 +176,9 @@ describe('CreateBookModal', () => {
     mockBackend();
     renderModal();
 
-    await fillLinkAndRunAi('https://www.jjwxc.net/onebook.php?novelid=1');
+    await fillLinkAndRunAi('https://www.69shuba.com/book/1.htm');
 
-    expect((await screen.findByRole('alert')).textContent).toMatch(/Fanqie, QQ Reading, Qidian, Qimao và SFACG/);
+    expect((await screen.findByRole('alert')).textContent).toMatch(/Link không được hỗ trợ.*Fanqie.*JJWXC và Ciweimao/);
     expect(callsOf('source_fetch_text')).toHaveLength(0);
   });
 
@@ -287,6 +287,60 @@ describe('CreateBookModal', () => {
     expect(aiRequest.user).toContain('Loại truyện đăng: Truyện Dịch');
   });
 
+  it('retries the cover upload for the story that already exists, without creating it again', async () => {
+    setAiKey('KEY');
+    let uploads = 0;
+    mockBackend({
+      // TTC drops the first upload with a gateway timeout, then accepts the retry.
+      ttc_upload_cover: () => {
+        uploads++;
+        if (uploads === 1) throw 'HTTP 504 Gateway Timeout';
+        return 'ok';
+      },
+    });
+    const { onSuccess } = renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+    await waitFor(() => expect(screen.getByAltText('Ảnh bìa')).toBeTruthy());
+    await waitFor(() => expect(field('title').value).toBe('Quỷ Bí Chi Chủ'));
+    fireEvent.submit(document.getElementById('createBookForm')!);
+
+    expect(await screen.findByText(/Chưa tải được ảnh bìa: HTTP 504 Gateway Timeout/)).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: /Thử lại tải ảnh bìa/ }));
+
+    await waitFor(() =>
+      expect(onSuccess).toHaveBeenCalledWith({ bookId: 777, title: 'Quỷ Bí Chi Chủ', coverError: null }),
+    );
+    // Same image, same story: the retry must not post the create form a second time.
+    const coverCalls = callsOf('ttc_upload_cover');
+    expect(coverCalls).toHaveLength(2);
+    expect(coverCalls[1][1]).toEqual(coverCalls[0][1]);
+    expect(callsOf('ttc_create_story')).toHaveLength(1);
+  });
+
+  it('keeps the retry available when the cover upload fails again', async () => {
+    setAiKey('KEY');
+    mockBackend({
+      ttc_upload_cover: () => {
+        throw 'HTTP 504 Gateway Timeout';
+      },
+    });
+    const { onSuccess } = renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+    await waitFor(() => expect(screen.getByAltText('Ảnh bìa')).toBeTruthy());
+    await waitFor(() => expect(field('title').value).toBe('Quỷ Bí Chi Chủ'));
+    fireEvent.submit(document.getElementById('createBookForm')!);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Thử lại tải ảnh bìa/ }));
+
+    await waitFor(() => expect(callsOf('ttc_upload_cover')).toHaveLength(2));
+    await waitFor(() =>
+      expect((screen.getByRole('button', { name: /Thử lại tải ảnh bìa/ }) as HTMLButtonElement).disabled).toBe(false),
+    );
+    expect(onSuccess).not.toHaveBeenCalled();
+  });
+
   it('falls back through the cover candidates and lets the user retry a failed cover download', async () => {
     setAiKey('KEY');
     const SHRINK = 'https://p6-novel.byteimg.com/novel-pic/abc~tplv-shrink:640:0.image';
@@ -318,6 +372,35 @@ describe('CreateBookModal', () => {
     expect(callsOf('source_fetch_image').map((c) => (c[1] as { url: string }).url)).toEqual([SHRINK, ORIGIN, SHRINK, ORIGIN]);
     expect(screen.queryByText(/hết thời gian chờ/)).toBeNull();
     expect(screen.queryByRole('button', { name: /Tải lại ảnh bìa gốc/ })).toBeNull();
+  });
+
+  it('lets the user stop waiting for a slow cover download, then submit or retry', async () => {
+    setAiKey('KEY');
+    let deliver: (image: { bytes: number[]; mime: string }) => void = () => {};
+    mockBackend({
+      // A cover host that has not answered yet.
+      source_fetch_image: () => new Promise((resolve) => (deliver = resolve)),
+    });
+    renderModal();
+
+    await fillLinkAndRunAi('https://www.qidian.com/book/1010868264/');
+    await waitFor(() => expect(field('title').value).toBe('Quỷ Bí Chi Chủ'));
+
+    // While the cover is downloading, submitting would create the story without it.
+    const submit = screen.getByRole('button', { name: 'Đăng Truyện' }) as HTMLButtonElement;
+    expect(screen.getByText('Đang tải ảnh bìa từ trang gốc...')).toBeTruthy();
+    expect(submit.disabled).toBe(true);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Bỏ qua' }));
+
+    expect(screen.queryByText('Đang tải ảnh bìa từ trang gốc...')).toBeNull();
+    expect(submit.disabled).toBe(false);
+    expect(screen.getByRole('button', { name: /Tải lại ảnh bìa gốc/ })).toBeTruthy();
+
+    // The abandoned download answering late must not bring the cover back.
+    deliver({ bytes: [0xff, 0xd8, 0xff], mime: 'image/jpeg' });
+    await new Promise((r) => setTimeout(r, 20));
+    expect(screen.queryByAltText('Ảnh bìa')).toBeNull();
   });
 
   it('an original story hides the Chinese-source fields and is authored by the account', async () => {

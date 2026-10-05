@@ -46,7 +46,7 @@ describe('detectSource', () => {
   });
 
   it('returns null for unsupported sites and non-links', () => {
-    expect(detectSource('https://www.jjwxc.net/onebook.php?novelid=123456')).toBeNull();
+    expect(detectSource('https://www.69shuba.com/book/123456.htm')).toBeNull();
     expect(detectSource('https://notqidian.com.evil.example/book/1010868264/')).toBeNull();
     expect(detectSource('1010868264')).toBeNull();
     expect(detectSource('')).toBeNull();

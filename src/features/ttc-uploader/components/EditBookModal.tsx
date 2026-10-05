@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { Check } from 'lucide-react';
+import { Check, RotateCw } from 'lucide-react';
 import { Select } from '@/shared/components';
 import { fetchEditBookForm, submitEditBookForm, uploadCover } from '../api';
 import type { EditBookForm, EditBookData } from '../types';
@@ -13,12 +13,22 @@ interface EditBookModalProps {
   onSuccess: () => void;
 }
 
+/** Rust commands reject with a bare string (e.g. "HTTP 504 Gateway Timeout"), JS code with an Error. */
+function errorMessage(e: unknown, fallback: string): string {
+  if (e instanceof Error && e.message) return e.message;
+  if (typeof e === 'string' && e) return e;
+  return fallback;
+}
+
 export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
   const [cropImageSrc, setCropImageSrc] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  /** The cropped image of an upload that failed, kept so it can be re-sent as is. */
+  const [failedCover, setFailedCover] = useState<{ bytes: number[]; mime: string } | null>(null);
+  const [coverError, setCoverError] = useState<string | null>(null);
 
   const [formConfig, setFormConfig] = useState<EditBookForm | null>(null);
   const [formData, setFormData] = useState<EditBookData | null>(null);
@@ -37,7 +47,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
         }
       } catch (err: unknown) {
         if (mounted) {
-          setError(err instanceof Error ? err.message : 'Không thể tải thông tin truyện');
+          setError(errorMessage(err, 'Không thể tải thông tin truyện'));
         }
       } finally {
         if (mounted) setLoading(false);
@@ -72,7 +82,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
       await submitEditBookForm(formConfig.actionUrl, formConfig.csrfToken, formData);
       onSuccess();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi cập nhật truyện');
+      setError(errorMessage(err, 'Lỗi khi cập nhật truyện'));
     } finally {
       setSubmitting(false);
     }
@@ -91,25 +101,39 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
       const url = URL.createObjectURL(blob);
       setCropImageSrc(url);
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi mở file ảnh');
+      setError(errorMessage(err, 'Lỗi khi mở file ảnh'));
+    }
+  };
+
+  /**
+   * Send a cropped cover to TTC. TTC's gateway sometimes times out on this request
+   * (HTTP 504), so a failure keeps the image for `retryCoverUpload` instead of making
+   * the user pick and crop it again.
+   */
+  const uploadCoverBytes = async (bytes: number[], mime: string) => {
+    setUploadingCover(true);
+    setCoverError(null);
+    try {
+      await uploadCover(bookId, bytes, mime);
+      setFailedCover(null);
+      onSuccess();
+    } catch (err: unknown) {
+      setFailedCover({ bytes, mime });
+      setCoverError(errorMessage(err, 'Lỗi khi upload ảnh bìa'));
+    } finally {
+      setUploadingCover(false);
     }
   };
 
   const handleCropComplete = async (croppedBytes: number[], mimeType: string) => {
-    try {
-      setUploadingCover(true);
-      setError(null);
-      await uploadCover(bookId, croppedBytes, mimeType);
+    // Close the cropper first: left open, it would cover the upload status and any error.
+    if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
+    setCropImageSrc(null);
+    await uploadCoverBytes(croppedBytes, mimeType);
+  };
 
-      if (cropImageSrc) URL.revokeObjectURL(cropImageSrc);
-      setCropImageSrc(null);
-
-      onSuccess();
-    } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Lỗi khi upload ảnh bìa');
-    } finally {
-      setUploadingCover(false);
-    }
+  const retryCoverUpload = () => {
+    if (failedCover) void uploadCoverBytes(failedCover.bytes, failedCover.mime);
   };
 
   return (
@@ -201,6 +225,20 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                       )}
                     </button>
                   </div>
+                  {coverError && !uploadingCover && (
+                    <div role="alert" className="flex flex-wrap items-center justify-between gap-2 p-2 bg-crimson/10 border border-crimson/30 rounded-lg text-crimson">
+                      <span className="break-words min-w-0">Tải ảnh bìa thất bại: {coverError}</span>
+                      {failedCover && (
+                        <button
+                          type="button"
+                          onClick={retryCoverUpload}
+                          className="px-3 py-1.5 bg-gold/10 text-gold border border-gold/30 text-xs font-bold rounded-lg hover:bg-gold/20 transition-colors cursor-pointer flex items-center gap-1.5 whitespace-nowrap"
+                        >
+                          <RotateCw size={12} /> Thử lại tải ảnh bìa
+                        </button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </div>
 

@@ -1,4 +1,4 @@
-//! Read-only fetches from Chinese novel sites (Fanqie, QQ Reading, Qidian, Qimao, SFACG).
+//! Read-only fetches from Chinese novel sites (Fanqie, QQ Reading, Qidian, Qimao, SFACG, Faloo, JJWXC, Ciweimao).
 //!
 //! Used by the TTC "create story" AI-fill flow: the webview cannot call these
 //! sites itself (CORS, and their WAFs reject a webview `Origin`), so the request
@@ -22,7 +22,8 @@ const MAX_IMAGE_BYTES: usize = 10 * 1024 * 1024;
 
 // Cover CDNs (byteimg in particular) are flaky from outside mainland China: a cold
 // connection can take 10s+ or drop, while the next attempt answers in under a second.
-const IMAGE_TIMEOUT: Duration = Duration::from_secs(20);
+// Ciweimao's cover host has been measured at 10-30s for a 120KB image.
+const IMAGE_TIMEOUT: Duration = Duration::from_secs(45);
 const IMAGE_ATTEMPTS: usize = 2;
 const IMAGE_RETRY_DELAY: Duration = Duration::from_millis(600);
 
@@ -33,7 +34,7 @@ struct TextSource {
     referer: Option<&'static str>,
 }
 
-const TEXT_SOURCES: [TextSource; 6] = [
+const TEXT_SOURCES: [TextSource; 9] = [
     // Book page with `window.__INITIAL_STATE__`.
     TextSource {
         host: "fanqienovel.com",
@@ -70,10 +71,27 @@ const TEXT_SOURCES: [TextSource; 6] = [
         user_agent: DESKTOP_UA,
         referer: None,
     },
+    // Book page in GB2312: `Response::text` decodes it from the declared charset.
+    TextSource {
+        host: "b.faloo.com",
+        user_agent: DESKTOP_UA,
+        referer: None,
+    },
+    // App endpoint: UTF-8 JSON (the web pages are GB18030 HTML without a charset header).
+    TextSource {
+        host: "app.jjwxc.net",
+        user_agent: MOBILE_UA,
+        referer: None,
+    },
+    TextSource {
+        host: "www.ciweimao.com",
+        user_agent: DESKTOP_UA,
+        referer: None,
+    },
 ];
 
 /// Cover images live on the sites' CDNs; match by registrable-domain suffix.
-const IMAGE_HOST_SUFFIXES: [&str; 8] = [
+const IMAGE_HOST_SUFFIXES: [&str; 12] = [
     // Fanqie
     "byteimg.com",
     "fqnovelpic.com",
@@ -85,6 +103,13 @@ const IMAGE_HOST_SUFFIXES: [&str; 8] = [
     "wtzw.com",
     // SFACG
     "sfacg.com",
+    // Faloo
+    "faloo.com",
+    // JJWXC
+    "jjwxc.net",
+    // Ciweimao (covers are on kuangxiangit.com)
+    "ciweimao.com",
+    "kuangxiangit.com",
 ];
 
 fn parse_https(url: &str) -> Result<Url, String> {
@@ -289,6 +314,11 @@ mod tests {
         assert!(text_source("https://www.qimao.com/shuku/10021482/").is_ok());
         assert!(text_source("https://m.sfacg.com/b/759334/").is_ok());
         assert!(text_source("https://book.sfacg.com/Novel/759334/").is_ok());
+        assert!(text_source("https://b.faloo.com/550081.html").is_ok());
+        assert!(text_source("https://app.jjwxc.net/androidapi/novelbasicinfo?novelId=4468196").is_ok());
+        assert!(text_source("https://www.ciweimao.com/book/100339985").is_ok());
+        // Only the hosts we fetch from: a pasted mirror domain never reaches the network.
+        assert!(text_source("https://m.jjwxcbroken.net/book2/4468196/1").is_err());
 
         assert!(text_source("https://example.com/").is_err());
         assert!(text_source("https://fanqienovel.com.evil.example/page/1").is_err());
@@ -311,6 +341,9 @@ mod tests {
 
         assert!(image_url("https://cdn.wtzw.com/bookimg/public/images/cover/f0e5/abc_360x480.png").is_ok());
         assert!(image_url("https://rs.sfacg.com/web/novel/images/NovelCover/Big/2026/05/cover.jpg").is_ok());
+        assert!(image_url("https://img.faloo.com/Novel/498x705/1/1030/001030475.jpg").is_ok());
+        assert!(image_url("https://i4-static.jjwxc.net/tmp/backend/authorspace/s1/3/a_300_420.jpg").is_ok());
+        assert!(image_url("https://e1.kuangxiangit.com/uploads/allimg/c240806/a.jpg").is_ok());
 
         assert!(image_url("https://notbyteimg.com/a.jpg").is_err());
         assert!(image_url("https://byteimg.com.evil.example/a.jpg").is_err());
@@ -385,7 +418,27 @@ mod tests {
             assert_eq!(cover.mime, "image/jpeg");
             assert!(cover.bytes.len() > 1000);
 
+            // GB2312 page: readable Chinese proves the charset decoding works.
+            let faloo = fetch_text(&client, "https://b.faloo.com/550081.html")
+                .await
+                .expect("faloo");
+            assert!(faloo.contains("我能复制天赋"), "faloo: title not decoded from GB2312");
+
+            let jjwxc = fetch_text(&client, "https://app.jjwxc.net/androidapi/novelbasicinfo?novelId=4468196")
+                .await
+                .expect("jjwxc");
+            assert!(jjwxc.contains("novelName"), "jjwxc: no novelName");
+
+            let ciweimao = fetch_text(&client, "https://www.ciweimao.com/book/100339985")
+                .await
+                .expect("ciweimao");
+            assert!(ciweimao.contains("og:novel:book_name"), "ciweimao: no og tags");
+
             for url in [
+                "https://img.faloo.com/Novel/498x705/1/1030/001030475.jpg",
+                "https://i4-static.jjwxc.net/tmp/backend/authorspace/s1/3/2087/208622/20230519211356_300_420.jpg",
+                // c1, not the e1/e2 hosts the pages link: those time out from outside mainland China.
+                "https://c1.kuangxiangit.com/uploads/allimg/c240806/06-08-24032600-43371.jpg",
                 "https://cdn.wtzw.com/bookimg/public/images/cover/f0e5/9c3c9ab728c51bde1b02ac5eb330216b_360x480.png",
                 "https://rs.sfacg.com/web/novel/images/NovelCover/Big/2026/05/dbdee7c5-9023-4c8d-989c-f1e81060aa57.jpg",
             ] {

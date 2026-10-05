@@ -4,7 +4,7 @@ import type { SourceBook, SourceRef } from './types';
 /** One paragraph per line: drop HTML breaks/tags, indentation and blank lines. */
 export function cleanIntro(raw: unknown): string {
   return String(raw ?? '')
-    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/<br\s*\/?>|<\/p\s*>/gi, '\n')
     .replace(/<[^>]+>/g, '')
     .replace(/&nbsp;/g, ' ')
     .replace(/\r/g, '')
@@ -238,4 +238,124 @@ export function sfacgBookIdFromChapter(html: string): string {
   const m = html.match(/href="\/b\/(\d+)\/?"/);
   if (!m) throw new Error('Không tìm được truyện từ link chương SFACG này. Hãy dán link trang truyện.');
   return m[1];
+}
+
+// ─── Faloo, JJWXC, Ciweimao ────────────────────────────────
+
+/**
+ * Content of an Open Graph meta tag ('' when absent). The standard attribute is `property`,
+ * but some sites (Faloo) declare the same tags with `name`.
+ */
+const ogMeta = (doc: Document, key: string) =>
+  str(doc.querySelector(`meta[property="${key}"], meta[name="${key}"]`)?.getAttribute('content'));
+
+/** `&lt;br/&gt;` → `<br/>`: undo one level of HTML escaping (JJWXC escapes its synopsis). */
+function decodeEntities(escaped: string): string {
+  const area = document.createElement('textarea');
+  area.innerHTML = escaped;
+  return area.value;
+}
+
+/** Faloo appends its own legal notice to every synopsis. */
+const FALOO_DISCLAIMER = /^飞卢小说网提醒您/;
+
+/**
+ * b.faloo.com/{id}.html. The page is GB2312; the Rust side decodes it (reqwest `charset`
+ * feature) so this receives proper text. Names come from the Open Graph tags, the
+ * synopsis and tags from the markup.
+ */
+export function parseFaloo(html: string, ref: SourceRef): SourceBook {
+  const doc = parseHtml(html);
+  const title = ogMeta(doc, 'og:novel:book_name') || text(doc.querySelector('#novelName'));
+  if (!title) {
+    throw new Error('Không đọc được dữ liệu trang Faloo (sai link, truyện đã gỡ hoặc trang đổi cấu trúc)');
+  }
+
+  const rows = Array.from(doc.querySelectorAll('.T-R-T-B2-Box1'));
+  const subCategory = text(rows.find((row) => row.textContent?.includes('小说子类'))?.querySelector('a'));
+  const labels = Array.from(doc.querySelectorAll('a.LXbq')).map((a) => text(a));
+  const intro = cleanIntro(doc.querySelector('.T-L-T-C-Box1')?.innerHTML)
+    .split('\n')
+    .filter((line) => !FALOO_DISCLAIMER.test(line))
+    .join('\n');
+  const cover = httpsUrl(ogMeta(doc, 'og:image'));
+
+  return {
+    ...base(ref),
+    title,
+    author: ogMeta(doc, 'og:novel:author'),
+    intro,
+    coverUrls: cover ? [cover] : [],
+    category: ogMeta(doc, 'og:novel:category'),
+    tags: uniq([subCategory, ...labels]),
+  };
+}
+
+/**
+ * JJWXC's app endpoint (app.jjwxc.net/androidapi/novelbasicinfo): public JSON in UTF-8,
+ * unlike the GB18030 web pages. An unavailable book answers `{ code, message }`.
+ */
+export function parseJjwxc(body: string, ref: SourceRef): SourceBook {
+  let j: any;
+  try {
+    j = JSON.parse(body);
+  } catch {
+    throw new Error('JJWXC trả về dữ liệu không hợp lệ');
+  }
+  if (!str(j?.novelName)) {
+    throw new Error(str(j?.message) || 'JJWXC không trả về thông tin truyện (sai link hoặc truyện đã gỡ)');
+  }
+
+  return {
+    ...base(ref),
+    title: str(j.novelName),
+    author: str(j.authorName),
+    intro: cleanIntro(decodeEntities(str(j.novelIntro))),
+    // 300x420 rendition first, the original as a fallback.
+    coverUrls: uniq([j.novelCover, j.originalCover].map((url) => httpsUrl(str(url)))),
+    // e.g. "原创-言情-架空历史-爱情-女主": origin, orientation, era, genre, point of view.
+    category: str(j.novelClass),
+    tags: uniq(str(j.novelTags).split(/[,，]/)),
+  };
+}
+
+/**
+ * Cover candidates for a Ciweimao cover URL, best first.
+ *
+ * Ciweimao's pages link covers on e1/e2.kuangxiangit.com, a CDN that is slow or
+ * unreachable from outside mainland China (measured: 10-30s, or a connect timeout).
+ * The same path on c1.kuangxiangit.com is served by a different CDN and answers in a
+ * few seconds, so it is tried first and the page's own URL kept as a fallback.
+ */
+export function ciweimaoCovers(url: string): string[] {
+  const m = url.match(/^https:\/\/[a-z]\d+\.kuangxiangit\.com\/(.+)$/i);
+  if (!m) return url ? [url] : [];
+  return uniq([`https://c1.kuangxiangit.com/${m[1]}`, url]);
+}
+
+/** www.ciweimao.com/book/{id}: server-rendered page with Open Graph novel tags. */
+export function parseCiweimao(html: string, ref: SourceRef): SourceBook {
+  const doc = parseHtml(html);
+  const title = ogMeta(doc, 'og:novel:book_name');
+  if (!title) {
+    throw new Error('Không đọc được dữ liệu trang Ciweimao (sai link, truyện đã gỡ hoặc trang đổi cấu trúc)');
+  }
+
+  const category = ogMeta(doc, 'og:novel:category');
+  // Breadcrumb: 首页 > {channel} > {category} > {title}; only the channel adds information.
+  const channels = Array.from(doc.querySelectorAll('.breadcrumb a'))
+    .map((a) => text(a))
+    .filter((name) => name !== '首页' && name !== category);
+  const labels = Array.from(doc.querySelectorAll('.label-box .label')).map((el) => text(el));
+  const cover = httpsUrl(ogMeta(doc, 'og:image'));
+
+  return {
+    ...base(ref),
+    title,
+    author: ogMeta(doc, 'og:novel:author'),
+    intro: cleanIntro(doc.querySelector('.book-intro .book-desc')?.innerHTML),
+    coverUrls: ciweimaoCovers(cover),
+    category,
+    tags: uniq([...channels, ...labels]),
+  };
 }

@@ -186,11 +186,11 @@ Download All Flow:
 CreateBookModal → useCreateBook
   load:    ttc_fetch_html('/dang-truyen') → parseCreateBookPage()
              → csrf token, option lists (category + 3 sub_categories), display name, posting rules
-  AI fill: detectSource(link)                      (sources/detect.ts — Fanqie / QQ / Qidian / Qimao / SFACG)
+  AI fill: detectSource(link)                      (sources/detect.ts — Fanqie / QQ / Qidian / Qimao / SFACG / Faloo / JJWXC / Ciweimao)
              ?? detectChapterLookup(link)          (chapter-only link: fetch the chapter page for the book id)
              → source_fetch_text(fetchUrl)         (Rust, allowlisted hosts)
              (+ extraFetchUrl, best effort)        (SFACG: tags live on a second page)
-             → parseFanqie / parseQidian / parseQq / parseQimao / parseSfacg → SourceBook
+             → parse{Fanqie,Qidian,Qq,Qimao,Sfacg,Faloo,Jjwxc,Ciweimao} → SourceBook
              → fills chinese_title, chinese_link (canonical), author_original
              → source_fetch_image(coverUrls…)      (background; pending cover, kept in memory)
              → buildFillPrompt() → ai_generate_json (Rust) → parseFillResponse()
@@ -208,10 +208,17 @@ CreateBookModal → useCreateBook
 | Qidian | `qidian.com/{book,info,chapter}/{id}` on any subdomain | SSR page context of `m.qidian.com/book/{id}/` | none |
 | Qimao | `qimao.com/shuku/{id}/`, chapter `shuku/{id}-{chapterId}/` | markup of the server-rendered book page (its `__NUXT__` state is a JS program, not data) | none |
 | SFACG | `book.sfacg.com/Novel/{id}/[…chapter]`, `m.sfacg.com/{b,i}/{id}/`, chapter `m.sfacg.com/c/{chapterId}/` | `m.sfacg.com/b/{id}/` (full synopsis) + `book.sfacg.com/Novel/{id}/` (tags) | none |
+| Faloo | `faloo.com/{id}.html`, chapter `{id}_{n}.html`, chapter list `html_{prefix}_{id}/` | `b.faloo.com/{id}.html`: Open Graph tags (declared with `name=`) + markup. **GB2312**, decoded in Rust | none |
+| JJWXC | `onebook.php?novelid={id}[&chapterid=n]`, mobile `/book2/{id}[/{chapter}]`, on any `jjwxc*` domain | `app.jjwxc.net/androidapi/novelbasicinfo` (UTF-8 JSON; the web pages are GB18030 HTML) | none |
+| Ciweimao | `{www,mip,wap}.ciweimao.com/book/{id}` | `www.ciweimao.com/book/{id}`: Open Graph tags + markup | none |
 
 `www.qidian.com` answers HTTP 202 with a JS probe, so the mobile site is used; no signing worker is involved. A Fanqie chapter link (`/reader/{itemId}`) carries no book id and is rejected.
 
 Chapter links are normalized to the book: most carry the book id in the path. `m.sfacg.com/c/{chapterId}/` does not, so `detectChapterLookup` + `sfacgBookIdFromChapter` read it from the back link of the chapter page (one extra fetch).
+
+Non-UTF-8 pages: reqwest is built with its `charset` feature, so `Response::text` decodes by the charset in the `Content-Type` header (Faloo declares `gb2312`). A source that declares its charset only in a `<meta>` tag would still come out garbled; JJWXC is such a site, which is one reason its JSON endpoint is used instead.
+
+JJWXC links are accepted on any `jjwxc*` domain (mirrors, renamed or dead domains): only the novel id is read from the link, and the request always goes to the allowlisted `app.jjwxc.net`.
 
 www.qimao.com sends folded response headers (lines starting with a space), which hyper rejects by default; `ttc::client::build_http_client` enables `http1_allow_obsolete_multiline_headers_in_responses` for the shared client.
 
@@ -223,8 +230,8 @@ www.qimao.com sends folded response headers (lines starting with a space), which
 | **Host allowlists** | `source_fetch_text` only talks to the three metadata hosts and `source_fetch_image` to their CDNs, so neither is a general-purpose proxy |
 | **Option lists from the live form** | Categories come from the TTC page, not a hardcoded list; the picks of the model are validated against them and anything else is dropped |
 | **Model reply is untrusted** | `parseFillResponse` accepts bare / fenced / prose-wrapped JSON, title-cases names, and never throws on a bad category (it leaves the field for the user) |
-| **Cover is pending until the story exists** | TTC uploads covers per story id, so the image is held in memory and uploaded right after `ttc_create_story`; a failed cover upload is reported without hiding that the story was created |
-| **Cover download tolerates a flaky CDN** | The cover CDNs (byteimg especially) can stall or drop a cold connection from outside mainland China. Each source yields ordered `coverUrls` (Fanqie: `…~tplv-shrink:640:0.image` first, `origin/…` as fallback); Rust retries transient failures (connection errors, 5xx, 429) once per URL; the download runs in the background, and the form offers "Tải lại ảnh bìa gốc" when every candidate failed. Errors name the cause (`net::describe_request_error`) instead of reqwest's bare "error sending request" |
+| **Cover is pending until the story exists** | TTC uploads covers per story id, so the image is held in memory and uploaded right after `ttc_create_story`; a failed cover upload is reported without hiding that the story was created. The gateway of TTC sometimes answers the cover request with HTTP 504 after the story went through, so both `CreateBookModal` and `EditBookModal` keep the cropped image and offer "Thử lại tải ảnh bìa": only the cover request is repeated, never the create form |
+| **Cover download tolerates a flaky CDN** | The cover CDNs (byteimg especially) can stall or drop a cold connection from outside mainland China. Each source yields ordered `coverUrls` (Fanqie: `…~tplv-shrink:640:0.image` first, `origin/…` as fallback; Ciweimao: the same path on `c1.kuangxiangit.com` first, because the `e1`/`e2` hosts its pages link time out from abroad); Rust retries transient failures (connection errors, 5xx, 429) once per URL; the download runs in the background, and the form offers "Tải lại ảnh bìa gốc" when every candidate failed. Errors name the cause (`net::describe_request_error`) instead of reqwest's bare "error sending request" |
 | **`ttc_create_story` returns the JSON answer of TTC** | `Accept: application/json` makes TTC answer `{ success, message }`; its message (duplicate story, banned words) is shown verbatim. A non-JSON answer (login page) is an error, not a silent success |
 | **AI call in Rust** | OpenAI-compatible hubs rarely send CORS headers. Gemini uses `generateContent` with `responseMimeType: application/json`; OpenAI-compatible uses `chat/completions` with `response_format: json_object` |
 

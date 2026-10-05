@@ -52,7 +52,7 @@ src-tauri/                  # Tauri Rust backend (desktop only)
 │   ├── lib.rs              # App builder, plugin registration, managed state
 │   ├── ai.rs               # One-shot JSON generation via Gemini / OpenAI-compatible APIs
 │   ├── net.rs              # Readable descriptions of outbound HTTP failures
-│   ├── novel_source.rs     # Allowlisted fetches from Fanqie / QQ / Qidian / Qimao / SFACG (AI fill)
+│   ├── novel_source.rs     # Allowlisted fetches from the AI-fill source sites (see sources/types.ts)
 │   └── ttc/                # TTC feature backend (modular)
 │       ├── mod.rs           # Module declarations
 │       ├── types.rs         # Serde structs for API payloads & responses
@@ -209,7 +209,7 @@ Components:
 
 Create story (CreateBookModal → useCreateBook):
   createBookApi.ts   → parse the /dang-truyen form, build fields, submit, copyright check
-  sources/           → detect link (Fanqie / QQ / Qidian / Qimao / SFACG) + parse the book metadata
+  sources/           → detect link (Fanqie, QQ, Qidian, Qimao, SFACG, Faloo, JJWXC, Ciweimao) + parse the book metadata
   ai/                → build the fill prompt, validate the JSON reply of the model
 ```
 

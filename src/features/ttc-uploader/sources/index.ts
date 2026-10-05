@@ -1,6 +1,16 @@
 import { invoke } from '@tauri-apps/api/core';
 import { detectChapterLookup, detectSource, sourceRef } from './detect';
-import { parseFanqie, parseQidian, parseQimao, parseQq, parseSfacg, sfacgBookIdFromChapter } from './parse';
+import {
+  parseCiweimao,
+  parseFaloo,
+  parseFanqie,
+  parseJjwxc,
+  parseQidian,
+  parseQimao,
+  parseQq,
+  parseSfacg,
+  sfacgBookIdFromChapter,
+} from './parse';
 import { SOURCE_NAMES } from './types';
 import type { SourceBook, SourceId, SourceRef } from './types';
 
@@ -14,6 +24,9 @@ const PARSERS: Record<SourceId, (body: string, ref: SourceRef, extraBody?: strin
   qq: parseQq,
   qimao: parseQimao,
   sfacg: parseSfacg,
+  faloo: parseFaloo,
+  jjwxc: parseJjwxc,
+  ciweimao: parseCiweimao,
 };
 
 /** Sources whose chapter links carry no book id: how to read it from the chapter page. */

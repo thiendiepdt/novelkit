@@ -150,6 +150,11 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
     if (created && !created.coverError) onSuccess(created);
   };
 
+  const handleRetryCover = async () => {
+    const done = await book.retryCoverUpload();
+    if (done) onSuccess(done);
+  };
+
   return (
     <>
       <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" style={{ animation: 'overlayIn 0.2s ease-out' }}>
@@ -164,7 +169,7 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
             </h2>
             <button
               onClick={result ? () => onSuccess(result) : onClose}
-              disabled={book.submitting}
+              disabled={book.submitting || book.retryingCover}
               aria-label="Đóng"
               className="text-text-dim hover:text-crimson transition-colors w-8 h-8 flex items-center justify-center rounded hover:bg-bg-hover disabled:opacity-50 cursor-pointer"
             >
@@ -198,9 +203,31 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                 <div className="max-w-xl p-3 bg-crimson/10 border border-crimson/30 rounded-lg text-sm text-crimson break-words">
                   Chưa tải được ảnh bìa: {result.coverError}
                 </div>
-                <p className="text-sm text-text-secondary max-w-xl">
-                  Truyện đã có trên TTC. Bạn có thể đổi ảnh bìa trong mục Sửa của truyện ở danh sách.
-                </p>
+                {book.canRetryCoverUpload ? (
+                  <>
+                    <p className="text-sm text-text-secondary max-w-xl">
+                      Truyện đã có trên TTC, chỉ riêng ảnh bìa chưa lên. Thử lại sẽ gửi lại đúng ảnh bìa này, không
+                      tạo truyện lần nữa.
+                    </p>
+                    <button
+                      type="button"
+                      onClick={handleRetryCover}
+                      disabled={book.retryingCover}
+                      className="px-5 py-2 bg-gold text-bg-primary font-bold text-sm rounded-lg hover:bg-gold/90 transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed flex items-center gap-2"
+                    >
+                      {book.retryingCover ? (
+                        <div className="w-4 h-4 border-2 border-bg-primary border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <RotateCw size={14} />
+                      )}
+                      {book.retryingCover ? 'Đang tải ảnh bìa...' : 'Thử lại tải ảnh bìa'}
+                    </button>
+                  </>
+                ) : (
+                  <p className="text-sm text-text-secondary max-w-xl">
+                    Truyện đã có trên TTC. Bạn có thể đổi ảnh bìa trong mục Sửa của truyện ở danh sách.
+                  </p>
+                )}
               </div>
             )}
 
@@ -445,7 +472,18 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                         TTC yêu cầu truyện mới có ảnh bìa. Ảnh được tải lên ngay sau khi truyện được tạo.
                         {!isOriginal && ' AI điền sẽ tự lấy ảnh bìa từ trang gốc.'}
                       </p>
-                      {book.loadingCover && <div className="text-xs text-gold animate-pulse">Đang tải ảnh bìa từ trang gốc...</div>}
+                      {book.loadingCover && (
+                        <div className="text-xs text-gold flex flex-wrap items-center gap-x-2">
+                          <span className="animate-pulse">Đang tải ảnh bìa từ trang gốc...</span>
+                          <button
+                            type="button"
+                            onClick={book.skipSourceCover}
+                            className="text-text-secondary hover:text-text-primary underline cursor-pointer"
+                          >
+                            Bỏ qua
+                          </button>
+                        </div>
+                      )}
                       {book.coverError && !book.loadingCover && (
                         <div className="text-xs text-crimson break-words">{book.coverError}</div>
                       )}
@@ -533,7 +571,8 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
               <button
                 type="button"
                 onClick={() => onSuccess(result)}
-                className="px-6 py-2 bg-gold text-bg-primary font-bold text-sm rounded-lg hover:bg-gold/90 transition-all cursor-pointer"
+                disabled={book.retryingCover}
+                className="px-6 py-2 bg-bg-hover text-text-primary border border-border-main font-bold text-sm rounded-lg hover:border-text-dim transition-all cursor-pointer disabled:opacity-50"
               >
                 Đóng
               </button>

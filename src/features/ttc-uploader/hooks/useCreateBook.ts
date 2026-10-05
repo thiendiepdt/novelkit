@@ -49,6 +49,7 @@ export function useCreateBook() {
   const [copyright, setCopyright] = useState({ blocked: false, note: '' });
   const [submitting, setSubmitting] = useState(false);
   const [result, setResult] = useState<CreateBookResult | null>(null);
+  const [retryingCover, setRetryingCover] = useState(false);
 
   const [cover, setCover] = useState<PendingCover | null>(null);
   const [loadingCover, setLoadingCover] = useState(false);
@@ -167,6 +168,13 @@ export function useCreateBook() {
     },
     [replaceCover],
   );
+
+  /** Some cover hosts take 30s+: stop waiting (the download can be retried, or a file picked). */
+  const skipSourceCover = useCallback(() => {
+    coverRequest.current++;
+    setLoadingCover(false);
+    setCoverError('Đã bỏ qua ảnh bìa gốc.');
+  }, []);
 
   const retrySourceCover = useCallback(() => {
     if (sourceCoverUrls.length) void loadSourceCover(sourceCoverUrls);
@@ -316,6 +324,28 @@ export function useCreateBook() {
     }
   }, [form, submitting, copyright.blocked, data, cover]);
 
+  /**
+   * Upload the pending cover again for the story that was just created. TTC's gateway
+   * sometimes times out on the cover request (HTTP 504) after the story itself went
+   * through; the image is still in memory, so only that request is repeated.
+   * Resolves with the updated result on success, null otherwise.
+   */
+  const retryCoverUpload = useCallback(async (): Promise<CreateBookResult | null> => {
+    if (!result || result.bookId === null || !cover || retryingCover) return null;
+    setRetryingCover(true);
+    try {
+      await uploadCover(result.bookId, cover.bytes, cover.mime);
+      const done: CreateBookResult = { ...result, coverError: null };
+      setResult(done);
+      return done;
+    } catch (e) {
+      setResult({ ...result, coverError: errorMessage(e, 'Lỗi không rõ') });
+      return null;
+    } finally {
+      setRetryingCover(false);
+    }
+  }, [result, cover, retryingCover]);
+
   return {
     form,
     loading,
@@ -328,6 +358,9 @@ export function useCreateBook() {
     copyright,
     submitting,
     result,
+    retryingCover,
+    /** Only possible when TTC told us which story it created and the image is still held. */
+    canRetryCoverUpload: !!result && result.bookId !== null && !!cover,
     cover,
     loadingCover,
     coverError,
@@ -341,8 +374,10 @@ export function useCreateBook() {
     recropCover,
     removeCover,
     retrySourceCover,
+    skipSourceCover,
     closeCropper,
     handleCropComplete,
     submit,
+    retryCoverUpload,
   };
 }
