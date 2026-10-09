@@ -1,9 +1,13 @@
 import { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { Check, RotateCw } from 'lucide-react';
+import { AlertTriangle, Check, ImageDown, RotateCw, Sparkles } from 'lucide-react';
 import { Select } from '@/shared/components';
+import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 import { fetchEditBookForm, submitEditBookForm, uploadCover } from '../api';
+import { titleUsesToi } from '../ai/fill';
+import { useSourceRefill } from '../hooks/useSourceRefill';
+import { SOURCE_LABELS } from '../sources';
 import type { EditBookForm, EditBookData } from '../types';
 import { CoverCropperModal } from './CoverCropperModal';
 
@@ -29,9 +33,19 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
   /** The cropped image of an upload that failed, kept so it can be re-sent as is. */
   const [failedCover, setFailedCover] = useState<{ bytes: number[]; mime: string } | null>(null);
   const [coverError, setCoverError] = useState<string | null>(null);
+  /** A cover upload went through: the list must be refreshed when this modal closes. */
+  const [coverChanged, setCoverChanged] = useState(false);
 
   const [formConfig, setFormConfig] = useState<EditBookForm | null>(null);
   const [formData, setFormData] = useState<EditBookData | null>(null);
+
+  // Re-fill from the story's source site: AI fill again, or its cover again.
+  const refill = useSourceRefill(formData?.chinese_link ?? '', formConfig?.options ?? null, formData?.type ?? '');
+  const { openSettings } = useSettingsModal();
+  const [refillNotice, setRefillNotice] = useState<string | null>(null);
+  /** The model's title for the story; applied only on request, titles of existing stories are not changed quietly. */
+  const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
+  const busy = submitting || uploadingCover || refill.step !== null;
 
   useEffect(() => {
     let mounted = true;
@@ -116,7 +130,9 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
     try {
       await uploadCover(bookId, bytes, mime);
       setFailedCover(null);
-      onSuccess();
+      // Stay open: the user may still be editing (e.g. after an AI re-fill). The list is
+      // refreshed when the modal closes.
+      setCoverChanged(true);
     } catch (err: unknown) {
       setFailedCover({ bytes, mime });
       setCoverError(errorMessage(err, 'Lỗi khi upload ảnh bìa'));
@@ -136,6 +152,68 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
     if (failedCover) void uploadCoverBytes(failedCover.bytes, failedCover.mime);
   };
 
+  /** A cover upload is already saved on TTC, so closing after one must still refresh the list. */
+  const handleClose = () => {
+    if (coverChanged) onSuccess();
+    else onClose();
+  };
+
+  /** Download the cover from the source site and open it in the cropper, like a picked file. */
+  const handleSourceCover = async () => {
+    const image = await refill.downloadCover();
+    if (!image) return;
+    const url = URL.createObjectURL(new Blob([new Uint8Array(image.bytes)], { type: image.mime }));
+    setCropImageSrc(url);
+  };
+
+  /** Run the AI fill again on the source and put the result into the form (not saved until "Lưu Thay Đổi"). */
+  const handleAiRefill = async () => {
+    setRefillNotice(null);
+    setSuggestedTitle(null);
+    const result = await refill.aiRefill();
+    if (!result || !formData) return;
+    const { filled, book } = result;
+
+    setFormData((prev) =>
+      prev
+        ? {
+            ...prev,
+            author: filled.author || prev.author,
+            category: filled.category || prev.category,
+            // Positional [tính cách, bối cảnh, lưu phái]; keep what the model could not pick.
+            sub_categories: filled.sub_categories.map((value, i) => value || prev.sub_categories[i] || ''),
+            description: filled.description || prev.description,
+          }
+        : prev,
+    );
+    if (filled.title && filled.title !== formData.title) setSuggestedTitle(filled.title);
+
+    const missing = [
+      filled.category ? '' : 'Thể loại',
+      filled.sub_categories[0] ? '' : 'Tính cách',
+      filled.sub_categories[1] ? '' : 'Bối cảnh',
+      filled.sub_categories[2] ? '' : 'Lưu phái',
+    ].filter(Boolean);
+    setRefillNotice(
+      [
+        `Đã điền lại từ ${SOURCE_LABELS[book.source]}. Kiểm tra rồi bấm Lưu Thay Đổi.`,
+        filled.synopsisBlocked
+          ? 'Bộ lọc nội dung của nhà cung cấp AI chặn văn án của truyện này, nên Giới thiệu được giữ nguyên.'
+          : '',
+        missing.length ? `AI chưa chọn được: ${missing.join(', ')}, giữ giá trị cũ.` : '',
+        filled.title && titleUsesToi(filled.title) ? 'Tên AI gợi ý còn chữ “Tôi”: quy ước là dùng “Ta”.' : '',
+      ]
+        .filter(Boolean)
+        .join(' '),
+    );
+  };
+
+  const applySuggestedTitle = () => {
+    if (!suggestedTitle) return;
+    setFormData((prev) => (prev ? { ...prev, title: suggestedTitle } : prev));
+    setSuggestedTitle(null);
+  };
+
   return (
     <>
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" style={{ animation: 'overlayIn 0.2s ease-out' }}>
@@ -149,7 +227,8 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
             <span className="text-gold">✏</span> Cập Nhật Truyện
           </h2>
           <button
-            onClick={onClose}
+            onClick={handleClose}
+            aria-label="Đóng"
             className="text-text-dim hover:text-crimson transition-colors w-8 h-8 flex items-center justify-center rounded hover:bg-bg-hover"
           >
             ✕
@@ -207,24 +286,51 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                 </div>
 
                 <div className="flex flex-col gap-2 w-full mt-2 border-t border-border-main/30 pt-3">
-                  <div className="flex items-center justify-between">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
                     <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Ảnh bìa</span>
-                    <button
-                      type="button"
-                      onClick={handleUploadCover}
-                      disabled={uploadingCover}
-                      className="px-3 py-1.5 bg-purple/10 text-purple border border-purple/20 text-xs font-bold rounded-lg hover:bg-purple/20 hover:border-purple/30 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-2"
-                    >
-                      {uploadingCover ? (
-                        <>
-                          <div className="w-3 h-3 border-2 border-purple border-t-transparent rounded-full animate-spin"></div>
-                          Đang tải lên...
-                        </>
-                      ) : (
-                        '📸 Đổi ảnh bìa'
+                    <div className="flex flex-wrap gap-2">
+                      {refill.canUseSource && (
+                        <button
+                          type="button"
+                          onClick={handleSourceCover}
+                          disabled={busy}
+                          title="Tải lại ảnh bìa từ trang gốc theo Link gốc, rồi cắt và tải lên TTC"
+                          className="px-3 py-1.5 bg-gold/10 text-gold border border-gold/30 text-xs font-bold rounded-lg hover:bg-gold/20 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                        >
+                          {refill.step && !uploadingCover ? (
+                            <>
+                              <div className="w-3 h-3 border-2 border-gold border-t-transparent rounded-full animate-spin"></div>
+                              {refill.step}
+                            </>
+                          ) : (
+                            <>
+                              <ImageDown size={12} /> Tải ảnh bìa từ nguồn
+                            </>
+                          )}
+                        </button>
                       )}
-                    </button>
+                      <button
+                        type="button"
+                        onClick={handleUploadCover}
+                        disabled={busy}
+                        className="px-3 py-1.5 bg-purple/10 text-purple border border-purple/20 text-xs font-bold rounded-lg hover:bg-purple/20 hover:border-purple/30 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-2"
+                      >
+                        {uploadingCover ? (
+                          <>
+                            <div className="w-3 h-3 border-2 border-purple border-t-transparent rounded-full animate-spin"></div>
+                            Đang tải lên...
+                          </>
+                        ) : (
+                          '📸 Đổi ảnh bìa'
+                        )}
+                      </button>
+                    </div>
                   </div>
+                  {coverChanged && !uploadingCover && !coverError && (
+                    <div className="flex items-center gap-1.5 text-jade">
+                      <Check size={12} /> Đã cập nhật ảnh bìa trên TTC.
+                    </div>
+                  )}
                   {coverError && !uploadingCover && (
                     <div role="alert" className="flex flex-wrap items-center justify-between gap-2 p-2 bg-crimson/10 border border-crimson/30 rounded-lg text-crimson">
                       <span className="break-words min-w-0">Tải ảnh bìa thất bại: {coverError}</span>
@@ -241,6 +347,70 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                   )}
                 </div>
               </div>
+
+              {/* AI re-fill from the source site */}
+              {refill.canUseSource && (
+                <div className="p-4 rounded-lg border border-purple/30 bg-purple/5 flex flex-col gap-2">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="flex items-center gap-2 text-sm font-semibold text-purple">
+                      <Sparkles size={16} /> AI điền lại từ link gốc
+                    </div>
+                    <button
+                      type="button"
+                      onClick={handleAiRefill}
+                      disabled={busy || !refill.aiConfigured}
+                      className="px-4 py-1.5 bg-purple/20 text-purple border border-purple/40 text-xs font-bold rounded-lg hover:bg-purple/30 transition-colors disabled:opacity-50 disabled:cursor-not-allowed cursor-pointer flex items-center gap-2"
+                    >
+                      {refill.step ? (
+                        <div className="w-3 h-3 border-2 border-purple border-t-transparent rounded-full animate-spin"></div>
+                      ) : (
+                        <Sparkles size={12} />
+                      )}
+                      AI điền lại
+                    </button>
+                  </div>
+                  <p className="text-xs text-text-secondary">
+                    Đọc lại trang gốc theo Link gốc, rồi AI dịch lại tác giả, văn án và chọn lại thể loại. Kết quả chỉ được điền
+                    vào form, chưa lưu lên TTC cho tới khi bạn bấm Lưu Thay Đổi.
+                  </p>
+                  {refill.step && <div className="text-xs text-purple animate-pulse">{refill.step}</div>}
+                  {!refill.aiConfigured && (
+                    <div className="text-xs text-text-secondary flex flex-wrap items-center gap-x-2 gap-y-1">
+                      <AlertTriangle size={12} className="text-gold" />
+                      Chưa cấu hình API key cho AI.
+                      <button
+                        type="button"
+                        onClick={() => openSettings(undefined, undefined, 'ai')}
+                        className="text-gold hover:underline font-semibold cursor-pointer"
+                      >
+                        Mở cài đặt AI
+                      </button>
+                    </div>
+                  )}
+                  {refill.error && (
+                    <div role="alert" className="p-2 bg-crimson/10 border border-crimson/30 rounded-lg text-xs text-crimson break-words">
+                      {refill.error}
+                    </div>
+                  )}
+                  {refillNotice && (
+                    <div className="p-2 bg-jade/10 border border-jade/30 rounded-lg text-xs text-jade break-words">{refillNotice}</div>
+                  )}
+                  {suggestedTitle && (
+                    <div className="flex flex-wrap items-center justify-between gap-2 p-2 bg-bg-hover rounded-lg border border-border-main text-xs">
+                      <span className="text-text-secondary min-w-0 break-words">
+                        AI gợi ý tên truyện: <strong className="text-text-primary">“{suggestedTitle}”</strong>
+                      </span>
+                      <button
+                        type="button"
+                        onClick={applySuggestedTitle}
+                        className="px-3 py-1 bg-gold/10 text-gold border border-gold/30 font-bold rounded-lg hover:bg-gold/20 transition-colors cursor-pointer whitespace-nowrap"
+                      >
+                        Dùng tên này
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
 
               {/* Editable Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
@@ -366,16 +536,16 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
         <div className="px-5 py-4 border-t border-border-main flex justify-end gap-3 bg-bg-hover/50 rounded-b-xl flex-shrink-0">
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-4 py-2 text-sm font-medium text-text-secondary hover:text-text-primary transition-colors cursor-pointer"
             disabled={submitting}
           >
-            Hủy
+            {coverChanged ? 'Đóng' : 'Hủy'}
           </button>
           <button
             type="submit"
             form="editBookForm"
-            disabled={submitting || loading || !formConfig}
+            disabled={busy || loading || !formConfig}
             className="px-6 py-2 bg-gold text-bg-primary font-bold text-sm rounded-lg hover:bg-gold/90 transition-all cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed shadow-[0_0_15px_rgba(201,169,110,0.3)] hover:shadow-[0_0_20px_rgba(201,169,110,0.5)] flex items-center gap-2"
           >
             {submitting ? (
