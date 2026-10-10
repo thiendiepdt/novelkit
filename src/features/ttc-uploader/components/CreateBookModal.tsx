@@ -1,5 +1,5 @@
 import type { InputHTMLAttributes } from 'react';
-import { AlertTriangle, Ban, Check, ImagePlus, Plus, RotateCw, Scissors, Sparkles, Trash2 } from 'lucide-react';
+import { AlertTriangle, Ban, Check, ImageDown, ImagePlus, Plus, RotateCw, Scissors, Sparkles, Trash2 } from 'lucide-react';
 import { Select } from '@/shared/components';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 import { useCreateBook } from '../hooks/useCreateBook';
@@ -8,6 +8,7 @@ import { toTitleCase } from '../utils/titleCase';
 import { SOURCE_NAMES } from '../sources';
 import type { BookType, OptionItem } from '../types';
 import { CoverCropperModal } from './CoverCropperModal';
+import { Segmented } from './Segmented';
 
 interface CreateBookModalProps {
   onClose: () => void;
@@ -55,43 +56,6 @@ function TitleCaseInput({
       >
         Aa
       </button>
-    </div>
-  );
-}
-
-/**
- * One-click choice between a few options: a single bordered track with the active
- * option filled, so the current value stands out and no dropdown has to be opened.
- */
-function Segmented<T extends string>({
-  label,
-  value,
-  options,
-  onChange,
-}: {
-  /** Accessible name of the group (the visible label sits next to it). */
-  label: string;
-  value: T;
-  options: { value: T; label: string }[];
-  onChange: (value: T) => void;
-}) {
-  return (
-    <div role="group" aria-label={label} className="flex gap-1 p-1 bg-bg-hover border border-border-main rounded-lg">
-      {options.map((opt) => (
-        <button
-          key={opt.value}
-          type="button"
-          aria-pressed={value === opt.value}
-          onClick={() => onChange(opt.value)}
-          className={`flex-1 px-3 py-1.5 rounded-md text-sm transition-colors cursor-pointer ${
-            value === opt.value
-              ? 'bg-gold text-bg-primary font-semibold shadow-sm'
-              : 'text-text-secondary hover:text-text-primary hover:bg-bg-card'
-          }`}
-        >
-          {opt.label}
-        </button>
-      ))}
     </div>
   );
 }
@@ -470,7 +434,7 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                       <span className={LABEL_CLASS}>Ảnh bìa</span>
                       <p className="text-xs text-text-secondary">
                         TTC yêu cầu truyện mới có ảnh bìa. Ảnh được tải lên ngay sau khi truyện được tạo.
-                        {!isOriginal && ' AI điền sẽ tự lấy ảnh bìa từ trang gốc.'}
+                        {!isOriginal && ' AI điền tự lấy ảnh bìa từ trang gốc; nút "Tải ảnh bìa từ nguồn" tải lại ảnh mà không cần chạy AI.'}
                       </p>
                       {book.loadingCover && (
                         <div className="text-xs text-gold flex flex-wrap items-center gap-x-2">
@@ -496,14 +460,15 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                         >
                           <ImagePlus size={12} /> {book.cover ? 'Chọn ảnh khác' : 'Chọn ảnh từ máy'}
                         </button>
-                        {book.coverError && book.canRetrySourceCover && !book.loadingCover && (
+                        {book.canDownloadSourceCover && !book.loadingCover && (
                           <button
                             type="button"
-                            onClick={book.retrySourceCover}
+                            onClick={book.downloadSourceCover}
                             disabled={busy}
+                            title="Tải ảnh bìa từ trang gốc theo link đã dán, không cần chạy AI"
                             className="px-3 py-1.5 bg-gold/10 text-gold border border-gold/30 text-xs font-bold rounded-lg hover:bg-gold/20 transition-colors disabled:opacity-50 cursor-pointer flex items-center gap-1.5"
                           >
-                            <RotateCw size={12} /> Tải lại ảnh bìa gốc
+                            <ImageDown size={12} /> {book.coverError ? 'Tải lại ảnh bìa từ nguồn' : 'Tải ảnh bìa từ nguồn'}
                           </button>
                         )}
                         {book.cover && (

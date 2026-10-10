@@ -205,7 +205,7 @@ TtcUploaderPage (orchestrator, ~200 lines)
 Components:
   LoginView, BookCard, BookListToolbar, BookDetailHeader,
   UploadToolbar, ChapterTable, DownloadAllModal,
-  EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage
+  EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage, Segmented
 
 Create story (CreateBookModal → useCreateBook):
   createBookApi.ts   → parse the /dang-truyen form, build fields, submit, copyright check

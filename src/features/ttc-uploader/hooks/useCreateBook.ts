@@ -6,7 +6,8 @@ import { uploadCover } from '../api';
 import { aiFillBook, isAiConfigured } from '../ai/client';
 import { titleUsesToi } from '../ai/fill';
 import { checkCopyright, EMPTY_CREATE_BOOK, fetchCreateBookForm, submitCreateBook } from '../createBookApi';
-import { fetchSourceBook, fetchSourceCover, SOURCE_LABELS } from '../sources';
+import { detectChapterLookup, detectSource, fetchSourceBook, fetchSourceCover, SOURCE_LABELS } from '../sources';
+import type { SourceBook } from '../sources';
 import type { BookType, CreateBookData, CreateBookForm, PendingCover } from '../types';
 
 /** Rust commands reject with a bare string, JS code with an Error: show either. */
@@ -160,18 +161,19 @@ export function useCreateBook() {
    * CDNs can be slow) and reports failure through `coverError` instead of rejecting.
    */
   const loadSourceCover = useCallback(
-    async (urls: string[], owner: string | null): Promise<void> => {
+    async (urls: string[], owner: string | null): Promise<boolean> => {
       const request = ++coverRequest.current;
       setLoadingCover(true);
       setCoverError(null);
       try {
         const image = await fetchSourceCover(urls);
-        if (request === coverRequest.current) {
-          coverOwner.current = owner;
-          replaceCover(makeCover(image.bytes, image.mime));
-        }
+        if (request !== coverRequest.current) return false;
+        coverOwner.current = owner;
+        replaceCover(makeCover(image.bytes, image.mime));
+        return true;
       } catch (e) {
         if (request === coverRequest.current) setCoverError(errorMessage(e, 'Không tải được ảnh bìa'));
+        return false;
       } finally {
         if (request === coverRequest.current) setLoadingCover(false);
       }
@@ -186,9 +188,76 @@ export function useCreateBook() {
     setCoverError('Đã bỏ qua ảnh bìa gốc.');
   }, []);
 
-  const retrySourceCover = useCallback(() => {
-    if (sourceCoverUrls.length) void loadSourceCover(sourceCoverUrls, filledFrom.current);
-  }, [sourceCoverUrls, loadSourceCover]);
+  /**
+   * Read the source book behind the link field and apply what needs no model: the
+   * Chinese title, the canonical link, the original author, and the cover (downloaded in
+   * the background). Switching to a different book first clears everything derived from
+   * the previous one, so a failure further down cannot leave one book's translation and
+   * cover next to another book's source fields.
+   */
+  const readSource = useCallback(async (): Promise<{ book: SourceBook; key: string }> => {
+    const book = await fetchSourceBook(data.chinese_link);
+    const key = `${book.source}:${book.bookId}`;
+    const switchedBook = filledFrom.current !== null && filledFrom.current !== key;
+    filledFrom.current = key;
+    if (switchedBook) {
+      // A download still running for the previous book must not land on this one.
+      coverRequest.current++;
+      setLoadingCover(false);
+      setCoverError(null);
+      // A cover the user picked from disk is theirs to keep; one taken from the old book is not.
+      if (coverOwner.current !== null) {
+        coverOwner.current = null;
+        replaceCover(null);
+      }
+    }
+
+    // The untranslated fields are final as soon as the source answers.
+    setData((prev) => ({
+      ...prev,
+      ...(switchedBook
+        ? { title: '', author: '', category: '', sub_categories: ['', '', ''] as [string, string, string], description: '' }
+        : {}),
+      chinese_title: book.title,
+      chinese_link: book.link,
+      author_original: book.author,
+    }));
+    setSourceCoverUrls(book.coverUrls);
+    return { book, key };
+  }, [data.chinese_link, replaceCover]);
+
+  /** The link field names a book on a supported site (a chapter link counts). */
+  const canDownloadSourceCover =
+    data.type !== 'sang-tac' && (detectSource(data.chinese_link) !== null || detectChapterLookup(data.chinese_link) !== null);
+
+  /**
+   * Download the cover from the source without running the AI: a retry after a failed
+   * download, or the only step wanted. The cover candidates of the book already read are
+   * reused; any other link is read first (which also fills the Chinese fields).
+   */
+  const downloadSourceCover = useCallback(async () => {
+    if (aiStep || loadingCover) return;
+    setError(null);
+    setNotice(null);
+    const known = detectSource(data.chinese_link);
+    const sameBook = known !== null && filledFrom.current === `${known.source}:${known.bookId}`;
+    try {
+      let urls = sourceCoverUrls;
+      let key = filledFrom.current;
+      if (!sameBook || !urls.length) {
+        setLoadingCover(true);
+        setCoverError(null);
+        const read = await readSource();
+        urls = read.book.coverUrls;
+        key = read.key;
+        if (!urls.length) throw new Error(`${SOURCE_LABELS[read.book.source]} không có ảnh bìa cho truyện này`);
+      }
+      if (await loadSourceCover(urls, key)) setNotice('Đã tải ảnh bìa từ trang gốc. Ảnh sẽ được tải lên TTC ngay sau khi truyện được tạo.');
+    } catch (e) {
+      setLoadingCover(false);
+      setCoverError(errorMessage(e, 'Không tải được ảnh bìa từ trang gốc'));
+    }
+  }, [aiStep, loadingCover, data.chinese_link, sourceCoverUrls, readSource, loadSourceCover]);
 
   const closeCropper = useCallback(() => {
     if (ownedCropUrl.current) {
@@ -243,39 +312,9 @@ export function useCreateBook() {
     setNotice(null);
     try {
       setAiStep('Đang lấy thông tin truyện gốc...');
-      const book = await fetchSourceBook(data.chinese_link);
+      const { book, key: bookKey } = await readSource();
       const sourceLabel = SOURCE_LABELS[book.source];
-
-      // A different book than the one the form was filled from: everything derived from the
-      // previous book goes, so a failure further down cannot leave one book's translation and
-      // cover next to another book's source fields.
-      const bookKey = `${book.source}:${book.bookId}`;
-      const switchedBook = filledFrom.current !== null && filledFrom.current !== bookKey;
-      filledFrom.current = bookKey;
-      if (switchedBook) {
-        // A download still running for the previous book must not land on this one.
-        coverRequest.current++;
-        setLoadingCover(false);
-        setCoverError(null);
-        // A cover the user picked from disk is theirs to keep; one taken from the old book is not.
-        if (coverOwner.current !== null) {
-          coverOwner.current = null;
-          replaceCover(null);
-        }
-      }
-
-      // The untranslated fields are final as soon as the source answers.
-      setData((prev) => ({
-        ...prev,
-        ...(switchedBook
-          ? { title: '', author: '', category: '', sub_categories: ['', '', ''] as [string, string, string], description: '' }
-          : {}),
-        chinese_title: book.title,
-        chinese_link: book.link,
-        author_original: book.author,
-      }));
       // The cover downloads in the background and reports in its own section of the form.
-      setSourceCoverUrls(book.coverUrls);
       if (book.coverUrls.length) void loadSourceCover(book.coverUrls, bookKey);
 
       if (!aiConfigured) {
@@ -324,7 +363,7 @@ export function useCreateBook() {
     } finally {
       setAiStep(null);
     }
-  }, [form, aiStep, data.chinese_link, data.type, ai, aiConfigured, loadSourceCover, replaceCover]);
+  }, [form, aiStep, data.type, ai, aiConfigured, readSource, loadSourceCover]);
 
   // ─── Submit ───────────────────────────────────────────────
   /** Create the story, then upload the pending cover. Resolves with null when creation failed. */
@@ -404,7 +443,7 @@ export function useCreateBook() {
     cover,
     loadingCover,
     coverError,
-    canRetrySourceCover: sourceCoverUrls.length > 0,
+    canDownloadSourceCover,
     cropSrc,
     setField,
     setSubCategory,
@@ -413,7 +452,7 @@ export function useCreateBook() {
     pickCoverFile,
     recropCover,
     removeCover,
-    retrySourceCover,
+    downloadSourceCover,
     skipSourceCover,
     closeCropper,
     handleCropComplete,

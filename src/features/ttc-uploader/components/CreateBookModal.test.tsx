@@ -488,12 +488,35 @@ describe('CreateBookModal', () => {
     expect(screen.queryByAltText('Ảnh bìa')).toBeNull();
 
     // Retry: the first candidate fails once more, the fallback delivers the cover.
-    fireEvent.click(screen.getByRole('button', { name: /Tải lại ảnh bìa gốc/ }));
+    fireEvent.click(screen.getByRole('button', { name: /Tải lại ảnh bìa từ nguồn/ }));
 
     await waitFor(() => expect(screen.getByAltText('Ảnh bìa')).toBeTruthy());
     expect(callsOf('source_fetch_image').map((c) => (c[1] as { url: string }).url)).toEqual([SHRINK, ORIGIN, SHRINK, ORIGIN]);
     expect(screen.queryByText(/hết thời gian chờ/)).toBeNull();
-    expect(screen.queryByRole('button', { name: /Tải lại ảnh bìa gốc/ })).toBeNull();
+    // With the cover in hand the button goes back to its plain label.
+    expect(screen.queryByRole('button', { name: /Tải lại ảnh bìa từ nguồn/ })).toBeNull();
+    expect(screen.getByRole('button', { name: /Tải ảnh bìa từ nguồn/ })).toBeTruthy();
+  });
+
+  it('downloads the cover from the source without running the AI', async () => {
+    mockBackend();
+    renderModal();
+
+    const linkInput = await screen.findByLabelText('Link truyện gốc');
+    // No source link yet: nothing to download from.
+    expect(screen.queryByRole('button', { name: /Tải ảnh bìa từ nguồn/ })).toBeNull();
+
+    fireEvent.change(linkInput, { target: { value: 'https://www.qidian.com/book/1010868264/' } });
+    fireEvent.click(screen.getByRole('button', { name: /Tải ảnh bìa từ nguồn/ }));
+
+    await waitFor(() => expect(screen.getByAltText('Ảnh bìa')).toBeTruthy());
+    expect(await screen.findByText(/Đã tải ảnh bìa từ trang gốc/)).toBeTruthy();
+    // Reading the source also fills the Chinese fields, but no model was asked.
+    expect(field('chinese_title').value).toBe('诡秘之主');
+    expect(field('author_original').value).toBe('爱潜水的乌贼');
+    expect(field('title').value).toBe('');
+    expect(callsOf('ai_generate_json')).toHaveLength(0);
+    expect(callsOf('source_fetch_image')[0][1]).toEqual({ url: 'https://bookcover.yuewen.com/qdbimg/349573/1010868264/600' });
   });
 
   it('lets the user stop waiting for a slow cover download, then submit or retry', async () => {
@@ -517,7 +540,7 @@ describe('CreateBookModal', () => {
 
     expect(screen.queryByText('Đang tải ảnh bìa từ trang gốc...')).toBeNull();
     expect(submit.disabled).toBe(false);
-    expect(screen.getByRole('button', { name: /Tải lại ảnh bìa gốc/ })).toBeTruthy();
+    expect(screen.getByRole('button', { name: /Tải lại ảnh bìa từ nguồn/ })).toBeTruthy();
 
     // The abandoned download answering late must not bring the cover back.
     deliver({ bytes: [0xff, 0xd8, 0xff], mime: 'image/jpeg' });
