@@ -110,6 +110,9 @@ pub struct UploadProgressEvent {
 
 #[derive(Debug, Deserialize)]
 pub struct UploadOptions {
+    /// Username of the TTC account that queued the job (None = the active account).
+    #[serde(default)]
+    pub account: Option<String>,
     pub book_id: i64,
     pub chapters: Vec<ParsedChapter>,
     pub delay_ms: Option<u64>,
@@ -162,6 +165,9 @@ pub struct DownloadedChapter {
 
 #[derive(Debug, Deserialize)]
 pub struct DownloadAllOptions {
+    /// Username of the TTC account that queued the job (None = the active account).
+    #[serde(default)]
+    pub account: Option<String>,
     pub book_id: i64,
     pub book_title: String,
     pub save_dir: String,

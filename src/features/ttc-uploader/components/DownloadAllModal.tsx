@@ -6,13 +6,15 @@ import type { DownloadAllOptions } from '@/shared/types/download';
 
 interface DownloadAllModalProps {
   book: TtcStory;
+  /** Username of the active TTC account: the download runs on it even after a switch. */
+  account?: string | null;
   onClose: () => void;
 }
 
 /**
  * Modal for configuring and starting a full-book download.
  */
-export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
+export function DownloadAllModal({ book, account, onClose }: DownloadAllModalProps) {
   const { addJob } = useDownloadQueue();
   const [dlOptions, setDlOptions] = useState<Omit<DownloadAllOptions, 'book_id' | 'book_title' | 'save_dir'>>({
     mode: 'single',
@@ -45,6 +47,7 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
       }
 
       const options: DownloadAllOptions = {
+        account: account || undefined,
         book_id: book.id,
         book_title: book.title,
         save_dir,
@@ -60,7 +63,7 @@ export function DownloadAllModal({ book, onClose }: DownloadAllModalProps) {
       console.error('Download all error:', e);
       alert(`Lỗi khi khởi tạo tải truyện: ${String(e)}`);
     }
-  }, [book, dlOptions, addJob, onClose]);
+  }, [book, account, dlOptions, addJob, onClose]);
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/70" style={{ animation: 'overlayIn 0.2s ease-out' }}>

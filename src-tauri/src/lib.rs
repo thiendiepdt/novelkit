@@ -1,14 +1,17 @@
 // Learn more about Tauri commands at https://tauri.app/develop/calling-rust/
 
 mod ai;
+mod fsutil;
 mod net;
 mod novel_source;
 mod ttc;
+mod user_store;
 
 use tauri::Manager;
 use ttc::client::TtcClient;
 use ttc::image::TtcImageCache;
 use ttc::session::TtcSession;
+use user_store::UserStore;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -24,9 +27,10 @@ pub fn run() {
             // Session & auth
             ttc::session::ttc_open_login,
             ttc::session::ttc_check_session,
-            ttc::session::ttc_get_session,
+            ttc::session::ttc_list_accounts,
+            ttc::session::ttc_verify_active,
+            ttc::session::ttc_switch_account,
             ttc::session::ttc_logout,
-            ttc::session::ttc_verify_session,
             // Books & editing
             ttc::books::ttc_fetch_books,
             ttc::books::ttc_fetch_html,
@@ -50,11 +54,17 @@ pub fn run() {
             novel_source::source_fetch_image,
             // AI (Gemini / OpenAI-compatible)
             ai::ai_generate_json,
+            // Settings store (replaces the webview localStorage on desktop)
+            user_store::user_store_load,
+            user_store::user_store_import,
+            user_store::user_store_set,
+            user_store::user_store_remove,
         ])
         .setup(|app| {
-            // Load persisted TTC session from app data dir
+            // Load the TTC accounts (and the settings store) from the app data dir
             let app_data_dir = app.path().app_data_dir()?;
             app.manage(TtcSession::load(&app_data_dir));
+            app.manage(UserStore::load(&app_data_dir));
 
             // Updater is desktop-only (mobile uses app stores)
             #[cfg(desktop)]

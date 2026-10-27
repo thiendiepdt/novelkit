@@ -7,7 +7,7 @@ import { useSettingsModal } from './context/SettingsModalContext';
 import { DEFAULT_AI_BASE_URLS, DEFAULT_SETTINGS } from './types';
 import type { AiProvider, AiProviderSettings } from './types';
 import { Select, Tooltip } from '@/shared/components';
-import { useTtcAuth } from '@/features/ttc-uploader/hooks/useTtcAuth';
+import { useActiveTtcAccount } from '@/features/ttc-uploader/hooks/useActiveTtcAccount';
 import { useTtcBooks } from '@/features/ttc-uploader/hooks/useTtcBooks';
 import { Settings, X, RotateCcw } from 'lucide-react';
 
@@ -24,8 +24,8 @@ interface SettingsPanelProps {
 export function SettingsPanel({ onClose, initialBookId, initialBookTitle, initialCategory }: SettingsPanelProps) {
   const { globalSettings, updateGlobalSettings, resetGlobalSettings, bookSettings, updateBookSettings, clearBookSettings } = useSettingsContext();
 
-  const auth = useTtcAuth();
-  const { books } = useTtcBooks(auth.session);
+  const activeAccount = useActiveTtcAccount();
+  const { books } = useTtcBooks(activeAccount);
 
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory ?? 'splitter');
   const [scope, setScope] = useState<string>(initialBookId ? initialBookId.toString() : 'global');

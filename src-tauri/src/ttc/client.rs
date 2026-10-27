@@ -85,12 +85,16 @@ fn normalize_ttc_base_url(domain: &str) -> Result<String, String> {
 
 // ─── Helper: extract session from state ───────────────────
 
-/// Shorthand to extract the session cookie from `TtcSession` managed state.
-/// Returns `Err("Chưa đăng nhập")` if no session is present.
+/// Session cookie of the active account.
+/// Returns `Err("Chưa đăng nhập")` when no account is active.
 pub fn get_session(app: &AppHandle) -> Result<String, String> {
-    let state = app.state::<TtcSession>();
-    let cookie = state.cookie.lock().unwrap().clone();
-    cookie.ok_or_else(|| "Chưa đăng nhập".to_string())
+    get_session_for(app, None)
+}
+
+/// Session cookie of the named account, or of the active one for None. Queued jobs name
+/// the account that created them, so a switch in between does not move them to another.
+pub fn get_session_for(app: &AppHandle, username: Option<&str>) -> Result<String, String> {
+    app.state::<TtcSession>().cookie_for(username)
 }
 
 /// Shorthand to get the shared `reqwest::Client` from Tauri state.

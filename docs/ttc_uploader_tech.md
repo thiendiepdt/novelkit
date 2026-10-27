@@ -5,7 +5,7 @@
 ## Overview
 
 TTC Uploader provides a desktop GUI to:
-- **Authenticate** with TTC via cookie-based session (opens a real login webview)
+- **Authenticate** with one or more TTC accounts via cookie-based sessions (opens a real login webview), and switch between them
 - **Browse** your book library with search, status filters, and pagination
 - **Edit** book metadata (title, author, category, status, cover image)
 - **Upload** chapters from local `.txt` files (all, append, or range modes)
@@ -22,7 +22,7 @@ src/features/ttc-uploader/
 ├── types.ts                     # TypeScript interfaces
 ├── constants.ts                 # Status options, pagination defaults
 ├── hooks/
-│   ├── useTtcAuth.ts            # Session check, login polling, logout
+│   ├── useTtcAuth.ts            # Accounts: startup check, add (login polling), switch, logout
 │   ├── useTtcBooks.ts           # Book list, search, filters, pagination
 │   └── useTtcChapters.ts        # Chapter list, folder parsing, upload, download
 ├── components/
@@ -49,8 +49,9 @@ The TTC backend is structured into domain-focused modules:
 src-tauri/src/ttc/
 ├── mod.rs          # Module declarations
 ├── types.rs        # Serde structs for API payloads & responses
-├── client.rs       # Shared reqwest::Client + session helper
-├── session.rs      # Session state, persistence, login commands
+├── accounts.rs     # Account list model (ttc_accounts.json), legacy migration, /account parsing
+├── client.rs       # Shared reqwest::Client + get_session / get_session_for
+├── session.rs      # Accounts as managed state, login window, account commands
 ├── image.rs        # Image proxy with in-memory cache
 ├── books.rs        # Book CRUD: fetch list, HTML forms, cover upload
 ├── chapters.rs     # Chapter commands: fetch, parse, upload, download
@@ -62,20 +63,21 @@ src-tauri/src/ttc/
 | Decision | Rationale |
 |----------|-----------|
 | **Shared `TtcClient`** | Single `reqwest::Client` managed as Tauri state → connection pooling instead of one-off clients |
-| **`get_session()` helper** | Eliminates 8+ copies of `state.cookie.lock().unwrap().clone().ok_or(...)` |
+| **`get_session()` / `get_session_for()`** | One place resolves a cookie: the active account, or the account a queued job names |
 | **`base64` crate** | Replaces 24-line hand-rolled base64 encoder with battle-tested crate |
 | **Image cache in-memory** | `TtcImageCache` (HashMap) prevents re-fetching poster images on navigation |
-| **Session on disk** | `ttc_session.dat` in app data dir persists login across app restarts |
+| **Accounts on disk** | `ttc_accounts.json` in app data dir (atomic writes) persists every login across restarts; `ttc_session.dat` of 1.2.x is adopted once, its username read from `/account` on the first check |
 
 ### Command Reference
 
 | Command | Module | Description |
 |---------|--------|-------------|
-| `ttc_open_login` | session | Open TTC login webview window |
-| `ttc_check_session` | session | Extract session cookie from login webview |
-| `ttc_get_session` | session | Return current session from state |
-| `ttc_logout` | session | Clear session from state + disk |
-| `ttc_verify_session` | session | Check if session is still valid via API |
+| `ttc_open_login` | session | Clear the TTC webview cookies, open the login window |
+| `ttc_check_session` | session | Poll: `waiting` / `closed` / `added` (cookie verified on `/account`, account added or refreshed, made active) |
+| `ttc_list_accounts` | session | Saved accounts + active, no network |
+| `ttc_verify_active` | session | Check the active cookie on `/account`; a rejected one is marked `needsLogin` |
+| `ttc_switch_account` | session | Make an account active, then verify it |
+| `ttc_logout` | session | Forget an account (default: active); the next becomes active |
 | `ttc_fetch_books` | books | Fetch paginated book list with filters |
 | `ttc_fetch_html` | books | Fetch authenticated HTML page |
 | `ttc_submit_multipart` | books | Submit multipart form (book edit) |
@@ -92,9 +94,9 @@ src-tauri/src/ttc/
 ## Hook API
 
 ### `useTtcAuth()`
-Returns: `{ session, checkingSession, handleLogin, handleLogout }`
+Returns: `{ accounts, active, checkingSession, loggingIn, switching, error, clearError, addAccount, switchAccount, logout }`
 
-### `useTtcBooks(session)`
+### `useTtcBooks(account)`
 Returns: `{ books, loadingBooks, booksError, searchKeyword, statusFilter, currentPage, totalPages, totalStories, booksLimit, ... }`
 
 ### `useTtcChapters(selectedBook)`
@@ -143,10 +145,11 @@ UploadQueueContext (React context, wraps entire app)
 
 ```
 Login Flow:
-  useTtcAuth.handleLogin()
-    → invoke('ttc_open_login')     → Opens webview
+  useTtcAuth.addAccount()
+    → invoke('ttc_open_login')     → Clears TTC webview cookies, opens the login window
     → poll invoke('ttc_check_session') every 2s
-    → Session cookie extracted → stored in TtcSession + disk
+    → session cookie accepted by /account → account (username, display name) upserted,
+      made active, saved to ttc_accounts.json → TtcWorkspace remounts for that account
 
 Upload Flow (Queue-based):
   useTtcChapters.handlePickFolder()
@@ -255,6 +258,19 @@ www.qimao.com sends folded response headers (lines starting with a space), which
 | `src-tauri/src/ai.rs` | `ai_generate_json` |
 | `src-tauri/src/ttc/books.rs` | `ttc_create_story` |
 
+## Multiple Accounts
+
+The app keeps every TTC account the user logged into; one is active at a time (`AccountSwitcher` in the header: switch, "Thêm tài khoản", "Đăng xuất tài khoản này").
+
+- **Identity**: `/account` carries `socketUsername` (stable key) and `displayName` in `window.PAGE_DATA` (`accounts::parse_account_page`). The same request is the validity check: an expired cookie gets the login page instead.
+- **Pinned jobs**: `UploadOptions.account` / `DownloadAllOptions.account` are set to the active username when a job is queued; `ttc_upload_chapters`, `ttc_download_all_chapters` (and the `ttc_fetch_chapters` / `ttc_download_chapter` calls it makes) resolve the cookie with `get_session_for`. A job whose account was logged out fails with a message naming the account. The queues show `@username` per job.
+- **Switching** remounts `TtcWorkspace` (keyed by username), so nothing of the previous account survives in the UI.
+- **Expired account**: marked `needsLogin`, never deleted; "Đăng nhập lại" opens the login window and the new cookie replaces the old one for the same username.
+
+## Settings Store (desktop)
+
+`usePersistentState` (formerly `useLocalStorage`) reads and writes through `shared/utils/persistentStore`. On desktop that is `user_data.json` in the app data dir (Rust `user_store`): loaded into memory before the first render, writes sent to Rust one at a time in call order. The first run copied every webview localStorage key into it (`user_store_import` refuses to run twice); localStorage was left as it was. On the web nothing changed.
+
 ## Pending Stories: Badge + Delete
 
 The list JSON (`/my-stories?...&ajax=true`) carries `approved` per story. `approved === false` means the story is still waiting for a moderator: `BookCard` shows a "Chờ duyệt" badge and, only then, a delete button (same rule as the status column on the site).
@@ -268,11 +284,11 @@ Deleting uses `POST /xoa-truyen/{id}` with the session CSRF token (form field `_
 
 ## Known Limitations
 
-1. **Session expiry**: No auto-refresh — user must re-login when session expires
+1. **Session expiry**: No auto-refresh — an expired account is marked "Cần đăng nhập lại" and the user logs in again from the banner
 2. **Chapter parsing**: Only detects "Chương N:" heading format
 3. **Cover crop**: Uses canvas-based cropping (no rotation support in output)
 4. **Download ordering**: Multi-threaded downloads may write chunks out-of-order for "single" mode
 5. **Upload queue is in-memory only**: Pending jobs are lost on app restart
-6. **AI key storage**: the AI API key is kept in localStorage with the other settings (plain text, this machine only)
+6. **AI key storage**: the AI API key is kept with the other settings in `user_data.json` in the app data dir (plain text, this machine only)
 7. **Source sites can change**: the AI fill reads unsigned web pages/endpoints; a layout or anti-bot change on Fanqie / QQ / Qidian breaks that source until its parser is updated
 

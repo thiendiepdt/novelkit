@@ -76,6 +76,9 @@ export default function DownloadsPage() {
                           <h3 className="text-base font-bold text-text-primary truncate" title={job.bookTitle}>
                             {job.bookTitle}
                           </h3>
+                          {job.options.account && (
+                            <span className="text-[11px] text-purple shrink-0" title="Tài khoản TTC chạy tác vụ này">@{job.options.account}</span>
+                          )}
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${isDownloading ? 'bg-gold/15 text-gold' : 'bg-bg-hover text-text-dim'}`}>
                             {isDownloading ? 'Đang tải' : 'Chờ xử lý'}
                           </span>
@@ -131,6 +134,9 @@ export default function DownloadsPage() {
                           <h3 className="text-sm font-semibold text-text-primary truncate" title={job.bookTitle}>
                             {job.bookTitle}
                           </h3>
+                          {job.options.account && (
+                            <span className="text-[11px] text-purple shrink-0" title="Tài khoản TTC chạy tác vụ này">@{job.options.account}</span>
+                          )}
                           <span className={`text-[10px] px-2 py-0.5 rounded-full font-semibold ${isDone ? 'bg-jade/15 text-jade' : 'bg-crimson/15 text-crimson'}`}>
                             {isDone ? 'Thành công' : 'Thất bại'}
                           </span>

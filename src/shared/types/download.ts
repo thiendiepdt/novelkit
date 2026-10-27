@@ -1,6 +1,8 @@
 // ─── Download All Types (shared with DownloadQueueContext) ──
 
 export interface DownloadAllOptions {
+  /** Username of the TTC account that queued the job; the job always runs on it. */
+  account?: string;
   book_id: number;
   book_title: string;
   save_dir: string;

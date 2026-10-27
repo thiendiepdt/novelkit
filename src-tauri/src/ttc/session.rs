@@ -1,177 +1,154 @@
-use std::path::PathBuf;
+//! TTC accounts as managed state, the login window, and the account commands.
+//!
+//! The list itself (file format, migration, upsert/remove) lives in `accounts.rs`. Every
+//! command that talks to TTC gets its cookie through `client::get_session` (active
+//! account) or `client::get_session_for` (an account named by a queued job).
+
+use serde::Serialize;
+use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
 
+use super::accounts::{parse_account_page, AccountsFile, AccountsView, TtcAccount};
 use super::client::{get_client, get_ttc_base, USER_AGENT};
-use super::types::TtcBooksResponse;
 
-const SESSION_FILE: &str = "ttc_session.dat";
+const LOGIN_WINDOW: &str = "ttc-login";
 
 // ─── Session State ─────────────────────────────────────────
 
 pub struct TtcSession {
-    pub cookie: Mutex<Option<String>>,
+    dir: PathBuf,
+    store: Mutex<AccountsFile>,
 }
 
 impl TtcSession {
-    /// Load session from disk on startup, or default to None.
-    pub fn load(app_data_dir: &PathBuf) -> Self {
-        let cookie = load_session_from_disk(app_data_dir);
+    /// Load the accounts from disk on startup (adopting a legacy single session).
+    pub fn load(app_data_dir: &Path) -> Self {
         Self {
-            cookie: Mutex::new(cookie),
+            dir: app_data_dir.to_path_buf(),
+            store: Mutex::new(AccountsFile::load(app_data_dir)),
         }
     }
-}
 
-// ─── Session Persistence Helpers ──────────────────────────
+    /// Cookie of the named account (None = active).
+    pub fn cookie_for(&self, username: Option<&str>) -> Result<String, String> {
+        self.store.lock().unwrap().cookie_for(username)
+    }
 
-fn session_file_path(app: &AppHandle) -> Option<PathBuf> {
-    app.path()
-        .app_data_dir()
-        .ok()
-        .map(|dir| dir.join(SESSION_FILE))
-}
+    fn view(&self) -> AccountsView {
+        self.store.lock().unwrap().view()
+    }
 
-fn save_session_to_disk(app: &AppHandle, session: &str) {
-    if let Some(path) = session_file_path(app) {
-        if let Some(parent) = path.parent() {
-            std::fs::create_dir_all(parent).ok();
-        }
-        std::fs::write(&path, session).ok();
+    /// Change the list and write it to disk in one step.
+    fn update<R>(&self, change: impl FnOnce(&mut AccountsFile) -> R) -> Result<R, String> {
+        let mut store = self.store.lock().unwrap();
+        let result = change(&mut store);
+        store.save(&self.dir)?;
+        Ok(result)
     }
 }
 
-fn load_session_from_disk(app_data_dir: &PathBuf) -> Option<String> {
-    let path = app_data_dir.join(SESSION_FILE);
-    std::fs::read_to_string(&path)
-        .ok()
-        .map(|s| s.trim().to_string())
-        .filter(|s| !s.is_empty())
-}
+// ─── TTC lookups ───────────────────────────────────────────
 
-fn delete_session_from_disk(app: &AppHandle) {
-    if let Some(path) = session_file_path(app) {
-        std::fs::remove_file(&path).ok();
-    }
-}
-
-async fn verify_session_cookie(
+/// Who a cookie belongs to, from the /account page. `Ok(None)` = TTC did not accept the
+/// cookie (it answers with the login page); `Err` = TTC could not be reached.
+async fn fetch_account_identity(
     client: &reqwest::Client,
     base_url: &str,
-    session: &str,
-) -> Result<bool, String> {
-    let url = format!("{}/my-stories?limit=1&ajax=true", base_url);
+    cookie: &str,
+) -> Result<Option<(String, String)>, String> {
     let resp = client
-        .get(&url)
-        .header("Cookie", format!("session={}", session))
+        .get(format!("{}/account", base_url))
+        .header("Cookie", format!("session={}", cookie))
         .header("User-Agent", USER_AGENT)
         .send()
         .await
-        .map_err(|e| format!("Request failed: {}", e))?;
-
+        .map_err(|e| format!("Không kết nối được TTC: {}", e))?;
     if !resp.status().is_success() {
-        return Ok(false);
+        return Ok(None);
     }
-
-    let body = resp
+    let html = resp
         .text()
         .await
-        .map_err(|e| format!("Read response failed: {}", e))?;
-
-    Ok(serde_json::from_str::<TtcBooksResponse>(&body)
-        .map(|books| books.success)
-        .unwrap_or(false))
+        .map_err(|e| format!("Không đọc được trang tài khoản TTC: {}", e))?;
+    Ok(parse_account_page(&html))
 }
 
-// ─── Login Commands ────────────────────────────────────────
+/// Check the active account against TTC and record the outcome: a refused cookie marks
+/// the account "needs login" (it is never deleted); an accepted one refreshes its name,
+/// and gives a migrated legacy session its username. A network failure changes nothing.
+async fn verify_active_account(app: &AppHandle) -> Result<AccountsView, String> {
+    let state = app.state::<TtcSession>();
+    let active: Option<TtcAccount> = state.store.lock().unwrap().active_account().cloned();
+    let Some(account) = active else {
+        return Ok(state.view());
+    };
+
+    let client = get_client(app);
+    let base_url = get_ttc_base(app).await?;
+    match fetch_account_identity(&client, &base_url, &account.cookie).await {
+        Ok(Some((username, display_name))) => {
+            state.update(|store| {
+                store.upsert(TtcAccount {
+                    username: username.clone(),
+                    display_name,
+                    cookie: account.cookie.clone(),
+                    needs_login: false,
+                });
+                store.set_active(&username).ok();
+            })?;
+        }
+        Ok(None) => state.update(|store| store.mark_needs_login(&account.username, true))?,
+        Err(e) => log::warn!("Could not verify the TTC account: {}", e),
+    }
+    Ok(state.view())
+}
+
+// ─── Account Commands ──────────────────────────────────────
 
 #[tauri::command]
-pub async fn ttc_open_login(app: AppHandle) -> Result<(), String> {
-    // Close existing login window if any
-    if let Some(w) = app.get_webview_window("ttc-login") {
+pub fn ttc_list_accounts(app: AppHandle) -> AccountsView {
+    app.state::<TtcSession>().view()
+}
+
+/// Startup check of the active account (see `verify_active_account`).
+#[tauri::command]
+pub async fn ttc_verify_active(app: AppHandle) -> Result<AccountsView, String> {
+    verify_active_account(&app).await
+}
+
+#[tauri::command]
+pub async fn ttc_switch_account(app: AppHandle, username: String) -> Result<AccountsView, String> {
+    app.state::<TtcSession>()
+        .update(|store| store.set_active(&username))??;
+    verify_active_account(&app).await
+}
+
+/// Forget an account (default: the active one). The next account becomes active.
+#[tauri::command]
+pub async fn ttc_logout(app: AppHandle, username: Option<String>) -> Result<AccountsView, String> {
+    let state = app.state::<TtcSession>();
+    state.update(|store| {
+        let target = username.or_else(|| store.active.clone());
+        if let Some(target) = target {
+            store.remove(&target);
+        }
+    })?;
+
+    if let Ok(base_url) = get_ttc_base(&app).await {
+        clear_webview_cookies(&app, &base_url);
+    }
+    if let Some(w) = app.get_webview_window(LOGIN_WINDOW) {
         w.close().ok();
     }
-
-    let base_url = get_ttc_base(&app).await?;
-    let login_url = format!("{}/login", base_url);
-    WebviewWindowBuilder::new(
-        &app,
-        "ttc-login",
-        WebviewUrl::External(login_url.parse().unwrap()),
-    )
-    .title("Đăng nhập TiemTruyenChu")
-    .inner_size(1100.0, 750.0)
-    .center()
-    .build()
-    .map_err(|e| e.to_string())?;
-
-    Ok(())
+    Ok(state.view())
 }
 
-#[tauri::command]
-pub async fn ttc_check_session(app: AppHandle) -> Result<Option<String>, String> {
-    let login_window = match app.get_webview_window("ttc-login") {
-        Some(w) => w,
-        None => {
-            // Login window was closed — check if we already have a session
-            let state = app.state::<TtcSession>();
-            let cookie = state.cookie.lock().unwrap().clone();
-            return Ok(cookie);
-        }
-    };
+// ─── Login Window ──────────────────────────────────────────
 
-    // Try to extract session cookie from the login webview
-    let base_url = get_ttc_base(&app).await?;
-    let url = base_url.parse::<url::Url>().map_err(|e| e.to_string())?;
-    let cookies = login_window
-        .cookies_for_url(url)
-        .map_err(|e| format!("Failed to read cookies: {}", e))?;
-
-    for cookie in &cookies {
-        if cookie.name() == "session" {
-            let session_value = cookie.value().to_string();
-
-            let client = get_client(&app);
-            if !verify_session_cookie(&client, &base_url, &session_value).await? {
-                return Ok(None);
-            }
-
-            // Store in state + persist to disk
-            let state = app.state::<TtcSession>();
-            *state.cookie.lock().unwrap() = Some(session_value.clone());
-            save_session_to_disk(&app, &session_value);
-
-            // Close login window
-            login_window.close().ok();
-
-            return Ok(Some(session_value));
-        }
-    }
-
-    Ok(None)
-}
-
-#[tauri::command]
-pub async fn ttc_get_session(app: AppHandle) -> Result<Option<String>, String> {
-    let state = app.state::<TtcSession>();
-    let cookie = match state.cookie.lock().unwrap().clone() {
-        Some(cookie) => cookie,
-        None => return Ok(None),
-    };
-
-    let client = get_client(&app);
-    let base_url = get_ttc_base(&app).await?;
-    if verify_session_cookie(&client, &base_url, &cookie).await? {
-        return Ok(Some(cookie));
-    }
-
-    *state.cookie.lock().unwrap() = None;
-    delete_session_from_disk(&app);
-    Ok(None)
-}
-
-/// Remove all TTC cookies from the shared webview cookie store, so the next
-/// login window starts logged-out instead of reusing the previous account.
+/// Remove all TTC cookies from the shared webview cookie store, so the next login window
+/// starts logged-out instead of reusing the account logged in last. The app keeps its
+/// own copy of every account's cookie, so this logs nobody out of the app.
 fn clear_webview_cookies(app: &AppHandle, base_url: &str) {
     let url = match base_url.parse::<url::Url>() {
         Ok(u) => u,
@@ -189,35 +166,78 @@ fn clear_webview_cookies(app: &AppHandle, base_url: &str) {
     }
 }
 
+/// Open TTC's login page in its own window, logged out, to add (or log in again) an account.
 #[tauri::command]
-pub async fn ttc_logout(app: AppHandle) -> Result<(), String> {
-    let state = app.state::<TtcSession>();
-    *state.cookie.lock().unwrap() = None;
-    delete_session_from_disk(&app);
-
-    if let Ok(base_url) = get_ttc_base(&app).await {
-        clear_webview_cookies(&app, &base_url);
-    }
-
-    // Close login window if open
-    if let Some(w) = app.get_webview_window("ttc-login") {
+pub async fn ttc_open_login(app: AppHandle) -> Result<(), String> {
+    if let Some(w) = app.get_webview_window(LOGIN_WINDOW) {
         w.close().ok();
     }
+
+    let base_url = get_ttc_base(&app).await?;
+    clear_webview_cookies(&app, &base_url);
+    let login_url = format!("{}/login", base_url);
+    WebviewWindowBuilder::new(
+        &app,
+        LOGIN_WINDOW,
+        WebviewUrl::External(login_url.parse().unwrap()),
+    )
+    .title("Đăng nhập TiemTruyenChu")
+    .inner_size(1100.0, 750.0)
+    .center()
+    .build()
+    .map_err(|e| e.to_string())?;
 
     Ok(())
 }
 
-/// Verify the current session is still valid by hitting the TTC API.
-/// Returns `true` if the session works, `false` if expired/invalid.
+/// State of the login window, polled by the frontend.
+#[derive(Debug, Serialize)]
+#[serde(tag = "state", rename_all = "camelCase")]
+pub enum LoginPoll {
+    /// Still open, no valid session yet.
+    Waiting,
+    /// Closed by the user without logging in.
+    Closed,
+    /// Logged in: the account was added (or refreshed) and is now active.
+    #[serde(rename_all = "camelCase")]
+    Added { username: String, accounts: AccountsView },
+}
+
 #[tauri::command]
-pub async fn ttc_verify_session(app: AppHandle) -> Result<bool, String> {
-    let state = app.state::<TtcSession>();
-    let session = match state.cookie.lock().unwrap().clone() {
-        Some(s) => s,
-        None => return Ok(false),
+pub async fn ttc_check_session(app: AppHandle) -> Result<LoginPoll, String> {
+    let Some(login_window) = app.get_webview_window(LOGIN_WINDOW) else {
+        return Ok(LoginPoll::Closed);
     };
 
-    let client = get_client(&app);
     let base_url = get_ttc_base(&app).await?;
-    verify_session_cookie(&client, &base_url, &session).await
+    let url = base_url.parse::<url::Url>().map_err(|e| e.to_string())?;
+    let cookies = login_window
+        .cookies_for_url(url)
+        .map_err(|e| format!("Failed to read cookies: {}", e))?;
+    let Some(cookie) = cookies.iter().find(|c| c.name() == "session").map(|c| c.value().to_string()) else {
+        return Ok(LoginPoll::Waiting);
+    };
+
+    // A session cookie exists before login too (anonymous session); /account tells them apart.
+    let client = get_client(&app);
+    let Some((username, display_name)) = fetch_account_identity(&client, &base_url, &cookie).await? else {
+        return Ok(LoginPoll::Waiting);
+    };
+
+    let state = app.state::<TtcSession>();
+    state.update(|store| {
+        store.upsert(TtcAccount {
+            username: username.clone(),
+            display_name,
+            cookie,
+            needs_login: false,
+        });
+        store.set_active(&username).ok();
+    })?;
+    login_window.close().ok();
+
+    Ok(LoginPoll::Added {
+        username,
+        accounts: state.view(),
+    })
 }

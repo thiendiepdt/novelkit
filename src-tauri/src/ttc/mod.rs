@@ -1,3 +1,4 @@
+pub mod accounts;
 pub mod books;
 pub mod chapters;
 pub mod client;

@@ -81,6 +81,9 @@ export default function UploadQueueManager() {
                       </div>
                       <div className="text-[11px] text-text-dim mt-0.5">
                         {new Date(job.timestamp).toLocaleTimeString()}
+                        {job.options.account && (
+                        <span className="ml-2 text-purple" title="Tài khoản TTC chạy tác vụ này">@{job.options.account}</span>
+                      )}
                       </div>
                     </div>
                     

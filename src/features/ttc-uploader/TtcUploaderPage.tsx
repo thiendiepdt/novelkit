@@ -1,7 +1,8 @@
 import { useState, useCallback } from 'react';
 import { isTauri } from '@/shared/utils/platform';
-import { Monitor, Scale, Upload, ClipboardList } from 'lucide-react';
+import { Monitor, Scale, Upload, ClipboardList, AlertTriangle } from 'lucide-react';
 import { useTtcAuth } from './hooks/useTtcAuth';
+import type { TtcAuth } from './hooks/useTtcAuth';
 import { useTtcBooks } from './hooks/useTtcBooks';
 import { useTtcChapters } from './hooks/useTtcChapters';
 import {
@@ -16,8 +17,10 @@ import {
   EditBookModal,
   CreateBookModal,
   DeleteBookModal,
+  AccountSwitcher,
 } from './components';
-import type { TtcStory } from './types';
+import { accountLabel } from './utils/accountLabel';
+import type { TtcAccountInfo, TtcStory } from './types';
 
 export default function TtcUploaderPage() {
   // ─── Gate: desktop only ────────────────────────────────
@@ -37,11 +40,37 @@ export default function TtcUploaderPage() {
 }
 
 function TtcUploaderContent() {
-  // ─── Hooks ──────────────────────────────────────────────
   const auth = useTtcAuth();
-  const books = useTtcBooks(auth.session);
+
+  if (auth.checkingSession) {
+    return (
+      <div className="w-full mx-auto px-4 py-12 text-center">
+        <div className="text-text-dim">Đang kiểm tra phiên đăng nhập...</div>
+      </div>
+    );
+  }
+
+  if (!auth.active) {
+    return (
+      <div className="w-full h-full flex flex-col mx-auto px-4 md:px-6 py-4 md:py-6 overflow-hidden">
+        <LoginView onLogin={auth.addAccount} />
+        {auth.loggingIn && (
+          <p className="text-center text-xs text-text-dim mt-3">Đang chờ đăng nhập trong cửa sổ TiemTruyenChu...</p>
+        )}
+      </div>
+    );
+  }
+
+  // One workspace per account: switching remounts it, so the open book, the modals and any
+  // request still running for the previous account are all dropped.
+  return <TtcWorkspace key={auth.active.username} auth={auth} account={auth.active} />;
+}
+
+function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInfo }) {
+  // ─── Hooks ──────────────────────────────────────────────
+  const books = useTtcBooks(account.username);
   const [selectedBook, setSelectedBook] = useState<TtcStory | null>(null);
-  const chapters = useTtcChapters(selectedBook);
+  const chapters = useTtcChapters(selectedBook, account.username);
 
   // ─── Modal state ────────────────────────────────────────
   const [editingBookId, setEditingBookId] = useState<number | null>(null);
@@ -65,20 +94,6 @@ function TtcUploaderContent() {
     chapters.resetState();
   }, [chapters]);
 
-  const handleLogout = useCallback(async () => {
-    await auth.handleLogout();
-    setSelectedBook(null);
-    chapters.resetState();
-  }, [auth, chapters]);
-
-  // ─── Loading state ──────────────────────────────────────
-  if (auth.checkingSession) {
-    return (
-      <div className="w-full mx-auto px-4 py-12 text-center">
-        <div className="text-text-dim">Đang kiểm tra phiên đăng nhập...</div>
-      </div>
-    );
-  }
 
   // ─── WORK VIEW: Resync a selected book ──────────────────
   if (selectedBook) {
@@ -196,6 +211,7 @@ function TtcUploaderContent() {
         {showDownloadAllModal && (
           <DownloadAllModal
             book={selectedBook}
+            account={account.username}
             onClose={() => setShowDownloadAllModal(false)}
           />
         )}
@@ -206,45 +222,60 @@ function TtcUploaderContent() {
   // ─── LIST VIEW: Login + Book list ───────────────────────
   return (
     <div className="w-full h-full flex flex-col mx-auto px-4 md:px-6 py-4 md:py-6 overflow-hidden">
-      {/* Header & Login */}
-      {!auth.session ? (
-        <LoginView onLogin={auth.handleLogin} />
-      ) : (
-        <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
-          <div className="flex items-center gap-3" style={{ animation: 'fadeIn 0.4s ease-out' }}>
-            <span className="flex items-center text-gold"><Upload size={28} /></span>
-            <h1 className="text-xl md:text-2xl font-bold text-gold">
-              TTC Uploader
-            </h1>
-            <span className="bg-purple/20 text-purple text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">
-              Desktop
-            </span>
-          </div>
+      {/* Header & account */}
+      <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+        <div className="flex items-center gap-3" style={{ animation: 'fadeIn 0.4s ease-out' }}>
+          <span className="flex items-center text-gold"><Upload size={28} /></span>
+          <h1 className="text-xl md:text-2xl font-bold text-gold">
+            TTC Uploader
+          </h1>
+          <span className="bg-purple/20 text-purple text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">
+            Desktop
+          </span>
+        </div>
 
-          <div
-            className="bg-bg-card border border-border-main rounded-xl px-4 py-2 flex items-center gap-4"
-            style={{ animation: 'slideUp 0.4s ease-out' }}
+        <div style={{ animation: 'slideUp 0.4s ease-out' }}>
+          <AccountSwitcher
+            accounts={auth.accounts}
+            active={account}
+            busy={auth.switching || auth.loggingIn}
+            onSwitch={auth.switchAccount}
+            onAdd={auth.addAccount}
+            onLogout={auth.logout}
+          />
+        </div>
+      </div>
+
+      {auth.loggingIn && (
+        <div className="bg-gold/10 border border-gold/30 rounded-lg p-3 mb-3 text-sm text-gold">
+          Đang chờ đăng nhập trong cửa sổ TiemTruyenChu. Tài khoản mới sẽ được thêm và chọn ngay khi đăng nhập xong.
+        </div>
+      )}
+
+      {account.needsLogin && (
+        <div className="bg-crimson/10 border border-crimson/30 rounded-lg p-3 mb-3 text-sm text-crimson flex items-center justify-between gap-3">
+          <span className="flex items-center gap-2">
+            <AlertTriangle size={16} className="shrink-0" />
+            Phiên đăng nhập của {accountLabel(account)} đã hết hạn. Hãy đăng nhập lại tài khoản này.
+          </span>
+          <button
+            onClick={auth.addAccount}
+            className="text-xs font-bold bg-crimson text-white px-3 py-1.5 rounded-lg hover:bg-crimson/90 cursor-pointer whitespace-nowrap"
           >
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 rounded-full bg-jade" />
-              <span className="text-xs font-medium text-text-primary">
-                Đã đăng nhập TiemTruyenChu
-              </span>
-            </div>
-            <div className="w-px h-4 bg-border-main"></div>
-            <button
-              onClick={handleLogout}
-              className="text-xs text-text-dim hover:text-crimson transition-colors cursor-pointer font-medium"
-            >
-              Đăng xuất
-            </button>
-          </div>
+            Đăng nhập lại
+          </button>
+        </div>
+      )}
+
+      {auth.error && (
+        <div className="bg-crimson/10 border border-crimson/30 rounded-lg p-3 mb-3 text-sm text-crimson flex items-center justify-between gap-3">
+          <span>{auth.error}</span>
+          <button onClick={auth.clearError} aria-label="Ẩn lỗi" className="text-crimson/70 hover:text-crimson cursor-pointer">✕</button>
         </div>
       )}
 
       {/* Books List */}
-      {auth.session && (
-        <div className="flex flex-col flex-1 min-h-0" style={{ animation: 'slideUp 0.4s ease-out 0.1s both' }}>
+      <div className="flex flex-col flex-1 min-h-0" style={{ animation: 'slideUp 0.4s ease-out 0.1s both' }}>
           <BookListToolbar
             totalStories={books.totalStories}
             loadingBooks={books.loadingBooks}
@@ -307,7 +338,6 @@ function TtcUploaderContent() {
             </div>
           </div>
         </div>
-      )}
 
       {/* Edit Book Modal */}
       {editingBookId && (

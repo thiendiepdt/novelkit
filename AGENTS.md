@@ -41,7 +41,7 @@ src/                        # React frontend (shared by web & desktop)
 ├── shared/                 # Cross-feature shared code
 │   ├── components/         # Reusable UI components (Header, Footer, MiniMap, UploadQueueManager, etc.)
 │   ├── context/            # React contexts (DownloadQueueContext, UploadQueueContext)
-│   ├── hooks/              # Custom React hooks (useLocalStorage, useDragDrop)
+│   ├── hooks/              # Custom React hooks (usePersistentState, useDragDrop)
 │   ├── types/              # Shared TypeScript types (DownloadAllOptions, etc.)
 │   └── utils/              # Pure utility functions (clipboard, download, regex, platform)
 └── index.css               # Global design system (TailwindCSS @theme tokens)
@@ -51,13 +51,16 @@ src-tauri/                  # Tauri Rust backend (desktop only)
 │   ├── main.rs             # Thin entry point
 │   ├── lib.rs              # App builder, plugin registration, managed state
 │   ├── ai.rs               # One-shot JSON generation via Gemini / OpenAI-compatible APIs
+│   ├── fsutil.rs           # write_atomic (temp file + rename) for every persisted file
+│   ├── user_store.rs       # user_data.json: settings store that replaces webview localStorage on desktop
 │   ├── net.rs              # Readable descriptions of outbound HTTP failures
 │   ├── novel_source.rs     # Allowlisted fetches from the AI-fill source sites (see sources/types.ts)
 │   └── ttc/                # TTC feature backend (modular)
 │       ├── mod.rs           # Module declarations
 │       ├── types.rs         # Serde structs for API payloads & responses
-│       ├── client.rs        # Shared reqwest::Client + session helper
-│       ├── session.rs       # Session persistence, login/logout commands
+│       ├── accounts.rs      # Account list model: ttc_accounts.json, legacy migration, /account parsing
+│       ├── client.rs        # Shared reqwest::Client + get_session / get_session_for
+│       ├── session.rs       # Accounts as managed state, login window, account commands
 │       ├── image.rs         # Image proxy with in-memory cache
 │       ├── books.rs         # Book CRUD: fetch list, HTML forms, create story, cover upload
 │       ├── chapters.rs      # Chapter fetch, parse, upload, download commands
@@ -82,7 +85,9 @@ If two features need the same component, **move it to `shared/`**.
 
 After making any code changes, **you MUST run** the following commands to ensure there are no linting or type errors before concluding your task:
 1. `npm run lint`
-2. `npx tsc --noEmit`
+2. `npx tsc --noEmit -p tsconfig.app.json` and `npx tsc --noEmit -p tsconfig.node.json`
+
+⚠️ A bare `npx tsc --noEmit` checks **nothing**: the root `tsconfig.json` has `"files": []` and only references the two projects. `vite build` does not type-check either. (`npm run build` runs `tsc -b`, which does.)
 
 Do not leave unresolved TypeScript (`.ts(2304)`, etc.) or ESLint errors in the codebase. Fix them proactively.
 
@@ -156,7 +161,7 @@ The app uses a **Warm Charcoal Xianxia** dark theme. All colors are defined as C
 **Key architectural decision**: The splitter calls `formatText()` as a preprocessing step. This is an intentional cross-feature dependency.
 
 **State management** (`hooks/useChapterSplitter.ts`):
-- Settings persisted to localStorage via `useLocalStorage` hook
+- Settings persisted via the `usePersistentState` hook (user data store on desktop, localStorage on the web)
 - Debounced chapter boundary detection (300ms) to avoid lag on keystrokes
 - Large input detection (>10k words) switches to compact summary view
 
@@ -198,7 +203,7 @@ Web Worker (translator.worker.ts)
 **Architecture** (hook-based, thin orchestrator pattern):
 ```
 TtcUploaderPage (orchestrator, ~200 lines)
-  ├── useTtcAuth      → session check, login polling, logout
+  ├── useTtcAuth      → accounts: startup check, add (login window), switch, logout
   ├── useTtcBooks     → book list, search, status filters, pagination
   └── useTtcChapters  → chapter list, folder parsing, upload, download
 
@@ -214,8 +219,9 @@ Create story (CreateBookModal → useCreateBook):
 ```
 
 **Rust backend** (`src-tauri/src/ttc/`):
-- `client.rs` — shared `TtcClient` (managed state, connection pooling) + `get_session()` helper
-- `session.rs` — `TtcSession` struct, disk persistence, login webview commands
+- `client.rs` — shared `TtcClient` (managed state, connection pooling) + `get_session()` (active account) / `get_session_for(app, Some(username))` helpers
+- `accounts.rs` — pure account list logic (`AccountsFile`), unit-tested without Tauri
+- `session.rs` — `TtcSession` managed state, login webview, `ttc_list_accounts` / `ttc_verify_active` / `ttc_switch_account` / `ttc_logout`
 - `image.rs` — `TtcImageCache` + `ttc_proxy_image` (CORS bypass via Rust fetch)
 - `books.rs` — `ttc_fetch_books`, `ttc_fetch_html`, `ttc_submit_multipart`, `ttc_create_story`, `ttc_delete_story`, `ttc_upload_cover`
 - `chapters.rs` — `ttc_fetch_chapters`, `ttc_parse_chapters`, `ttc_upload_chapters`, `ttc_download_chapter`, `ttc_download_all_chapters`
@@ -226,7 +232,7 @@ Create story (CreateBookModal → useCreateBook):
 - `ai.rs` — `ai_generate_json`. Speaks Gemini `generateContent` and OpenAI-compatible `chat/completions`; the prompt is built and the reply validated in the frontend (`ttc-uploader/ai/`).
 - Both reuse the shared `reqwest::Client` via `ttc::client::get_client()`. Adding a source means: a host in `TEXT_SOURCES` (Rust), a branch in `sources/detect.ts`, a parser in `sources/parse.ts`, and a line in the `#[ignore]` live test.
 
-**AI settings** live in `AppSettings.ai` (`features/settings/types.ts`): provider (`gemini` | `openai`), and per provider `apiKey` / `model` / `baseUrl`. They are global only (never per-book) and stored in localStorage with the other settings.
+**AI settings** live in `AppSettings.ai` (`features/settings/types.ts`): provider (`gemini` | `openai`), and per provider `apiKey` / `model` / `baseUrl`. They are global only (never per-book) and stored with the other settings (`user_data.json` on desktop, see below).
 
 **Key patterns**:
 - All commands use shared `TtcClient` (reqwest connection pooling) instead of creating per-request clients
@@ -391,13 +397,21 @@ if (isTauri()) {
 import { readTextFile } from '@tauri-apps/plugin-fs';
 ```
 
-#### 8. TTC Session Cookie Management
-The TTC session is stored both in-memory (`TtcSession` managed state) and on disk (`ttc_session.dat` in app data dir). Always use the `get_session()` helper from `client.rs` — never access `TtcSession` directly in command handlers.
+#### 8. TTC Accounts and Session Cookies
+The app can be logged into several TTC accounts; one is active. They live in `TtcSession` (managed state) and in `ttc_accounts.json` in the app data dir (the single-account `ttc_session.dat` of 1.2.x is migrated on first start). Always use `get_session()` (active account) or `get_session_for(app, account)` from `client.rs` — never access `TtcSession` directly in command handlers.
+- Cookies never cross IPC: the frontend gets `{ username, displayName, needsLogin }` only.
+- Work that runs later (upload / download queue jobs) carries `account` in its options and must resolve the cookie with `get_session_for`, so switching accounts never moves a queued job to another account.
+- `ttc_open_login` clears the TTC cookies of the shared webview store first; otherwise the login window silently reopens the last account.
+- `TtcWorkspace` in `TtcUploaderPage` is keyed by the active username: a switch remounts it, which drops the open book, modals and in-flight requests of the previous account.
+
+#### 8b. Persisted Frontend State
+Use `usePersistentState` (or `storeGet` / `storeSet` from `shared/utils/persistentStore`), never `localStorage` directly. On desktop the values live in `user_data.json` (Rust `user_store`), loaded into memory by `initPersistentStore()` in `main.tsx` before the first render; on the web they stay in localStorage. The first desktop run copied every localStorage key into the file and left localStorage untouched (older versions still read it).
 
 #### 9. Tauri Managed State in TTC Backend
 Three structs are registered as Tauri managed state for the TTC feature:
 - `TtcClient` — shared `reqwest::Client` for connection pooling
-- `TtcSession` — cookie-based session with disk persistence
+- `TtcSession` — the TTC accounts (cookies) with disk persistence
+- `UserStore` — the settings store (`user_data.json`), outside `ttc/`
 - `TtcImageCache` — in-memory poster image cache (path → base64 data URI)
 
 Access via `app.state::<TtcClient>()` etc. Do NOT create new `reqwest::Client` instances in commands.

@@ -9,7 +9,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::time::sleep;
 
-use super::client::{get_client, get_session, get_ttc_base, USER_AGENT};
+use super::client::{get_client, get_session_for, get_ttc_base, USER_AGENT};
 use super::types::*;
 use super::utils::sanitize_filename;
 
@@ -21,8 +21,9 @@ pub async fn ttc_fetch_chapters(
     book_id: i64,
     page: Option<i64>,
     limit: Option<i64>,
+    account: Option<String>,
 ) -> Result<TtcChaptersResponse, String> {
-    let session = get_session(&app)?;
+    let session = get_session_for(&app, account.as_deref())?;
 
     let page = page.unwrap_or(1);
     let limit = limit.unwrap_or(50);
@@ -158,7 +159,7 @@ pub async fn ttc_upload_chapters(
     options: UploadOptions,
     job_id: String,
 ) -> Result<(), String> {
-    let session = get_session(&app)?;
+    let session = get_session_for(&app, options.account.as_deref())?;
 
     let chapters: Vec<&ParsedChapter> = options.chapters.iter().collect();
 
@@ -556,8 +557,9 @@ pub async fn ttc_download_chapter(
     app: AppHandle,
     book_id: i64,
     chapter_number: i64,
+    account: Option<String>,
 ) -> Result<DownloadedChapter, String> {
-    let session = get_session(&app)?;
+    let session = get_session_for(&app, account.as_deref())?;
 
     let base_url = get_ttc_base(&app).await?;
     let url = format!("{}/sua-chuong/{}/{}", base_url, book_id, chapter_number);
@@ -654,7 +656,7 @@ pub async fn ttc_download_all_chapters(
             return Err("Bị hủy bởi người dùng".into());
         }
 
-        match ttc_fetch_chapters(app.clone(), options.book_id, Some(current_page), Some(100)).await
+        match ttc_fetch_chapters(app.clone(), options.book_id, Some(current_page), Some(100), options.account.clone()).await
         {
             Ok(resp) => {
                 total_pages = resp.total_pages;
@@ -707,9 +709,10 @@ pub async fn ttc_download_all_chapters(
             let app_clone = app.clone();
             let book_id = options.book_id;
             let chapter_number = ch.chapter_number;
+            let account = options.account.clone();
 
             futures.push(async move {
-                let res = ttc_download_chapter(app_clone, book_id, chapter_number).await;
+                let res = ttc_download_chapter(app_clone, book_id, chapter_number, account).await;
                 (*i, (*ch).clone(), res)
             });
         }

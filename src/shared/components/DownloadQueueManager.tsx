@@ -106,6 +106,9 @@ function JobItem({ job, onRemove, onCancel }: { job: DownloadJob, onRemove: () =
       <div className="flex justify-between items-start mb-1.5">
         <h4 className="text-xs font-medium text-text-primary truncate pr-6" title={job.bookTitle}>
           {job.bookTitle}
+          {job.options.account && (
+            <span className="ml-1.5 text-[10px] text-purple font-normal" title="Tài khoản TTC chạy tác vụ này">@{job.options.account}</span>
+          )}
         </h4>
         <Tooltip content="Xóa khỏi danh sách" side="left" className="absolute top-2.5 right-2.5">
           <button

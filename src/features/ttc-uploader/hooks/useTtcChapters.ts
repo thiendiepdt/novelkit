@@ -30,7 +30,11 @@ const INITIAL_PROGRESS: UploadProgress = {
  * Manages chapter operations for a selected book:
  * remote chapter listing, local folder parsing, upload, and single-chapter download.
  */
-export function useTtcChapters(selectedBook: TtcStory | null) {
+/**
+ * @param account - username of the active TTC account; uploads queued from here run on it
+ *   even if the user switches accounts before the job starts.
+ */
+export function useTtcChapters(selectedBook: TtcStory | null, account?: string | null) {
   // Remote chapter list (paginated, for the ChapterTable view)
   const [remoteChapters, setRemoteChapters] = useState<TtcChapter[]>([]);
   const [remoteChapPage, setRemoteChapPage] = useState(1);
@@ -320,6 +324,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
     }
 
     const options: UploadOptions = {
+      account: account || undefined,
       book_id: selectedBook.id,
       chapters: finalChaptersToUpload,
       delay_ms: delayMs,
@@ -329,7 +334,7 @@ export function useTtcChapters(selectedBook: TtcStory | null) {
 
     addJob(options, selectedBook.title);
 
-  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, vipMinWords, vipFromChapter, chapters, allRemoteChapters, addJob]);
+  }, [selectedBook, folderPath, syncMode, fromIndex, toIndex, delayMs, chapterPrice, unlockTimer, vipMinWords, vipFromChapter, chapters, allRemoteChapters, addJob, account]);
 
   // Cancel the ongoing upload job for the current book
   const handleCancelUpload = useCallback(() => {

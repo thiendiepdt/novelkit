@@ -1,6 +1,6 @@
 /* eslint-disable react-refresh/only-export-components */
 import React, { createContext, useContext, useCallback, useMemo } from 'react';
-import { useLocalStorage } from '@/shared/hooks/useLocalStorage';
+import { usePersistentState } from '@/shared/hooks/usePersistentState';
 import type { AppSettings, BookSettingsSection, PerBookSettings } from '../types';
 import { DEFAULT_SETTINGS } from '../types';
 
@@ -19,8 +19,8 @@ interface SettingsContextValue {
 const SettingsContext = createContext<SettingsContextValue | null>(null);
 
 export function SettingsProvider({ children }: { children: React.ReactNode }) {
-  const [globalSettings, setGlobalSettings] = useLocalStorage<AppSettings>('nk_global_settings', DEFAULT_SETTINGS);
-  const [bookSettings, setBookSettings] = useLocalStorage<Record<number, PerBookSettings>>('nk_book_settings', {});
+  const [globalSettings, setGlobalSettings] = usePersistentState<AppSettings>('nk_global_settings', DEFAULT_SETTINGS);
+  const [bookSettings, setBookSettings] = usePersistentState<Record<number, PerBookSettings>>('nk_book_settings', {});
 
   const updateGlobalSettings = useCallback(<K extends keyof AppSettings>(section: K, overrides: Partial<AppSettings[K]>) => {
     setGlobalSettings(prev => ({

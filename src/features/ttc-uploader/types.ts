@@ -64,6 +64,8 @@ export interface ParsedChapter {
 // ─── Upload Types ──────────────────────────────────────────
 
 export interface UploadOptions {
+  /** Username of the TTC account that queued the job; the job always runs on it. */
+  account?: string;
   book_id: number;
   chapters: ParsedChapter[];
   delay_ms?: number;
@@ -189,3 +191,24 @@ export interface PendingCover {
   previewUrl: string;
 }
 
+
+// ─── TTC Accounts (from the Rust `ttc::accounts` module; cookies never reach the UI) ──
+
+export interface TtcAccountInfo {
+  /** TTC username: the stable key. Empty for a migrated session not verified yet. */
+  username: string;
+  displayName: string;
+  /** TTC rejected the saved cookie the last time it was checked. */
+  needsLogin: boolean;
+}
+
+export interface TtcAccountsView {
+  active: string | null;
+  accounts: TtcAccountInfo[];
+}
+
+/** State of the login window, as `ttc_check_session` reports it. */
+export type TtcLoginPoll =
+  | { state: 'waiting' }
+  | { state: 'closed' }
+  | { state: 'added'; username: string; accounts: TtcAccountsView };

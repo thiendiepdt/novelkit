@@ -1,2 +1,2 @@
-export { useLocalStorage } from './useLocalStorage';
+export { usePersistentState } from './usePersistentState';
 export { useDragDrop } from './useDragDrop';
