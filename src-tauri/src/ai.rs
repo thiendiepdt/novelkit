@@ -17,8 +17,13 @@ pub const DEFAULT_OPENAI_BASE_URL: &str = "https://api.openai.com/v1";
 
 const REQUEST_TIMEOUT: Duration = Duration::from_secs(120);
 
-/// A reply cut off by the output limit is unusable here: the JSON is left open.
-const TRUNCATED_REPLY: &str = "Model trả lời bị cắt giữa chừng vì chạm giới hạn độ dài. Hãy thử lại, hoặc dùng model / hub cho phép trả lời dài hơn.";
+/// Output limit sent with OpenAI-compatible requests, reasoning included. Without one,
+/// hubs apply their own default (about 4500 tokens on one observed hub), and Gemini 3
+/// can spend more than that thinking about a single synopsis before it answers.
+const OUTPUT_TOKEN_LIMIT: u64 = 32768;
+
+/// Start of the error for a reply cut off by the output limit (see `truncated_reply`).
+const TRUNCATED_REPLY: &str = "Model trả lời bị cắt giữa chừng vì chạm giới hạn độ dài";
 
 const GEMINI_SAFETY_CATEGORIES: [&str; 5] = [
     "HARM_CATEGORY_HARASSMENT",
@@ -56,6 +61,99 @@ fn truncate_chars(s: &str, max: usize) -> String {
         out.push('…');
     }
     out
+}
+
+// ─── Replies cut off by the output limit ───────────────────
+
+/// Tokens a cut-off reply spent, as the provider reports them (either may be missing).
+#[derive(Debug, Default, Clone, Copy)]
+struct OutputUsage {
+    /// Reasoning ("thinking") tokens, which count against the same output limit.
+    thoughts: Option<u64>,
+    /// Tokens of the visible answer.
+    answer: Option<u64>,
+}
+
+/// The first JSON object of a reply, when the model closed it before the limit hit.
+/// Gemini's JSON mode can keep emitting whitespace (or the object again) after the
+/// closing brace until it runs out of tokens; the object itself is still whole.
+fn finished_json(text: &str) -> Option<String> {
+    let start = text.find('{')?;
+    let rest = &text[start..];
+    let mut values = serde_json::Deserializer::from_str(rest).into_iter::<Value>();
+    match values.next() {
+        Some(Ok(value)) if value.is_object() => Some(rest[..values.byte_offset()].to_string()),
+        _ => None,
+    }
+}
+
+/// The error for a reply that hit the output limit, saying where the tokens went: a model
+/// that thinks at length can spend the whole limit a hub sets before answering, which a
+/// retry does not fix; an answer that ran on (or looped) shows it in its last words.
+fn truncated_reply(usage: OutputUsage, text: &str) -> String {
+    let mut message = TRUNCATED_REPLY.to_string();
+    match (usage.thoughts.filter(|n| *n > 0), usage.answer) {
+        (Some(thoughts), answer) => message.push_str(&format!(
+            " ({} token suy nghĩ, {} token trả lời)",
+            thoughts,
+            answer.unwrap_or(0)
+        )),
+        (None, Some(answer)) => message.push_str(&format!(" (sau {} token trả lời)", answer)),
+        (None, None) => {}
+    }
+    message.push('.');
+
+    let flat = text.split_whitespace().collect::<Vec<_>>().join(" ");
+    let visible_chars = flat.chars().count() as u64;
+    let thinking_ate_it = match (usage.thoughts, usage.answer) {
+        (Some(thoughts), answer) if thoughts > 0 => thoughts >= 4 * answer.unwrap_or(0),
+        // Some hubs fold the thinking into the answer count without saying so; a token
+        // covers at least one character of answer (CJK) and usually three (Vietnamese).
+        (_, Some(answer)) => answer > 0 && answer >= 3 * visible_chars.max(1),
+        _ => false,
+    };
+    if thinking_ate_it && usage.thoughts.filter(|n| *n > 0).is_none() {
+        // "(sau N token trả lời)" would read as a long answer; say what N actually covers.
+        message.pop();
+        message.push_str(&format!(
+            ", nhưng phần chữ trả về chỉ có {} ký tự: phần còn lại là suy nghĩ ẩn của model.",
+            visible_chars
+        ));
+    }
+    if thinking_ate_it {
+        message.push_str(
+            " Phần suy nghĩ của model đã dùng gần hết giới hạn trước khi kịp trả lời: hãy giảm mức suy nghĩ (thinking / reasoning effort) của model trong hub, tăng giới hạn đầu ra, hoặc dùng model khác.",
+        );
+    } else {
+        if !flat.is_empty() {
+            let tail: String = {
+                let chars: Vec<char> = flat.chars().collect();
+                chars[chars.len().saturating_sub(120)..].iter().collect()
+            };
+            message.push_str(&format!(" Đoạn cuối: “…{}”.", tail));
+        }
+        message.push_str(" Hãy thử lại, hoặc dùng model / hub cho phép trả lời dài hơn.");
+    }
+    message
+}
+
+fn gemini_usage(payload: &Value) -> OutputUsage {
+    OutputUsage {
+        thoughts: payload.pointer("/usageMetadata/thoughtsTokenCount").and_then(Value::as_u64),
+        answer: payload.pointer("/usageMetadata/candidatesTokenCount").and_then(Value::as_u64),
+    }
+}
+
+/// OpenAI counts reasoning tokens inside `completion_tokens`.
+fn openai_usage(payload: &Value) -> OutputUsage {
+    let completion = payload.pointer("/usage/completion_tokens").and_then(Value::as_u64);
+    let thoughts = payload
+        .pointer("/usage/completion_tokens_details/reasoning_tokens")
+        .and_then(Value::as_u64);
+    OutputUsage {
+        thoughts,
+        answer: completion.map(|n| n.saturating_sub(thoughts.unwrap_or(0))),
+    }
 }
 
 /// Human-readable reason from an error response: `error.message`, a string `error`, or the raw body.
@@ -138,7 +236,7 @@ pub fn parse_gemini(payload: &Value) -> Result<String, String> {
         })
         .unwrap_or_default();
     if payload.pointer("/candidates/0/finishReason").and_then(Value::as_str) == Some("MAX_TOKENS") {
-        return Err(TRUNCATED_REPLY.to_string());
+        return finished_json(&text).ok_or_else(|| truncated_reply(gemini_usage(payload), &text));
     }
     if !text.trim().is_empty() {
         return Ok(text);
@@ -169,15 +267,37 @@ pub fn openai_url(base_url: &str) -> String {
 }
 
 /// No `temperature`: GPT-5/o-series models only accept their default.
-pub fn openai_body(model: &str, system: &str, user: &str) -> Value {
-    json!({
+///
+/// `with_limit` adds `OUTPUT_TOKEN_LIMIT`: as `max_completion_tokens` for OpenAI itself
+/// (its reasoning models reject `max_tokens`), as `max_tokens` for everything else (the
+/// name hubs and other OpenAI-compatible APIs understand).
+pub fn openai_body(base_url: &str, model: &str, system: &str, user: &str, with_limit: bool) -> Value {
+    let mut body = json!({
         "model": model.trim(),
         "response_format": { "type": "json_object" },
         "messages": [
             { "role": "system", "content": system },
             { "role": "user", "content": user },
         ],
-    })
+    });
+    if with_limit {
+        let official = resolve_base_url(base_url, DEFAULT_OPENAI_BASE_URL) == DEFAULT_OPENAI_BASE_URL;
+        let param = if official { "max_completion_tokens" } else { "max_tokens" };
+        body[param] = json!(OUTPUT_TOKEN_LIMIT);
+    }
+    body
+}
+
+/// The API refused the output limit itself (above what the model supports, or a parameter
+/// name it does not take): worth one more try without it.
+fn rejects_output_limit(status: u16, body: &str) -> bool {
+    if status != 400 && status != 422 {
+        return false;
+    }
+    let body = body.to_ascii_lowercase();
+    ["max_tokens", "max_completion_tokens", "max_output_tokens"]
+        .iter()
+        .any(|param| body.contains(param))
 }
 
 /// `message.content` is a string; a few hubs return an array of `{type:"text", text}` parts.
@@ -195,7 +315,7 @@ pub fn parse_openai(payload: &Value) -> Result<String, String> {
         _ => String::new(),
     };
     if payload.pointer("/choices/0/finish_reason").and_then(Value::as_str) == Some("length") {
-        return Err(TRUNCATED_REPLY.to_string());
+        return finished_json(&text).ok_or_else(|| truncated_reply(openai_usage(payload), &text));
     }
     if !text.trim().is_empty() {
         return Ok(text);
@@ -225,36 +345,16 @@ pub async fn generate_json(client: &reqwest::Client, request: &AiRequest) -> Res
         return Err("Chưa cấu hình model cho AI (Cài đặt → AI)".to_string());
     }
 
-    let (label, builder) = match request.provider.as_str() {
-        "gemini" => (
-            "Gemini",
-            client
-                .post(gemini_url(&request.base_url, &request.model))
-                .header("x-goog-api-key", request.api_key.trim())
-                .json(&gemini_body(&request.model, &request.system, &request.user)),
-        ),
-        "openai" => (
-            "OpenAI",
-            client
-                .post(openai_url(&request.base_url))
-                .header("Authorization", format!("Bearer {}", request.api_key.trim()))
-                .header("Accept", "application/json")
-                .json(&openai_body(&request.model, &request.system, &request.user)),
-        ),
+    let label = match request.provider.as_str() {
+        "gemini" => "Gemini",
+        "openai" => "OpenAI",
         other => return Err(format!("Nhà cung cấp AI không hợp lệ: {}", other)),
     };
 
-    let resp = builder
-        .timeout(REQUEST_TIMEOUT)
-        .send()
-        .await
-        .map_err(|e| format!("Không gọi được {}: {}", label, describe_request_error(&e)))?;
-
-    let status = resp.status();
-    let body = resp
-        .text()
-        .await
-        .map_err(|e| format!("Không đọc được phản hồi từ {}: {}", label, e))?;
+    let (mut status, mut body) = send_once(client, request, label, true).await?;
+    if request.provider == "openai" && rejects_output_limit(status.as_u16(), &body) {
+        (status, body) = send_once(client, request, label, false).await?;
+    }
 
     if !status.is_success() {
         let reason = api_error_message(&body);
@@ -272,6 +372,46 @@ pub async fn generate_json(client: &reqwest::Client, request: &AiRequest) -> Res
         "gemini" => parse_gemini(&payload),
         _ => parse_openai(&payload),
     }
+}
+
+/// One HTTP round trip. `with_limit` only matters for OpenAI-compatible requests: the
+/// Gemini API already defaults to the model's own maximum output.
+async fn send_once(
+    client: &reqwest::Client,
+    request: &AiRequest,
+    label: &str,
+    with_limit: bool,
+) -> Result<(reqwest::StatusCode, String), String> {
+    let builder = if request.provider == "gemini" {
+        client
+            .post(gemini_url(&request.base_url, &request.model))
+            .header("x-goog-api-key", request.api_key.trim())
+            .json(&gemini_body(&request.model, &request.system, &request.user))
+    } else {
+        client
+            .post(openai_url(&request.base_url))
+            .header("Authorization", format!("Bearer {}", request.api_key.trim()))
+            .header("Accept", "application/json")
+            .json(&openai_body(
+                &request.base_url,
+                &request.model,
+                &request.system,
+                &request.user,
+                with_limit,
+            ))
+    };
+
+    let resp = builder
+        .timeout(REQUEST_TIMEOUT)
+        .send()
+        .await
+        .map_err(|e| format!("Không gọi được {}: {}", label, describe_request_error(&e)))?;
+    let status = resp.status();
+    let body = resp
+        .text()
+        .await
+        .map_err(|e| format!("Không đọc được phản hồi từ {}: {}", label, e))?;
+    Ok((status, body))
 }
 
 #[tauri::command]
@@ -342,12 +482,61 @@ mod tests {
             "http://192.0.2.10/v1/chat/completions"
         );
 
-        let body = openai_body(" gpt-5.6-sol ", "sys", "usr");
+        let body = openai_body("", " gpt-5.6-sol ", "sys", "usr", false);
         assert_eq!(body["model"], "gpt-5.6-sol");
         assert_eq!(body["response_format"]["type"], "json_object");
         assert_eq!(body["messages"][0]["role"], "system");
         assert_eq!(body["messages"][1]["content"], "usr");
         assert!(body.get("temperature").is_none());
+        assert!(body.get("max_tokens").is_none());
+        assert!(body.get("max_completion_tokens").is_none());
+    }
+
+    #[test]
+    fn openai_body_sets_an_output_limit_that_leaves_room_for_thinking() {
+        // Hubs cap the output (thinking included) at a few thousand tokens when the request
+        // names no limit; Gemini 3 can think for more than that on one synopsis.
+        let hub = openai_body("https://api.sonson.site/v1", "gemini-3.8-flash", "sys", "usr", true);
+        assert_eq!(hub["max_tokens"], OUTPUT_TOKEN_LIMIT);
+        assert!(hub.get("max_completion_tokens").is_none());
+
+        // OpenAI's reasoning models reject max_tokens and take max_completion_tokens.
+        let official = openai_body("", "gpt-5.6-sol", "sys", "usr", true);
+        assert_eq!(official["max_completion_tokens"], OUTPUT_TOKEN_LIMIT);
+        assert!(official.get("max_tokens").is_none());
+        let official_explicit = openai_body("https://api.openai.com/v1/", "gpt-5.6-sol", "sys", "usr", true);
+        assert_eq!(official_explicit["max_completion_tokens"], OUTPUT_TOKEN_LIMIT);
+    }
+
+    #[test]
+    fn a_rejected_output_limit_is_recognized() {
+        let deepseek = r#"{"error":{"message":"Invalid max_tokens value, the valid range of max_tokens is [1, 8192]","type":"invalid_request_error"}}"#;
+        assert!(rejects_output_limit(400, deepseek));
+        let openai = r#"{"error":{"message":"max_tokens is too large: 32768. This model supports at most 16384 completion tokens.","param":"max_tokens"}}"#;
+        assert!(rejects_output_limit(400, openai));
+        let unsupported = r#"{"error":{"message":"Unsupported parameter: 'max_completion_tokens' is not supported with this model."}}"#;
+        assert!(rejects_output_limit(400, unsupported));
+        assert!(rejects_output_limit(422, r#"{"detail":"max_tokens: ensure this value is less than or equal to 4096"}"#));
+
+        // Other failures are not retried without the limit.
+        assert!(!rejects_output_limit(400, r#"{"error":{"message":"Incorrect API key provided"}}"#));
+        assert!(!rejects_output_limit(500, r#"{"error":{"message":"max_tokens upstream error"}}"#));
+        assert!(!rejects_output_limit(401, "max_tokens"));
+    }
+
+    #[test]
+    fn hidden_thinking_is_recognized_when_the_hub_does_not_count_it() {
+        // Observed on a hub in front of gemini-3.8-flash: 4501 completion tokens, no
+        // reasoning_tokens field, and fewer than 400 characters of answer.
+        let answer = format!("{{\"title\":\"Xuyên Thành Nguyên Phối\",\"description\":\"{}", "Tống Anh xuyên thành nữ phụ ".repeat(13));
+        let openai = json!({
+            "choices": [{ "finish_reason": "length", "message": { "content": answer } }],
+            "usage": { "prompt_tokens": 4601, "completion_tokens": 4501, "total_tokens": 9102 }
+        });
+        let err = parse_openai(&openai).unwrap_err();
+        assert!(err.contains("4501 token"), "{}", err);
+        assert!(err.contains("ký tự"), "{}", err);
+        assert!(err.contains("mức suy nghĩ"), "{}", err);
     }
 
     #[test]
@@ -378,17 +567,74 @@ mod tests {
             "finishReason": "MAX_TOKENS",
             "content": { "parts": [{ "text": "{\"title\":\"A\",\"description\":\"Đoạn một" }] }
         }] });
-        assert_eq!(parse_gemini(&gemini).unwrap_err(), TRUNCATED_REPLY);
+        assert!(parse_gemini(&gemini).unwrap_err().starts_with(TRUNCATED_REPLY));
 
         let openai = json!({ "choices": [{
             "finish_reason": "length",
             "message": { "content": "{\"title\":\"A\",\"description\":\"Đoạn một" }
         }] });
-        assert_eq!(parse_openai(&openai).unwrap_err(), TRUNCATED_REPLY);
+        assert!(parse_openai(&openai).unwrap_err().starts_with(TRUNCATED_REPLY));
 
         // A normal stop is still returned as is.
         let done = json!({ "choices": [{ "finish_reason": "stop", "message": { "content": "{}" } }] });
         assert_eq!(parse_openai(&done).unwrap(), "{}");
+    }
+
+    #[test]
+    fn a_finished_json_before_the_cut_is_kept() {
+        // Gemini's JSON mode can keep emitting whitespace after the closing brace until the limit.
+        let gemini = json!({ "candidates": [{
+            "finishReason": "MAX_TOKENS",
+            "content": { "parts": [{ "text": format!("{{\"title\":\"A\",\"description\":\"B\"}}{}", "\n".repeat(50)) }] }
+        }] });
+        assert_eq!(parse_gemini(&gemini).unwrap(), r#"{"title":"A","description":"B"}"#);
+
+        // A loop that repeats JSON after the object: only the first, finished object counts.
+        let openai = json!({ "choices": [{
+            "finish_reason": "length",
+            "message": { "content": "```json\n{\"title\":\"A\"}\n```\n{\"title\":\"A\"}{\"tit" }
+        }] });
+        assert_eq!(parse_openai(&openai).unwrap(), r#"{"title":"A"}"#);
+    }
+
+    #[test]
+    fn a_cut_off_reply_says_where_the_tokens_went() {
+        // Thinking ate the limit the hub set: the answer barely started.
+        let gemini = json!({
+            "candidates": [{ "finishReason": "MAX_TOKENS", "content": { "parts": [{ "text": "{\"title\":\"Xuy" }] } }],
+            "usageMetadata": { "promptTokenCount": 3500, "candidatesTokenCount": 12, "thoughtsTokenCount": 8180 }
+        });
+        let err = parse_gemini(&gemini).unwrap_err();
+        assert!(err.starts_with(TRUNCATED_REPLY), "{}", err);
+        assert!(err.contains("8180 token suy nghĩ"), "{}", err);
+        assert!(err.contains("12 token trả lời"), "{}", err);
+        assert!(err.contains("mức suy nghĩ"), "{}", err);
+
+        // OpenAI counts reasoning inside completion_tokens.
+        let openai = json!({
+            "choices": [{ "finish_reason": "length", "message": { "content": "" } }],
+            "usage": { "prompt_tokens": 3500, "completion_tokens": 4096, "completion_tokens_details": { "reasoning_tokens": 4096 } }
+        });
+        let err = parse_openai(&openai).unwrap_err();
+        assert!(err.contains("4096 token suy nghĩ"), "{}", err);
+        assert!(err.contains("0 token trả lời"), "{}", err);
+        assert!(err.contains("mức suy nghĩ"), "{}", err);
+    }
+
+    #[test]
+    fn a_cut_off_answer_quotes_its_end() {
+        // The answer itself ran long (or looped): its end shows which.
+        let looping = format!("{{\"title\":\"A\",\"description\":\"{}", "ăn cơm ".repeat(400));
+        let openai = json!({
+            "choices": [{ "finish_reason": "length", "message": { "content": looping } }],
+            "usage": { "prompt_tokens": 3500, "completion_tokens": 8192 }
+        });
+        let err = parse_openai(&openai).unwrap_err();
+        assert!(err.contains("8192 token trả lời"), "{}", err);
+        assert!(err.contains("ăn cơm ăn cơm"), "{}", err);
+        assert!(!err.contains("mức suy nghĩ"), "{}", err);
+        // Only the tail is quoted, not thousands of characters.
+        assert!(err.chars().count() < 450, "{}", err.chars().count());
     }
 
     #[test]
