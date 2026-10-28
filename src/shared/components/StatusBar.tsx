@@ -4,7 +4,6 @@ const routeNames: Record<string, string> = {
   '/': 'Trang chủ',
   '/text-formatter': 'Format Truyện',
   '/chapter-splitter': 'Chia Chương',
-  '/quick-translator': 'Dịch Nhanh (QT Web)',
   '/ttc-uploader': 'TTC Uploader',
 };
 

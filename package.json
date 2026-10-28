@@ -17,8 +17,7 @@
     "translation",
     "novel",
     "converter",
-    "vietphrase",
-    "quicktranslator"
+    "vietphrase"
   ],
   "engines": {
     "node": ">=20.0.0"
@@ -44,8 +43,6 @@
     "@tauri-apps/plugin-process": "^2.3.1",
     "@tauri-apps/plugin-shell": "^2.3.5",
     "@tauri-apps/plugin-updater": "^2.10.1",
-    "comlink": "^4.4.2",
-    "idb": "^8.0.3",
     "lucide-react": "^1.11.0",
     "react": "^19.2.4",
     "react-dom": "^19.2.4",

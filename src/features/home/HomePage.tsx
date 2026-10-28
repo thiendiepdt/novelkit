@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom';
 import { isTauri } from '@/shared/utils/platform';
 import { Tooltip } from '@/shared/components';
-import { FileText, Scissors, Zap, Upload, Sparkles, ArrowRight } from 'lucide-react';
+import { FileText, Scissors, Upload, Sparkles, ArrowRight } from 'lucide-react';
 interface Tool {
   id: string;
   icon: React.ReactNode;
@@ -31,15 +31,6 @@ const tools: Tool[] = [
     path: '/chapter-splitter',
     tooltip: 'Cắt chương dài thành nhiều phần nhỏ để đăng mượt mà.',
     badge: 'Mới',
-  },
-  {
-    id: 'quick-translator',
-    icon: <Zap size={36} strokeWidth={1.5} />,
-    name: 'Dịch Nhanh (QT Web)',
-    description: 'Dịch Tiếng Trung siêu tốc sử dụng từ điển hệ QuickTranslator. Chỉnh sửa nghĩa bằng click.',
-    path: '/quick-translator',
-    tooltip: 'Dịch Tiếng Trung siêu tốc bằng từ điển QuickTranslator.',
-    badge: 'Đang phát triển',
   },
   {
     id: 'ttc-uploader',

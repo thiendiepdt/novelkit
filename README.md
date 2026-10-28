@@ -44,14 +44,6 @@
 - Kéo thả hoặc upload file `.txt`
 - Tải kết quả về dạng `.txt`
 
-### ⚡ Dịch nhanh (Quick Translator — QT Web)
-- Dịch Trung→Việt dựa trên từ điển
-- Lấy cảm hứng từ phần mềm QuickTranslator (C#) kinh điển
-- Thuật toán tokenize Max-Match (so khớp dài nhất)
-- Hỗ trợ từ điển VietPhrase, Name và Hán Việt
-- Click vào token để chỉnh sửa nghĩa dịch
-- Chạy trên Web Worker — không block giao diện
-
 ### ☁️ Quản lý TiemTruyenChu (TTC Uploader) *(Desktop only)*
 ![TTC Uploader Login](docs/images/ttc-uploader.png)
 
@@ -134,10 +126,11 @@ src/                        # React frontend (dùng chung web & desktop)
 │   ├── home/               # Trang chủ
 │   ├── text-formatter/     # Công cụ định dạng văn bản
 │   ├── chapter-splitter/   # Công cụ chia chương
-│   └── translator/         # Dịch nhanh (QT Web)
+│   ├── ttc-uploader/       # Quản lý truyện TiemTruyenChu (desktop)
+│   └── downloads/          # Hàng đợi tải xuống (desktop)
 ├── shared/                 # Code dùng chung
 │   ├── components/         # UI component tái sử dụng (Header, Footer, MiniMap,...)
-│   ├── hooks/              # Custom hooks (useLocalStorage, useDragDrop)
+│   ├── hooks/              # Custom hooks (usePersistentState, useDragDrop)
 │   └── utils/              # Hàm tiện ích thuần (clipboard, download, regex, platform)
 └── index.css               # Design system & theme tokens
 
@@ -153,8 +146,7 @@ src-tauri/                  # Tauri Rust backend (chỉ dành cho desktop)
 
 ### Quyết định thiết kế chính
 
-- **Offline-first**: Toàn bộ xử lý diễn ra phía client. Từ điển được cache trong IndexedDB.
-- **Web Workers**: Engine dịch thuật chạy ngoài main thread thông qua [Comlink](https://github.com/GoogleChromeLabs/comlink).
+- **Offline-first**: Các công cụ văn bản xử lý hoàn toàn phía client.
 - **Cách ly tính năng**: Mỗi công cụ là một module độc lập trong `features/`. Không import chéo giữa các feature.
 - **Dual-target**: Cùng codebase React, phiên bản web deploy lên CDN, phiên bản desktop đóng gói qua Tauri.
 - **Platform detection**: Dùng `isTauri()` từ `@/shared/utils/platform` để bật/tắt tính năng desktop-only (native dialog, file system, auto-update).
@@ -168,8 +160,6 @@ src-tauri/                  # Tauri Rust backend (chỉ dành cho desktop)
 | Ngôn ngữ | TypeScript | 6.x (strict mode) |
 | Styling | TailwindCSS | 4.x |
 | Routing | react-router-dom | 7.x |
-| Worker IPC | Comlink | 4.x |
-| Storage | IndexedDB (via `idb`) | 8.x |
 | Desktop | Tauri | 2.x |
 | Backend Desktop | Rust | 1.77+ |
 | Testing | Vitest + @testing-library/react | latest |
@@ -184,8 +174,6 @@ NovelKit sử dụng dark theme **Warm Charcoal** với các điểm nhấn màu
 |-----------|-------|
 | [AGENTS.md](AGENTS.md) | Hướng dẫn dành cho AI developer — kiến trúc, quy ước, lưu ý |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Hướng dẫn đóng góp |
-| [docs/future_roadmap.md](docs/future_roadmap.md) | Lộ trình phát triển |
-| [docs/quick_translator_tech.md](docs/quick_translator_tech.md) | Chi tiết kỹ thuật engine QT |
 | [docs/text_formatter_tech.md](docs/text_formatter_tech.md) | Chi tiết kỹ thuật Text Formatter |
 | [docs/chapter_splitter_tech.md](docs/chapter_splitter_tech.md) | Chi tiết kỹ thuật Chapter Splitter |
 

@@ -4,7 +4,6 @@ import { ScrollToTop, Header, Footer, Sidebar, StatusBar } from '@/shared/compon
 import { isTauri } from '@/shared/utils/platform';
 import HomePage from '@/features/home/HomePage';
 import TextFormatterPage from '@/features/text-formatter/TextFormatterPage';
-import TranslatorPage from '@/features/translator/TranslatorPage';
 import ChapterSplitterPage from '@/features/chapter-splitter/ChapterSplitterPage';
 import TtcUploaderPage from '@/features/ttc-uploader/TtcUploaderPage';
 import DownloadsPage from '@/features/downloads/DownloadsPage';
@@ -48,7 +47,6 @@ function App() {
       <Route path="/" element={<HomePage />} />
       <Route path="/text-formatter" element={<TextFormatterPage />} />
       <Route path="/chapter-splitter" element={<ChapterSplitterPage />} />
-      <Route path="/quick-translator" element={<TranslatorPage />} />
       <Route path="/ttc-uploader" element={<TtcUploaderPage />} />
       <Route path="/downloads" element={<DownloadsPage />} />
     </Routes>

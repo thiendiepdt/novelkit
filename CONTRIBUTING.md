@@ -41,7 +41,8 @@ src/                        # React frontend (dùng chung web & desktop)
 │   ├── home/               # Trang chủ
 │   ├── text-formatter/     # Công cụ định dạng văn bản
 │   ├── chapter-splitter/   # Công cụ chia chương
-│   └── translator/         # Dịch nhanh (QT Web)
+│   ├── ttc-uploader/       # Quản lý truyện TiemTruyenChu (desktop)
+│   └── downloads/          # Hàng đợi tải xuống (desktop)
 ├── shared/                 # Code dùng chung: utilities, hooks, components
 │   ├── components/         # UI component tái sử dụng
 │   ├── hooks/              # Custom React hooks

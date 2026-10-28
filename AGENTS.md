@@ -19,8 +19,6 @@
 | Language | TypeScript | 6.x (strict mode) |
 | Styling | TailwindCSS | 4.x |
 | Routing | react-router-dom | 7.x |
-| Worker IPC | Comlink | 4.x |
-| Storage | IndexedDB (via `idb`) | 8.x |
 | Desktop | Tauri | 2.x |
 | Desktop Lang | Rust | 1.77+ |
 | Testing | Vitest + @testing-library/react | latest |
@@ -35,7 +33,6 @@ src/                        # React frontend (shared by web & desktop)
 │   ├── home/               # Landing page with tool cards
 │   ├── text-formatter/     # Format novel text (trim, dedupe blank lines, detect Chinese)
 │   ├── chapter-splitter/   # Split long chapters into parts by word count
-│   ├── translator/         # Chinese→Vietnamese dictionary-based translator (QT Web)
 │   ├── ttc-uploader/       # TiemTruyenChu book/chapter management (desktop only)
 │   └── downloads/          # Download queue detail page (desktop only)
 ├── shared/                 # Cross-feature shared code
@@ -75,7 +72,7 @@ src-tauri/                  # Tauri Rust backend (desktop only)
 
 ```
 ✅ features/chapter-splitter → shared/components/FullscreenPreview
-✅ features/translator → shared/utils/clipboard
+✅ features/text-formatter → shared/utils/clipboard
 ❌ features/chapter-splitter → features/text-formatter/components/...
 ```
 
@@ -164,37 +161,6 @@ The app uses a **Warm Charcoal Xianxia** dark theme. All colors are defined as C
 - Settings persisted via the `usePersistentState` hook (user data store on desktop, localStorage on the web)
 - Debounced chapter boundary detection (300ms) to avoid lag on keystrokes
 - Large input detection (>10k words) switches to compact summary view
-
-### Quick Translator (`features/translator/`)
-
-**Purpose**: Dictionary-based Chinese→Vietnamese translation, inspired by the classic QuickTranslator C# tool.
-
-**Architecture**:
-```
-UI (TranslatorPage)
-  ↓ Comlink RPC
-Web Worker (translator.worker.ts)
-  ├── DictionaryLoader (fetch + IndexedDB cache)
-  ├── DictionaryManager (in-memory Map lookups)
-  └── TranslatorEngine (longest-match tokenizer)
-```
-
-**Translation algorithm**:
-1. Longest-match-first: scan up to 20 characters ahead
-2. Priority: Name dict → VietPhrase dict → HanViet (single char) → unmapped
-3. Post-processing: collapse adjacent latin/punctuation tokens to reduce DOM nodes
-
-**Dictionary format**: Plain text files, one entry per line: `key=value`
-- `VietPhrase.txt` — multi-char phrase translations
-- `Names.txt` — proper nouns (character names, place names)
-- `HanViet.txt` — single-character Sino-Vietnamese readings
-
-**Token types** (defined in `engine/types.ts`):
-- `vietphrase` — matched from VietPhrase dictionary
-- `name` — matched from Name dictionary (displayed in purple)
-- `hanviet` — single char Sino-Vietnamese reading
-- `chinese_unmapped` — Chinese char with no dictionary entry (displayed in red)
-- `latin` / `punctuation` — non-Chinese characters
 
 ### TTC Uploader (`features/ttc-uploader/`)
 
@@ -290,22 +256,7 @@ Use `CHINESE_CHAR_REGEX` from `@/shared/utils/regex` as the single source of tru
 
 This means word counts are approximate for mixed-language text.
 
-### 3. Web Worker Lifecycle
-The translator uses a Comlink-wrapped Web Worker. Key rules:
-- Worker is initialized once via `useTranslatorWorker` hook
-- `api` reference from `useRef` may be null on first render
-- Always check `isReady` before calling `api.translate()`
-- Worker is terminated on component unmount (cleanup in useEffect)
-
-### 4. IndexedDB for Dictionary Caching
-Dictionaries are cached in IndexedDB (`cv_translator_db`). The loader:
-1. Checks IDB cache first
-2. Falls back to network fetch (remote URL → local `/public/dictionaries/`)
-3. Caches fetched content asynchronously (non-blocking)
-
-⚠️ Dictionary updates via `updateDictionary()` are **in-memory only** — they don't persist to IDB. This is a known limitation.
-
-### 5. TailwindCSS v4 Specifics
+### 3. TailwindCSS v4 Specifics
 This project uses TailwindCSS v4 with the new `@theme` directive (not `tailwind.config.js`). Custom colors are defined in `index.css`:
 ```css
 @theme {
@@ -380,10 +331,10 @@ npm run build:desktop # Desktop installer/executable
 
 ### Common Pitfalls
 
-#### 6. Tauri Plugin Permissions
+#### 4. Tauri Plugin Permissions
 Tauri v2 uses a capabilities-based security model. Every plugin API call must be explicitly allowed in `src-tauri/capabilities/default.json`. If a Tauri API call silently fails, check the capabilities file first.
 
-#### 7. Platform-Gated Code
+#### 5. Platform-Gated Code
 Never call `@tauri-apps/api` or `@tauri-apps/plugin-*` directly at module top-level. Always use dynamic `import()` behind `isTauri()` to avoid crashes in the browser:
 
 ```typescript
@@ -397,17 +348,17 @@ if (isTauri()) {
 import { readTextFile } from '@tauri-apps/plugin-fs';
 ```
 
-#### 8. TTC Accounts and Session Cookies
+#### 6. TTC Accounts and Session Cookies
 The app can be logged into several TTC accounts; one is active. They live in `TtcSession` (managed state) and in `ttc_accounts.json` in the app data dir (the single-account `ttc_session.dat` of 1.2.x is migrated on first start). Always use `get_session()` (active account) or `get_session_for(app, account)` from `client.rs` — never access `TtcSession` directly in command handlers.
 - Cookies never cross IPC: the frontend gets `{ username, displayName, needsLogin }` only.
 - Work that runs later (upload / download queue jobs) carries `account` in its options and must resolve the cookie with `get_session_for`, so switching accounts never moves a queued job to another account.
 - `ttc_open_login` clears the TTC cookies of the shared webview store first; otherwise the login window silently reopens the last account.
 - `TtcWorkspace` in `TtcUploaderPage` is keyed by the active username: a switch remounts it, which drops the open book, modals and in-flight requests of the previous account.
 
-#### 8b. Persisted Frontend State
+#### 6b. Persisted Frontend State
 Use `usePersistentState` (or `storeGet` / `storeSet` from `shared/utils/persistentStore`), never `localStorage` directly. On desktop the values live in `user_data.json` (Rust `user_store`), loaded into memory by `initPersistentStore()` in `main.tsx` before the first render; on the web they stay in localStorage. The first desktop run copied every localStorage key into the file and left localStorage untouched (older versions still read it).
 
-#### 9. Tauri Managed State in TTC Backend
+#### 7. Tauri Managed State in TTC Backend
 Three structs are registered as Tauri managed state for the TTC feature:
 - `TtcClient` — shared `reqwest::Client` for connection pooling
 - `TtcSession` — the TTC accounts (cookies) with disk persistence
@@ -416,19 +367,5 @@ Three structs are registered as Tauri managed state for the TTC feature:
 
 Access via `app.state::<TtcClient>()` etc. Do NOT create new `reqwest::Client` instances in commands.
 
-#### 10. Cover Image Upload via IPC
+#### 8. Cover Image Upload via IPC
 Cover images are cropped in the browser canvas, converted to `Uint8Array`, then transferred to Rust via `Array.from(bytes)` for IPC serialization. The Rust side receives `Vec<u8>` and uploads as multipart form data. This works but is memory-intensive for large images.
-
-## Roadmap Reference
-
-See `docs/future_roadmap.md` for planned features:
-- Virtual scrolling for large token sets
-- Cloud dictionary synchronization
-- AI-powered contextual translation
-- WYSIWYG parallel editor
-- Export to .docx format
-- Desktop: native file system integration
-- Desktop: system tray with quick actions
-- Desktop: auto-update via GitHub releases
-- Desktop: book upload & local library management
-- Desktop: integrated book crawler
