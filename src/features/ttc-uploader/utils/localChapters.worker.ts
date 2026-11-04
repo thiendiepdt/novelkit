@@ -7,6 +7,10 @@ const api = {
   firstChapter(files: ChapterFile[], opts: LocalParseOptions) {
     return parseLocalChapters(files, opts).find(c => c.index === 1) ?? null;
   },
+  /** Every chapter of the folder, numbered as on TTC (for the "Quét chương mới" comparison). */
+  allChapters(files: ChapterFile[], opts: LocalParseOptions) {
+    return parseLocalChapters(files, opts);
+  },
 };
 
 export type LocalChaptersWorkerApi = typeof api;

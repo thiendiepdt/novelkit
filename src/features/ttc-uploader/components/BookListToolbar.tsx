@@ -1,4 +1,4 @@
-import { Hourglass, Plus } from 'lucide-react';
+import { Hourglass, Plus, ScanSearch } from 'lucide-react';
 import { Pagination } from '@/shared/components';
 import { STATUS_OPTIONS } from '../constants';
 import type { BookStatus } from '../constants';
@@ -18,6 +18,8 @@ interface BookListToolbarProps {
   onRefresh: () => void;
   onCreate: () => void;
   onCheckAbandon: () => void;
+  /** Open "Quét chương mới": stories whose folder is ahead of TTC. */
+  onScanSync: () => void;
 }
 
 /**
@@ -38,6 +40,7 @@ export function BookListToolbar({
   onRefresh,
   onCreate,
   onCheckAbandon,
+  onScanSync,
 }: BookListToolbarProps) {
   return (
     <div className="flex-shrink-0">
@@ -99,6 +102,13 @@ export function BookListToolbar({
               className="text-xs text-text-secondary hover:text-gold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-bg-hover"
             >
               <span>↻</span> <span className="hidden sm:inline">{loadingBooks ? 'Đang tải...' : 'Làm mới'}</span>
+            </button>
+            <button
+              onClick={onScanSync}
+              title="Quét truyện có chương mới trong folder hoặc chương khác với TTC, rồi upload hàng loạt"
+              className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+            >
+              <ScanSearch size={14} /> Quét chương mới
             </button>
             <button
               onClick={onCheckAbandon}

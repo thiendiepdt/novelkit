@@ -35,7 +35,31 @@ const EDIT_PAGE = `<html><body>
   <input type="radio" name="status" value="ongoing" checked>
 </form></body></html>`;
 
-const QIDIAN_PAGE = `<html><script id="vite-plugin-ssr_pageContext" type="application/json">${JSON.stringify({
+/** A story waiting for approval: TTC's create form, filled in (the type is a select there). */
+const PENDING_PAGE = `<html><body>
+<form id="storyForm" action="/sua-truyen/27364" method="POST">
+  <input type="hidden" name="_csrf" value="tok123">
+  <input type="text" name="title" value="Thi Đại Học Thức Tỉnh Decade" required>
+  <input type="radio" name="gender" value="Nam" checked><input type="radio" name="gender" value="Nữ">
+  <select name="type" id="typeSelect">
+    <option value="truyen-cv" selected>Truyện Convert</option>
+    <option value="truyen-dich">Truyện Dịch</option>
+    <option value="sang-tac">Truyện Sáng Tác</option>
+  </select>
+  <input type="radio" name="story_length" value="Truyện dài" checked><input type="radio" name="story_length" value="Truyện ngắn">
+  <input type="text" name="chinese_title" value="高考觉醒帝骑" required>
+  <input type="url" name="chinese_link" value="https://www.qidian.com/book/1049511732/" required>
+  <input type="text" name="author" value="Khán Ngã Nhất Mệnh Thông Quan" required>
+  <input type="text" name="author_original" value="看我壹掵通关" required>
+  <select name="category"><option value="Đô thị" selected>Đô thị</option><option value="Huyền huyễn">Huyền huyễn</option></select>
+  <select name="sub_categories"><option value="" selected>Vui lòng chọn</option><option value="Cơ Trí">Cơ Trí</option></select>
+  <select name="sub_categories"><option value="">Vui lòng chọn</option><option value="Đô Thị Dị Năng" selected>Đô Thị Dị Năng</option></select>
+  <select name="sub_categories"><option value="Sảng Văn" selected>Sảng Văn</option></select>
+  <textarea name="description">Giới thiệu cũ.</textarea>
+  <input type="radio" name="status" value="ongoing" checked>
+</form></body></html>`;
+
+const QIDIAN_PAGE =`<html><script id="vite-plugin-ssr_pageContext" type="application/json">${JSON.stringify({
   pageContext: {
     pageProps: {
       pageData: {
@@ -88,13 +112,13 @@ function setAiKey(apiKey: string) {
   localStorage.setItem('nk_global_settings', JSON.stringify({ ai: { provider: 'gemini', gemini: { apiKey } } }));
 }
 
-function renderModal() {
+function renderModal({ pending = false } = {}) {
   const onClose = vi.fn();
   const onSuccess = vi.fn();
   render(
     <SettingsProvider>
       <SettingsModalProvider>
-        <EditBookModal bookId={27364} onClose={onClose} onSuccess={onSuccess} />
+        <EditBookModal bookId={27364} pending={pending} onClose={onClose} onSuccess={onSuccess} />
       </SettingsModalProvider>
     </SettingsProvider>,
   );
@@ -256,5 +280,76 @@ describe('EditBookModal AI re-fill', () => {
     expect((await screen.findByRole('alert')).textContent).toBe('Không tải được dữ liệu từ m.qidian.com: hết thời gian chờ');
     expect(field('description').value).toBe('Giới thiệu cũ.');
     expect(callsOf('ai_generate_json')).toHaveLength(0);
+  });
+});
+
+describe('EditBookModal for a story waiting for approval', () => {
+  beforeEach(() => {
+    localStorage.clear();
+    invokeMock.mockReset();
+  });
+
+  const pendingBackend = () => mockBackend([null], { ttc_fetch_html: () => PENDING_PAGE, ttc_submit_multipart: () => null });
+  const pressed = (name: string) => screen.getByRole('button', { name }).getAttribute('aria-pressed');
+
+  it('edits every field, including the ones TTC locks after approval', async () => {
+    pendingBackend();
+    const { onSuccess } = renderModal({ pending: true });
+
+    await waitFor(() => expect(field('title').value).toBe('Thi Đại Học Thức Tỉnh Decade'));
+    // Read from the select of the page, not defaulted to "Truyện Dịch".
+    expect(pressed('Truyện Convert')).toBe('true');
+    const selects = Array.from(document.querySelectorAll('#editBookForm select')) as HTMLSelectElement[];
+    // Sub-categories keep their position: no tính cách, then bối cảnh and lưu phái.
+    expect(selects.map((s) => s.value)).toEqual(['Đô thị', '', 'Đô Thị Dị Năng', 'Sảng Văn']);
+
+    fireEvent.change(field('title'), { target: { value: 'Thi Đại Học Thức Tỉnh Đế Kỵ ' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Truyện Nữ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Truyện ngắn' }));
+    fireEvent.change(field('chinese_title'), { target: { value: '高考觉醒帝骑2' } });
+    fireEvent.change(field('author_original'), { target: { value: '看我一命通关' } });
+    fireEvent.submit(document.getElementById('editBookForm')!);
+
+    await waitFor(() => expect(onSuccess).toHaveBeenCalled());
+    const { path, fields } = callsOf('ttc_submit_multipart')[0][1] as { path: string; fields: [string, string][] };
+    expect(path).toBe('/sua-truyen/27364');
+    expect(fields).toEqual(
+      expect.arrayContaining([
+        ['title', 'Thi Đại Học Thức Tỉnh Đế Kỵ'],
+        ['type', 'truyen-cv'],
+        ['gender', 'Nữ'],
+        ['story_length', 'Truyện ngắn'],
+        ['chinese_title', '高考觉醒帝骑2'],
+        ['chinese_link', 'https://www.qidian.com/book/1049511732/'],
+        ['author_original', '看我一命通关'],
+      ]),
+    );
+    expect(fields.filter(([name]) => name === 'sub_categories')).toEqual([
+      ['sub_categories', 'Đô Thị Dị Năng'],
+      ['sub_categories', 'Sảng Văn'],
+    ]);
+  });
+
+  it('hides the Chinese source of a "Sáng Tác" story, like the form of TTC', async () => {
+    pendingBackend();
+    renderModal({ pending: true });
+
+    await waitFor(() => expect(field('chinese_title')).toBeTruthy());
+    fireEvent.click(screen.getByRole('button', { name: 'Truyện Sáng Tác' }));
+    expect(field('chinese_title')).toBeNull();
+    expect(field('chinese_link')).toBeNull();
+    expect(field('author_original')).toBeNull();
+    expect(field('author')).toBeTruthy();
+  });
+
+  it('keeps those fields read-only for an approved story', async () => {
+    mockBackend();
+    renderModal();
+
+    expect(await screen.findByText('Thi Đại Học Thức Tỉnh Decade')).toBeTruthy();
+    expect(field('title')).toBeNull();
+    expect(field('chinese_title')).toBeNull();
+    expect(screen.queryByRole('group', { name: 'Loại truyện' })).toBeNull();
+    expect(field('author')).toBeTruthy();
   });
 });

@@ -4,12 +4,11 @@ import { useSettingsContext } from '@/features/settings/context/SettingsContext'
 import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
 import type { ChapterFile } from '@/features/chapter-splitter/utils/splitter';
 import { isPendingApproval } from '../types';
-import type { TtcStory, TtcBooksResponse, TtcChaptersResponse, ParsedChapter, UploadOptions } from '../types';
+import type { TtcStory, TtcChaptersResponse, ParsedChapter, UploadOptions } from '../types';
 import { parseOptionsFromSettings, applyChapterPrices } from '../utils/localChapters';
 import { createChapterParser, type ChapterParser } from '../utils/chapterParser';
 import { daysSinceUpdate, sameChapterTitle } from '../utils/abandon';
-
-const BOOKS_PAGE_SIZE = 50;
+import { fetchAllBooks } from '../utils/ttcLists';
 
 export type AbandonRowState =
   | { kind: 'waiting' }
@@ -29,24 +28,6 @@ export interface AbandonRow {
 function errorMessage(e: unknown): string {
   if (e instanceof Error && e.message) return e.message;
   return String(e);
-}
-
-async function fetchAllOngoingBooks(): Promise<TtcStory[]> {
-  const all: TtcStory[] = [];
-  let page = 1;
-  let totalPages = 1;
-  do {
-    const resp = await invoke<TtcBooksResponse>('ttc_fetch_books', {
-      page,
-      limit: BOOKS_PAGE_SIZE,
-      keyword: null,
-      status: 'ongoing',
-    });
-    all.push(...resp.stories);
-    totalPages = resp.totalPages;
-    page++;
-  } while (page <= totalPages);
-  return all;
 }
 
 /**
@@ -152,7 +133,7 @@ export function useAbandonCheck(account?: string | null) {
 
     let books: TtcStory[];
     try {
-      books = await fetchAllOngoingBooks();
+      books = await fetchAllBooks('ongoing');
     } catch (e) {
       if (runId === runIdRef.current) {
         setError(`Không tải được danh sách truyện: ${errorMessage(e)}`);

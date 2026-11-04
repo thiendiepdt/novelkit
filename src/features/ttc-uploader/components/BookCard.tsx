@@ -1,4 +1,4 @@
-import { Clock, Trash2 } from 'lucide-react';
+import { Clock, ListOrdered, Pencil, Trash2 } from 'lucide-react';
 import { isPendingApproval } from '../types';
 import type { TtcStory } from '../types';
 import ProxiedImage from './ProxiedImage';
@@ -11,6 +11,10 @@ interface BookCardProps {
   /** Offered only for stories still waiting for approval. */
   onDelete: (book: TtcStory) => void;
 }
+
+/** Shared shape of the card actions: large enough to hit without aiming. */
+const ACTION_CLASS =
+  'h-9 px-4 rounded-lg text-sm font-medium inline-flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2';
 
 /**
  * Compact book card showing poster, metadata, and action buttons.
@@ -46,31 +50,41 @@ export function BookCard({ book, onEdit, onResync, onDelete }: BookCardProps) {
             </p>
           )}
         </div>
-        <div className="flex flex-col sm:flex-row gap-2 flex-shrink-0">
+        <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0 self-center">
           {pending && (
             <Tooltip content="Xóa truyện đang chờ duyệt khỏi TTC (không hoàn tác được)" side="top">
               <button
+                type="button"
                 onClick={() => onDelete(book)}
-                className="px-3 py-1 bg-crimson/10 text-crimson border border-crimson/20 text-xs font-medium rounded-lg hover:bg-crimson/20 hover:border-crimson/30 transition-colors cursor-pointer inline-flex items-center gap-1"
+                className={`${ACTION_CLASS} mr-2 border border-crimson/30 bg-crimson/10 text-crimson hover:bg-crimson/20 hover:border-crimson/50 focus-visible:ring-crimson/60`}
               >
-                <Trash2 size={12} /> Xóa
+                <Trash2 size={16} /> Xóa
               </button>
             </Tooltip>
           )}
-          <Tooltip content="Sửa thông tin truyện (tác giả, thể loại, ảnh bìa...)" side="top">
+          <Tooltip
+            content={
+              pending
+                ? 'Sửa thông tin truyện: đang chờ duyệt nên sửa được tất cả, kể cả tên truyện, loại truyện, nguồn tiếng Trung'
+                : 'Sửa thông tin truyện (tác giả, thể loại, ảnh bìa...)'
+            }
+            side="top"
+          >
             <button
+              type="button"
               onClick={() => onEdit(book.id)}
-              className="px-3 py-1 bg-jade/10 text-jade border border-jade/20 text-xs font-medium rounded-lg hover:bg-jade/20 hover:border-jade/30 transition-colors cursor-pointer"
+              className={`${ACTION_CLASS} border border-border-main bg-bg-hover text-text-primary hover:border-jade/50 hover:text-jade focus-visible:ring-jade/60`}
             >
-              ✏ Sửa
+              <Pencil size={16} /> Sửa
             </button>
           </Tooltip>
-          <Tooltip content="Mở trang đồng bộ chương từ folder trong máy lên TTC" side="top">
+          <Tooltip content="Danh sách chương trên TTC: upload, so sánh với folder trong máy, tải về" side="top">
             <button
+              type="button"
               onClick={() => onResync(book)}
-              className="px-3 py-1 bg-gold/15 text-gold text-xs font-medium rounded-lg hover:bg-gold/25 transition-colors cursor-pointer"
+              className={`${ACTION_CLASS} bg-gold text-bg-primary font-semibold shadow-sm hover:bg-gold/90 focus-visible:ring-gold/60`}
             >
-              Đồng bộ
+              <ListOrdered size={16} /> Quản lý chương
             </button>
           </Tooltip>
         </div>

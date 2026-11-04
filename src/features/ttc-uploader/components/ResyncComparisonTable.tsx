@@ -2,6 +2,7 @@ import type { TtcChapter, ParsedChapter, SyncMode } from '../types';
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { Scale, Lightbulb, ChevronLeft, ChevronRight } from 'lucide-react';
 import { Tooltip } from '@/shared/components';
+import { compareChapters } from '../utils/syncCompare';
 
 const ROWS_PER_PAGE = 100;
 
@@ -20,47 +21,13 @@ export function ResyncComparisonTable({
 }: ResyncComparisonTableProps) {
   const [page, setPage] = useState(0);
 
-  // Compute analysis and recommendation
+  // Compute analysis and recommendation (remoteChapters is pre-sorted ascending in the hook)
   const analysis = useMemo(() => {
-    let hasChanges = false;
-    let newChaptersCount = 0;
-    let firstChangedIndex: number | null = null;
-
-    // remoteChapters is pre-sorted ascending in hook (fetchAllRemoteChapters)
-    const rows = localChapters.map((local) => {
-      const remote = remoteChapters[local.index - 1] ?? null;
-      
-      let status: 'match' | 'changed' | 'new' = 'match';
-      let statusText = 'Khớp (Bỏ qua)';
-      
-      if (!remote) {
-        status = 'new';
-        statusText = 'Chương mới (Thêm vào)';
-        newChaptersCount++;
-      } else {
-        // Check title mismatch (catches renumbering from chapter splits)
-        const titleChanged = local.title.trim() !== remote.title.trim();
-        // Allow ~3% variance in word count
-        const larger = Math.max(local.word_count, remote.wordCount);
-        const diff = Math.abs(local.word_count - remote.wordCount);
-        const wordCountChanged = larger > 0 && diff / larger > 0.03;
-
-        if (titleChanged || wordCountChanged) {
-          status = 'changed';
-          statusText = titleChanged ? 'Có thay đổi (Cần ghi đè)' : 'Có thay đổi (Cần ghi đè)';
-          hasChanges = true;
-          if (firstChangedIndex === null) firstChangedIndex = local.index;
-        }
-      }
-
-      return { local, remote, status, statusText };
-    });
-
-    // Last local chapter's index (accounts for skipChapters offset, which makes
-    // indices run from 1+skip .. length+skip rather than 1 .. length).
-    const maxLocalIndex = localChapters.length > 0
-      ? localChapters[localChapters.length - 1].index
-      : 0;
+    const compared = compareChapters(localChapters, remoteChapters);
+    const STATUS_TEXT = { match: 'Khớp (Bỏ qua)', changed: 'Có thay đổi (Cần ghi đè)', new: 'Chương mới (Thêm vào)' } as const;
+    const rows = compared.rows.map((row) => ({ ...row, statusText: STATUS_TEXT[row.status] }));
+    const { newCount: newChaptersCount, firstChangedIndex, maxLocalIndex } = compared;
+    const hasChanges = firstChangedIndex !== null;
 
     let recommendedMode: SyncMode = 'all';
     let recFromIndex = 1;
@@ -75,7 +42,7 @@ export function ResyncComparisonTable({
       recFromIndex = firstChangedIndex || 1;
       recToIndex = maxLocalIndex;
       recommendationText = `Phát hiện thay đổi từ chương ${recFromIndex}. Đề xuất: Ghi đè theo vùng (Range) từ chương ${recFromIndex} đến ${recToIndex}.`;
-    } else if (newChaptersCount === 0 && !hasChanges) {
+    } else {
       recommendedMode = 'all';
       recommendationText = 'Mọi chương đều khớp. Không cần cập nhật.';
     }
@@ -93,19 +60,22 @@ export function ResyncComparisonTable({
   const scrollContainerRef = useRef<HTMLDivElement>(null);
   const [scrollTriggerId, setScrollTriggerId] = useState(0);
 
-  // Auto-navigate to the page containing the first changed chapter, or reset to 0
-  useEffect(() => {
-    if (analysis.firstChangedIndex !== null) {
-      const targetArrayIndex = analysis.rows.findIndex(r => r.local.index === analysis.firstChangedIndex);
-      if (targetArrayIndex >= 0) {
-        const targetPage = Math.floor(targetArrayIndex / ROWS_PER_PAGE);
-        setPage(targetPage);
-        setScrollTriggerId(id => id + 1); // Trigger scroll
-        return;
-      }
+  // Auto-navigate to the page containing the first changed chapter, or reset to 0, whenever
+  // the comparison changes. Adjusted while rendering (React's pattern for state derived from
+  // props) rather than in an effect; null at first so the initial comparison navigates too.
+  const [navigatedFor, setNavigatedFor] = useState<typeof analysis | null>(null);
+  if (navigatedFor !== analysis) {
+    setNavigatedFor(analysis);
+    const targetArrayIndex = analysis.firstChangedIndex === null
+      ? -1
+      : analysis.rows.findIndex(r => r.local.index === analysis.firstChangedIndex);
+    if (targetArrayIndex >= 0) {
+      setPage(Math.floor(targetArrayIndex / ROWS_PER_PAGE));
+      setScrollTriggerId(id => id + 1); // Trigger scroll
+    } else {
+      setPage(0);
     }
-    setPage(0);
-  }, [localChapters, remoteChapters, analysis.firstChangedIndex, analysis.rows]);
+  }
 
   // Auto-scroll to the row
   useEffect(() => {

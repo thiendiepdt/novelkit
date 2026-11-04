@@ -1,21 +1,33 @@
 import { useState, useEffect } from 'react';
 import { open } from '@tauri-apps/plugin-dialog';
 import { invoke } from '@tauri-apps/api/core';
-import { AlertTriangle, Check, ImageDown, RotateCw, Sparkles } from 'lucide-react';
+import { AlertTriangle, Check, Clock, ImageDown, RotateCw, Sparkles } from 'lucide-react';
 import { Select } from '@/shared/components';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 import { fetchEditBookForm, submitEditBookForm, uploadCover } from '../api';
 import { titleUsesToi } from '../ai/fill';
+import { BOOK_TYPE_OPTIONS, GENDER_OPTIONS, LENGTH_OPTIONS } from '../constants';
 import { useSourceRefill } from '../hooks/useSourceRefill';
 import { SOURCE_LABELS } from '../sources';
 import type { EditBookForm, EditBookData } from '../types';
 import { CoverCropperModal } from './CoverCropperModal';
+import { Segmented } from './Segmented';
+import { TitleCaseInput } from './TitleCaseInput';
 
 interface EditBookModalProps {
   bookId: number;
+  /**
+   * The story still waits for approval: TTC lets every field be edited then (title, type,
+   * Chinese source...), not only the ones an approved story keeps open.
+   */
+  pending?: boolean;
   onClose: () => void;
   onSuccess: () => void;
 }
+
+const INPUT_CLASS =
+  'w-full px-3 py-2 bg-bg-hover border border-border-main rounded-lg text-sm text-text-primary focus:outline-none focus:border-gold/50';
+const LABEL_CLASS = 'text-xs text-text-dim font-medium uppercase tracking-wider block';
 
 /** Rust commands reject with a bare string (e.g. "HTTP 504 Gateway Timeout"), JS code with an Error. */
 function errorMessage(e: unknown, fallback: string): string {
@@ -24,7 +36,7 @@ function errorMessage(e: unknown, fallback: string): string {
   return fallback;
 }
 
-export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps) {
+export function EditBookModal({ bookId, pending = false, onClose, onSuccess }: EditBookModalProps) {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [uploadingCover, setUploadingCover] = useState(false);
@@ -46,6 +58,7 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
   /** The model's title for the story; applied only on request, titles of existing stories are not changed quietly. */
   const [suggestedTitle, setSuggestedTitle] = useState<string | null>(null);
   const busy = submitting || uploadingCover || refill.step !== null;
+  const isOriginal = formData?.type === 'sang-tac';
 
   useEffect(() => {
     let mounted = true;
@@ -74,6 +87,10 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement | HTMLTextAreaElement | HTMLSelectElement>) => {
     const { name, value } = e.target;
+    setFormData(prev => prev ? { ...prev, [name]: value } : null);
+  };
+
+  const setField = (name: keyof EditBookData, value: string) => {
     setFormData(prev => prev ? { ...prev, [name]: value } : null);
   };
 
@@ -264,26 +281,35 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                 </div>
               )}
 
-              {/* Read-only info banner */}
+              {/* Read-only info banner (an approved story); a pending story edits these fields below */}
               <div className="flex flex-wrap gap-4 p-3 bg-bg-hover/50 rounded-lg border border-border-main text-xs">
-                <div className="flex flex-col gap-1 w-[45%]">
-                  <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Tên truyện</span>
-                  <span className="text-text-secondary font-semibold">{formData.title}</span>
-                </div>
-                <div className="flex flex-col gap-1 w-[45%]">
-                  <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Tên tiếng trung</span>
-                  <span className="text-text-secondary">{formData.chinese_title || 'N/A'}</span>
-                </div>
-                <div className="flex flex-col gap-1 w-[45%] mt-2">
-                  <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Giới tính & Loại</span>
-                  <span className="text-text-secondary">{formData.gender} • {formData.type === 'truyen-dich' ? 'Truyện Dịch' : formData.type === 'truyen-cv' ? 'Truyện Convert' : 'Sáng Tác'} • {formData.story_length}</span>
-                </div>
-                <div className="flex flex-col gap-1 w-[45%] mt-2">
-                  <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Link gốc</span>
-                  <a href={formData.chinese_link} target="_blank" rel="noreferrer" className="text-gold hover:underline truncate">
-                    {formData.chinese_link || 'Không có'}
-                  </a>
-                </div>
+                {pending ? (
+                  <div className="w-full flex items-center gap-1.5 text-gold">
+                    <Clock size={12} className="flex-shrink-0" />
+                    Truyện đang chờ duyệt: sửa được mọi thông tin, kể cả tên truyện, loại truyện và nguồn tiếng Trung.
+                  </div>
+                ) : (
+                  <>
+                    <div className="flex flex-col gap-1 w-[45%]">
+                      <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Tên truyện</span>
+                      <span className="text-text-secondary font-semibold">{formData.title}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 w-[45%]">
+                      <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Tên tiếng trung</span>
+                      <span className="text-text-secondary">{formData.chinese_title || 'N/A'}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 w-[45%] mt-2">
+                      <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Giới tính & Loại</span>
+                      <span className="text-text-secondary">{formData.gender} • {formData.type === 'truyen-dich' ? 'Truyện Dịch' : formData.type === 'truyen-cv' ? 'Truyện Convert' : 'Sáng Tác'} • {formData.story_length}</span>
+                    </div>
+                    <div className="flex flex-col gap-1 w-[45%] mt-2">
+                      <span className="text-text-dim font-medium uppercase tracking-wider text-[10px]">Link gốc</span>
+                      <a href={formData.chinese_link} target="_blank" rel="noreferrer" className="text-gold hover:underline truncate">
+                        {formData.chinese_link || 'Không có'}
+                      </a>
+                    </div>
+                  </>
+                )}
 
                 <div className="flex flex-col gap-2 w-full mt-2 border-t border-border-main/30 pt-3">
                   <div className="flex flex-wrap items-center justify-between gap-2">
@@ -414,19 +440,94 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
 
               {/* Editable Fields */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-x-6 gap-y-4">
-                <div className="space-y-2">
-                  <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">
+                {/* The fields TTC locks once a story is approved, in the order of its create form */}
+                {pending && (
+                  <>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className={LABEL_CLASS}>Loại truyện</label>
+                      <Segmented label="Loại truyện" value={formData.type} onChange={(v) => setField('type', v)} options={BOOK_TYPE_OPTIONS} />
+                    </div>
+                    <div className="space-y-2 md:col-span-2">
+                      <label className={LABEL_CLASS}>
+                        Tên truyện <span className="text-crimson">*</span>
+                      </label>
+                      <TitleCaseInput
+                        name="title"
+                        value={formData.title}
+                        onValueChange={(v) => setField('title', v)}
+                        placeholder="Tên tiếng Việt"
+                        required
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <label className={LABEL_CLASS}>Giới tính</label>
+                      <Segmented label="Giới tính" value={formData.gender} onChange={(v) => setField('gender', v)} options={GENDER_OPTIONS} />
+                    </div>
+                    <div className="space-y-2">
+                      <label className={LABEL_CLASS}>Độ dài</label>
+                      <Segmented
+                        label="Độ dài"
+                        value={formData.story_length}
+                        onChange={(v) => setField('story_length', v)}
+                        options={LENGTH_OPTIONS}
+                      />
+                    </div>
+                    {/* "Sáng Tác" stories have no Chinese source: TTC hides these, like its create form */}
+                    {!isOriginal && (
+                      <>
+                        <div className="space-y-2">
+                          <label className={LABEL_CLASS}>
+                            Tên tiếng Trung <span className="text-crimson">*</span>
+                          </label>
+                          <input
+                            type="text"
+                            name="chinese_title"
+                            value={formData.chinese_title}
+                            onChange={handleChange}
+                            placeholder="Tên tiếng Trung"
+                            required
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <label className={LABEL_CLASS}>
+                            Link tiếng Trung <span className="text-crimson">*</span>
+                          </label>
+                          <input
+                            type="url"
+                            name="chinese_link"
+                            value={formData.chinese_link}
+                            onChange={handleChange}
+                            placeholder="Link tiếng Trung"
+                            required
+                            className={INPUT_CLASS}
+                          />
+                        </div>
+                      </>
+                    )}
+                  </>
+                )}
+
+                <div className={`space-y-2 ${pending && isOriginal ? 'md:col-span-2' : ''}`}>
+                  <label className={LABEL_CLASS}>
                     Tên tác giả hiển thị <span className="text-crimson">*</span>
                   </label>
-                  <input
-                    type="text"
-                    name="author"
-                    value={formData.author}
-                    onChange={handleChange}
-                    required
-                    className="w-full px-3 py-2 bg-bg-hover border border-border-main rounded-lg text-sm text-text-primary focus:outline-none focus:border-gold/50"
-                  />
+                  <TitleCaseInput name="author" value={formData.author} onValueChange={(v) => setField('author', v)} required />
                 </div>
+                {pending && !isOriginal && (
+                  <div className="space-y-2">
+                    <label className={LABEL_CLASS}>
+                      Tên gốc tác giả <span className="text-crimson">*</span>
+                    </label>
+                    <TitleCaseInput
+                      name="author_original"
+                      value={formData.author_original}
+                      onValueChange={(v) => setField('author_original', v)}
+                      placeholder="Tên gốc tác giả"
+                      required
+                    />
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">
@@ -479,8 +580,8 @@ export function EditBookModal({ bookId, onClose, onSuccess }: EditBookModalProps
                   </Select>
                 </div>
 
-                {/* Lưu phái */}
-                <div className="space-y-2 md:col-span-2">
+                {/* Lưu phái: full width unless the extra fields of a pending story already fill the row */}
+                <div className={`space-y-2 ${pending ? '' : 'md:col-span-2'}`}>
                   <label className="text-xs text-text-dim font-medium uppercase tracking-wider block">Lưu phái</label>
                   <Select
                     value={formData.sub_categories[2] || ''}

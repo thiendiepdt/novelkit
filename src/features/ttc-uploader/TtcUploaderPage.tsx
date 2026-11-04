@@ -19,8 +19,10 @@ import {
   DeleteBookModal,
   AbandonCheckModal,
   AccountSwitcher,
+  SyncScanModal,
 } from './components';
 import { accountLabel } from './utils/accountLabel';
+import { isPendingApproval } from './types';
 import type { TtcAccountInfo, TtcStory } from './types';
 
 export default function TtcUploaderPage() {
@@ -81,6 +83,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
   const [listNotice, setListNotice] = useState<string | null>(null);
   const [showDownloadAllModal, setShowDownloadAllModal] = useState(false);
   const [showAbandonCheck, setShowAbandonCheck] = useState(false);
+  const [showSyncScan, setShowSyncScan] = useState(false);
   const [activeTab, setActiveTab] = useState<'remote' | 'local'>('remote');
 
   // ─── Book selection handlers ────────────────────────────
@@ -297,6 +300,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
             onRefresh={books.refreshBooks}
             onCreate={() => setShowCreateModal(true)}
             onCheckAbandon={() => setShowAbandonCheck(true)}
+            onScanSync={() => setShowSyncScan(true)}
           />
 
           {listNotice && (
@@ -346,6 +350,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
       {editingBookId && (
         <EditBookModal
           bookId={editingBookId}
+          pending={books.books.some((b) => b.id === editingBookId && isPendingApproval(b))}
           onClose={() => setEditingBookId(null)}
           onSuccess={() => {
             setEditingBookId(null);
@@ -360,7 +365,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
           onClose={() => setShowCreateModal(false)}
           onSuccess={(result) => {
             setShowCreateModal(false);
-            setListNotice(`Đã đăng truyện “${result.title}”. Bấm Đồng bộ ở truyện đó để upload chương.`);
+            setListNotice(`Đã đăng truyện “${result.title}”. Bấm Quản lý chương ở truyện đó để upload chương.`);
             books.refreshBooks();
           }}
         />
@@ -376,6 +381,21 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
           }}
           onOpenBook={(book) => {
             setShowAbandonCheck(false);
+            handleSelectBook(book);
+          }}
+        />
+      )}
+
+      {/* "Quét chương mới": stories whose folder is ahead of TTC */}
+      {showSyncScan && (
+        <SyncScanModal
+          account={account.username}
+          onClose={() => {
+            setShowSyncScan(false);
+            books.refreshBooks();
+          }}
+          onOpenBook={(book) => {
+            setShowSyncScan(false);
             handleSelectBook(book);
           }}
         />

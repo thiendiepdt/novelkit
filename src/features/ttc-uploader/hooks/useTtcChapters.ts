@@ -7,6 +7,7 @@ import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
 import type { ChapterFile } from '@/features/chapter-splitter/utils/splitter';
 import { parseLocalChapters, applyChapterPrices } from '../utils/localChapters';
 import { DEFAULT_CHAPTERS_LIMIT } from '../constants';
+import { fetchAllChapters } from '../utils/ttcLists';
 import type {
   TtcStory,
   TtcChapter,
@@ -121,23 +122,8 @@ export function useTtcChapters(selectedBook: TtcStory | null, account?: string |
   const fetchAllRemoteChapters = useCallback(async (bookId: number) => {
     setLoadingAllRemote(true);
     setAllRemoteChapters([]);
-    const limit = 1000;
     try {
-      const first = await invoke<TtcChaptersResponse>('ttc_fetch_chapters', { bookId, page: 1, limit });
-      const allChapters: TtcChapter[] = [...first.chapters];
-
-      // Fetch remaining pages if total > 1000
-      if (first.totalPages > 1) {
-        const rest = await Promise.all(
-          Array.from({ length: first.totalPages - 1 }, (_, i) =>
-            invoke<TtcChaptersResponse>('ttc_fetch_chapters', { bookId, page: i + 2, limit })
-          )
-        );
-        rest.forEach(r => allChapters.push(...r.chapters));
-      }
-
-      allChapters.sort((a, b) => a.chapterNumber - b.chapterNumber);
-      setAllRemoteChapters(allChapters);
+      setAllRemoteChapters(await fetchAllChapters(bookId));
     } catch (e) {
       console.error('Fetch all chapters error:', e);
     } finally {

@@ -1,14 +1,14 @@
-import type { InputHTMLAttributes } from 'react';
 import { AlertTriangle, Ban, Check, ImageDown, ImagePlus, Plus, RotateCw, Scissors, Sparkles, Trash2 } from 'lucide-react';
 import { Select } from '@/shared/components';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 import { useCreateBook } from '../hooks/useCreateBook';
 import type { CreateBookResult } from '../hooks/useCreateBook';
-import { toTitleCase } from '../utils/titleCase';
+import { BOOK_TYPE_OPTIONS, GENDER_OPTIONS, LENGTH_OPTIONS } from '../constants';
 import { SOURCE_NAMES } from '../sources';
-import type { BookType, OptionItem } from '../types';
+import type { OptionItem } from '../types';
 import { CoverCropperModal } from './CoverCropperModal';
 import { Segmented } from './Segmented';
+import { TitleCaseInput } from './TitleCaseInput';
 
 interface CreateBookModalProps {
   onClose: () => void;
@@ -19,46 +19,6 @@ interface CreateBookModalProps {
 const INPUT_CLASS =
   'w-full px-3 py-2 bg-bg-hover border border-border-main rounded-lg text-sm text-text-primary placeholder:text-text-dim focus:outline-none focus:border-gold/50';
 const LABEL_CLASS = 'text-xs text-text-dim font-medium uppercase tracking-wider block';
-
-const TYPE_OPTIONS: { value: BookType; label: string }[] = [
-  { value: 'truyen-cv', label: 'Truyện Convert' },
-  { value: 'truyen-dich', label: 'Truyện Dịch' },
-  { value: 'sang-tac', label: 'Truyện Sáng Tác' },
-];
-
-/** Text input with TTC's "Aa" button: capitalize the first letter of every word. */
-function TitleCaseInput({
-  value,
-  onValueChange,
-  readOnly,
-  ...rest
-}: { value: string; onValueChange: (value: string) => void } & Omit<InputHTMLAttributes<HTMLInputElement>, 'value' | 'onChange'>) {
-  const canConvert = !readOnly && toTitleCase(value) !== value;
-  return (
-    <div className="relative">
-      <input
-        type="text"
-        value={value}
-        onChange={(e) => onValueChange(e.target.value)}
-        readOnly={readOnly}
-        className={`${INPUT_CLASS} pr-12 ${readOnly ? 'opacity-70 cursor-not-allowed' : ''}`}
-        {...rest}
-      />
-      <button
-        type="button"
-        disabled={!canConvert}
-        onClick={() => onValueChange(toTitleCase(value))}
-        title="Viết hoa chữ cái đầu mỗi từ"
-        aria-label="Viết hoa chữ cái đầu mỗi từ"
-        className={`absolute right-1.5 top-1/2 -translate-y-1/2 w-8 h-6 rounded text-xs font-bold transition-colors ${
-          canConvert ? 'bg-gold text-bg-primary cursor-pointer hover:bg-gold/90' : 'bg-bg-card text-text-dim cursor-default'
-        }`}
-      >
-        Aa
-      </button>
-    </div>
-  );
-}
 
 function OptionSelect({
   label,
@@ -201,7 +161,7 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                     translates the title (Hán-Việt for a convert, plain Vietnamese for a translation). */}
                 <div className="space-y-2">
                   <label className={LABEL_CLASS}>Loại truyện</label>
-                  <Segmented label="Loại truyện" value={data.type} onChange={book.setType} options={TYPE_OPTIONS} />
+                  <Segmented label="Loại truyện" value={data.type} onChange={book.setType} options={BOOK_TYPE_OPTIONS} />
                 </div>
 
                 {/* AI fill */}
@@ -286,10 +246,7 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                       label="Giới tính"
                       value={data.gender}
                       onChange={(v) => book.setField('gender', v)}
-                      options={[
-                        { value: 'Nam', label: 'Truyện Nam' },
-                        { value: 'Nữ', label: 'Truyện Nữ' },
-                      ]}
+                      options={GENDER_OPTIONS}
                     />
                   </div>
                   <div className="space-y-2">
@@ -298,10 +255,7 @@ export function CreateBookModal({ onClose, onSuccess }: CreateBookModalProps) {
                       label="Độ dài"
                       value={data.story_length}
                       onChange={(v) => book.setField('story_length', v)}
-                      options={[
-                        { value: 'Truyện dài', label: 'Truyện dài' },
-                        { value: 'Truyện ngắn', label: 'Truyện ngắn' },
-                      ]}
+                      options={LENGTH_OPTIONS}
                     />
                   </div>
 

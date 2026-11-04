@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FolderOpen, Hourglass, Loader2, RefreshCw, Upload } from 'lucide-react';
+import { Hourglass, ListOrdered, Loader2, RefreshCw, Upload } from 'lucide-react';
 import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
 import { usePersistentState } from '@/shared/hooks/usePersistentState';
 import type { UploadJob } from '@/shared/context/uploadQueueDefs';
@@ -218,7 +218,7 @@ export function AbandonCheckModal({ account, onClose, onOpenBook }: AbandonCheck
                     <button
                       type="button"
                       onClick={() => onOpenBook(row.book)}
-                      title="Mở trang đồng bộ của truyện"
+                      title="Mở trang quản lý chương của truyện"
                       className="block max-w-full text-left text-sm font-medium text-text-primary hover:text-gold transition-colors cursor-pointer truncate"
                     >
                       {row.book.title}
@@ -254,10 +254,10 @@ export function AbandonCheckModal({ account, onClose, onOpenBook }: AbandonCheck
                     <button
                       type="button"
                       onClick={() => onOpenBook(row.book)}
-                      title="Mở trang đồng bộ của truyện"
+                      title="Mở trang quản lý chương của truyện"
                       className="px-2.5 py-1 bg-gold/15 text-gold text-xs font-medium rounded-lg hover:bg-gold/25 transition-colors cursor-pointer inline-flex items-center gap-1 whitespace-nowrap"
                     >
-                      <FolderOpen size={12} /> Đồng bộ
+                      <ListOrdered size={12} /> Quản lý chương
                     </button>
                   </div>
                 </li>

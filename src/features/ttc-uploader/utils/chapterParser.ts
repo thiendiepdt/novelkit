@@ -7,6 +7,7 @@ import LocalChaptersWorker from './localChapters.worker?worker';
 
 export interface ChapterParser {
   firstChapter: (files: ChapterFile[], opts: LocalParseOptions) => Promise<ParsedChapter | null>;
+  allChapters: (files: ChapterFile[], opts: LocalParseOptions) => Promise<ParsedChapter[]>;
   dispose: () => void;
 }
 
@@ -19,6 +20,7 @@ export function createChapterParser(): ChapterParser {
   const api = Comlink.wrap<LocalChaptersWorkerApi>(worker);
   return {
     firstChapter: (files, opts) => api.firstChapter(files, opts),
+    allChapters: (files, opts) => api.allChapters(files, opts),
     dispose: () => worker.terminate(),
   };
 }
