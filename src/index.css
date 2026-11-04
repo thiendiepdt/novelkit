@@ -129,6 +129,22 @@ textarea {
   }
 }
 
+/* "+90" chip of the revenue ticker: rises and fades out */
+@keyframes floatUp {
+  0% {
+    opacity: 0;
+    transform: translate(-50%, 4px);
+  }
+  15% {
+    opacity: 1;
+    transform: translate(-50%, 0);
+  }
+  100% {
+    opacity: 0;
+    transform: translate(-50%, -22px);
+  }
+}
+
 @keyframes shimmer {
   0% { background-position: -200% 0; }
   100% { background-position: 200% 0; }

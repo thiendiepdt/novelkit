@@ -49,6 +49,10 @@ pub fn run() {
             ttc::image::ttc_read_local_file,
             // Utils
             ttc::utils::ttc_open_folder,
+            // Revenue: purchase notifications and the daily ledger
+            ttc::revenue::ttc_fetch_purchases,
+            ttc::revenue::revenue_read,
+            ttc::revenue::revenue_write,
             // Source novel sites (Fanqie / QQ / Qidian) for AI fill
             novel_source::source_fetch_text,
             novel_source::source_fetch_image,

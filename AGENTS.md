@@ -62,6 +62,7 @@ src-tauri/                  # Tauri Rust backend (desktop only)
 │       ├── image.rs         # Image proxy with in-memory cache
 │       ├── books.rs         # Book CRUD: fetch list, HTML forms, create story, cover upload
 │       ├── chapters.rs      # Chapter fetch, parse, upload, download commands
+│       ├── revenue.rs       # Purchase notifications page + revenue ledger files (revenue/<user>/)
 │       └── utils.rs         # OS file manager opener, filename sanitization
 ├── capabilities/           # Tauri v2 permission/security config
 ├── icons/                  # App icons for different platforms
@@ -130,7 +131,7 @@ The app uses a **Warm Charcoal Xianxia** dark theme. All colors are defined as C
 
 1. Use **TailwindCSS utility classes** — the project uses TailwindCSS v4 with `@theme` directives
 2. Custom colors are accessed via Tailwind: `text-gold`, `bg-bg-card`, `border-border-main`
-3. Animations are defined as `@keyframes` in `index.css`: `fadeIn`, `overlayIn` (modal backdrops: opacity only, no blur), `slideUp`, `pulse-gold`, `shimmer`, `copySuccess`
+3. Animations are defined as `@keyframes` in `index.css`: `fadeIn`, `overlayIn` (modal backdrops: opacity only, no blur), `slideUp`, `pulse-gold`, `shimmer`, `copySuccess`, `floatUp` (the "+90" chip of the revenue ticker)
 4. **No inline CSS** except for dynamic computed values (e.g., conditional boxShadow)
 5. The font stack is `'Be Vietnam Pro'` loaded from Google Fonts
 
@@ -177,8 +178,16 @@ TtcUploaderPage (orchestrator, ~200 lines)
 Components:
   LoginView, BookCard, BookListToolbar, BookDetailHeader,
   UploadToolbar, ChapterTable, DownloadAllModal,
-  EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage, Segmented,
+  EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage, Segmented, TitleCaseInput,
   AbandonCheckModal ("Check vô hố": reup chương 1 of ongoing stories, via useAbandonCheck)
+  SyncScanModal ("Quét chương mới": stories whose folder is ahead of TTC, via useSyncScan)
+
+Revenue ("Doanh thu", revenue/): RevenueProvider (App, desktop) → RevenueEngine per active account;
+RevenueTicker in the shared Header (today's hoa, counting up) → RevenueModal (days, hours, stories).
+Read from the purchase notifications of TTC, kept as daily totals in revenue/<user>/<YYYY-MM>.json.
+
+Folder vs TTC comparison: utils/syncCompare.ts (compareChapters, planSync) is the single
+source of truth, used by both ResyncComparisonTable and the scan. Full lists: utils/ttcLists.ts.
 
 Create story (CreateBookModal → useCreateBook):
   createBookApi.ts   → parse the /dang-truyen form, build fields, submit, copyright check
@@ -193,6 +202,8 @@ Create story (CreateBookModal → useCreateBook):
 - `image.rs` — `TtcImageCache` + `ttc_proxy_image` (CORS bypass via Rust fetch)
 - `books.rs` — `ttc_fetch_books`, `ttc_fetch_html`, `ttc_submit_multipart`, `ttc_create_story`, `ttc_delete_story`, `ttc_upload_cover`
 - `chapters.rs` — `ttc_fetch_chapters`, `ttc_parse_chapters`, `ttc_upload_chapters`, `ttc_download_chapter`, `ttc_download_all_chapters`
+- `revenue.rs` — `ttc_fetch_purchases` (one page of `/thong-bao?type=purchase` for a named account), `revenue_read` / `revenue_write` (opaque JSON files `revenue/<username>/{sync,YYYY-MM}.json`, names validated)
+- `session.rs` emits `ttc://accounts-changed` (the `AccountsView`) on every account change; `useActiveTtcAccount` follows it
 - `utils.rs` — `ttc_open_folder`, `sanitize_filename`
 
 **Rust backend outside `ttc/`** (used by the create-story AI fill):

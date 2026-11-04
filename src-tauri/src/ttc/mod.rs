@@ -3,6 +3,7 @@ pub mod books;
 pub mod chapters;
 pub mod client;
 pub mod image;
+pub mod revenue;
 pub mod session;
 pub mod types;
 pub mod utils;

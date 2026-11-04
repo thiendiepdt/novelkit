@@ -12,6 +12,7 @@ import { UploadQueueProvider } from '@/shared/context/UploadQueueContext';
 import { SettingsProvider } from '@/features/settings/context/SettingsContext';
 import { SettingsModalProvider } from '@/features/settings/context/SettingsModalContext';
 import { SettingsOverlay } from '@/features/settings/SettingsPage';
+import { RevenueProvider } from '@/features/ttc-uploader/revenue';
 
 function App() {
   // ─── Auto-update check (desktop only) ──────────────────
@@ -58,6 +59,7 @@ function App() {
         <SettingsModalProvider>
           <UploadQueueProvider>
             <DownloadQueueProvider>
+              <RevenueProvider>
               <BrowserRouter>
                 <ScrollToTop />
                 <div className="flex flex-col h-screen overflow-hidden bg-bg-main">
@@ -72,6 +74,7 @@ function App() {
                   <SettingsOverlay />
                 </div>
               </BrowserRouter>
+              </RevenueProvider>
             </DownloadQueueProvider>
           </UploadQueueProvider>
         </SettingsModalProvider>

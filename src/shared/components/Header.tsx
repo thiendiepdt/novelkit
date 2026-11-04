@@ -4,11 +4,13 @@ import { Settings, ArrowLeft } from 'lucide-react';
 import { DownloadQueueManager, UploadQueueManager } from '@/shared/components';
 import { Tooltip } from './Tooltip';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
+import { RevenueTicker } from '@/features/ttc-uploader/revenue';
 
 export default function Header() {
   const location = useLocation();
   const isHome = location.pathname === '/';
   const showHomeLink = !isHome && !isTauri();
+  const showRevenue = location.pathname.startsWith('/ttc-uploader');
   const { openSettings } = useSettingsModal();
 
   return (
@@ -26,6 +28,8 @@ export default function Header() {
         </Link>
 
         <div className="flex items-center gap-4">
+          {/* Renders nothing without RevenueProvider (web) or an active TTC account */}
+          {showRevenue && <RevenueTicker />}
           {showHomeLink && (
             <Link
               to="/"

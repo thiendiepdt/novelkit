@@ -240,6 +240,7 @@ www.qimao.com sends folded response headers (lines starting with a space), which
 | **Cover download tolerates a flaky CDN** | The cover CDNs (byteimg especially) can stall or drop a cold connection from outside mainland China. Each source yields ordered `coverUrls` (Fanqie: `…~tplv-shrink:640:0.image` first, `origin/…` as fallback; Ciweimao: the same path on `c1.kuangxiangit.com` first, because the `e1`/`e2` hosts its pages link time out from abroad; Baidu-hosted covers: a `@w_600,q_80` rendition first, about 100KB instead of a multi-megabyte original); Rust retries transient failures (connection errors, 5xx, 429) once per URL; the download runs in the background, and the form offers "Tải lại ảnh bìa gốc" when every candidate failed. Errors name the cause (`net::describe_request_error`) instead of reqwest's bare "error sending request" |
 | **`ttc_create_story` returns the JSON answer of TTC** | `Accept: application/json` makes TTC answer `{ success, message }`; its message (duplicate story, banned words) is shown verbatim. A non-JSON answer (login page) is an error, not a silent success |
 | **Re-fill an existing story** | `EditBookModal` reuses the create-story machinery through `useSourceRefill`, keyed on the story's "Link gốc": "AI điền lại" reads the source again and puts author, category, sub-categories and description into the form (the model's title is only offered, never applied quietly); "Tải ảnh bìa từ nguồn" downloads the cover again and sends it through the cropper like a picked file. A cover upload no longer closes the modal (the user may still be editing); closing after one refreshes the list |
+| **Edit a story waiting for approval** | TTC keeps every field of a pending story editable (title, type, gender, length, Chinese title and link, original author); once approved only author, categories, description and status stay open. `EditBookModal` gets `pending` from the list (`isPendingApproval`) and then shows the fields of the create form (shared: `BOOK_TYPE_OPTIONS` / `GENDER_OPTIONS` / `LENGTH_OPTIONS` in `constants.ts`, `TitleCaseInput`); "Sáng Tác" hides the Chinese source, as on TTC. `fetchEditBookForm` reads each field as the page posts it (`FormData`, falling back to a disabled control), so the type comes out right whether it is a select (pending) or an input; sub-categories keep their position |
 | **Content filters** | A provider can refuse the prompt itself: hubs in front of Gemini return the refusal as the reply text ("The prompt could not be submitted. The prompt contains sensitive words..."), the Gemini API as a block reason. `isContentBlock` recognizes both. Romance synopses are the usual trigger and these filters cannot be configured away, so `aiFillBook` repeats the request once without the synopsis: every field but the description is still filled, and the form says why the description is empty. A refusal of that second request is reported as what it is, not as a JSON error |
 | **Translation house style** | `ai/styleGuide.ts` is a condensed version of the base prompts of the QT AI translator (quick-translator-engine, `qt-ai-core/prompts/prompts.json`): faithful translation, natural Vietnamese instead of character-by-character Hán-Việt, register chosen by setting (ancient vs modern). The narrator is always "ta" and "tôi" lives only inside dialogue; titles never use "Tôi" (`titleUsesToi` warns when the model slips). Requested deviations: "cha" instead of "bố" everywhere, "nương" / "mẫu thân" instead of "mẹ" in ancient settings |
 | **AI call in Rust** | OpenAI-compatible hubs rarely send CORS headers. Gemini uses `generateContent` with `responseMimeType: application/json`; OpenAI-compatible uses `chat/completions` with `response_format: json_object` |
@@ -302,6 +303,56 @@ AbandonCheckModal → useAbandonCheck
 - `utils/abandon.ts`: `ABANDON_DAYS` (12), day count and risk level. Only stories at least N days without a chapter are preselected (default `DEFAULT_REUP_FROM_DAYS` = 7, adjustable in the modal, kept in localStorage `nk_ttc_reup_from_days`). The rule lives on TTC; change the constant if TTC changes it.
 - Several reup jobs start back to back, and TTC has answered `/dang-chuong/{id}` with HTTP 500 in that situation. `ttc_fetch_upload_tokens` retries connection errors, 5xx and 429 (3 attempts, 3s then 6s) and logs the status and body of every failure. A failed reup can be selected and queued again from the modal.
 - `addJob` of the upload queue returns the job id, so the modal shows the status of the jobs it queued.
+
+## Sync Scan ("Quét chương mới")
+
+The toolbar button "Quét chương mới" opens `SyncScanModal`: every story whose folder is ahead of TTC (new chapters) or differs from it, with the uploads queued in one go.
+
+```
+SyncScanModal → useSyncScan
+  fetchAllBooks('ongoing,full,paused')          → only stories with a folder picked *for this book*; the others are counted
+  per story, one at a time:
+    ttc_read_folder_files → worker allChapters(book settings)   → nothing parsed: invalid
+    fetchAllChapters(bookId)                                     (pages of 1000, sorted)
+    compareChapters + planSync (utils/syncCompare.ts):
+      no changed chapter, N new  → 'new'      upload the chapters after the last one on TTC (append), preselected
+      first changed chapter X    → 'changed'  upload X..end of the folder (overwrite), NOT preselected;
+                                              the row shows the first differing titles
+      otherwise                  → 'synced'   (says when TTC has more chapters than the folder)
+  Upload → addJob(chapters, price rules of the book, pinned to the active account) per story
+```
+
+- `compareChapters` is the analysis the "So sánh & Upload" tab always used (same position, title or > 3% word count difference), moved out of `ResyncComparisonTable` so the scan and the tab cannot disagree. The tab now resets its page while rendering instead of in an effect (same behavior; `react-hooks/set-state-in-effect`).
+- `utils/ttcLists.ts`: `fetchAllBooks(status)` and `fetchAllChapters(bookId)`, shared with the abandon check and the sync page.
+- The worker (`localChapters.worker.ts`) gained `allChapters`; only the chapters to upload are kept in the row.
+- Filter tabs (Tất cả / Chương mới / Chưa đồng bộ / Đã đồng bộ / Lỗi) only change what is shown: "Chọn tất cả" applies to the open tab, picks made in other tabs stay and are uploaded too.
+
+## Revenue ("Doanh thu")
+
+Today's revenue of the active account sits in the app header on the TTC page only (`RevenueTicker`; the sync itself runs on every page) and runs up as it is read; a click opens `RevenueModal` (last 7 days, any day, hours in Vietnam time, stories). The modal is portaled to the body: the header has a `backdrop-filter`, which would make it the containing block of a `fixed` overlay.
+
+**Source.** TTC has no revenue page: every sale is a notification in the "Tài chính" tab, `/thong-bao?type=purchase&page=N` (50 per page, newest first, server-rendered). Income reads `💰 Nhận <b>90 hoa</b> từ lượt mua chương 59 - <b>Title</b>`, for a bulk sale `… từ lượt mua 10 chương - …`, and for a gift `🎁 Nhận được <b>180,000 hoa</b> tặng cho <b>Title</b>` (a gift adds hoa but no purchase; amounts use `.` or `,`). Bulk sales and gifts can outweigh a whole day of single sales, so a day keeps their own tallies (`bulk`, `gifts`) and the modal shows them next to the total. Files of an older `LEDGER_VERSION` are ignored and rebuilt from TTC. The UI does not repeat "giờ VN" (all users are in Vietnam), but days and hours are still computed in UTC+7.
+
+The modal has a fixed height with the day controls pinned, the top 10 stories with a "Xem thêm", and a hand-built chart (`HourChart`, no chart library: one 24-bar series; revisit if zooming or multi-series charts are needed). The story id is in the `onclick` (`/truyen/27412`). The page only shows "2 phút trước", but the id (`1793719900176_kjua`) starts with the creation time in epoch ms (it matches `time` of `/api/notifications/latest` to a few ms). The tab also lists spending ("Bạn đã đề cử … Trừ 10.000 hoa"), which is not income.
+
+**Retention.** TTC keeps about the last 5000 notifications of an account (all types together), i.e. about a week at current volume. Older days exist only in the app's ledger, so it syncs on every start.
+
+```
+revenue/
+  vnTime.ts          Vietnam days/hours (UTC+7, fixed)
+  parsePurchases.ts  one page → entries {id, ts, income | null}, last page number
+  ledger.ts          DayStats (hoa, count, hours[24], stories), covered spans, dayCoverage
+  syncWalk.ts        walkPurchases: newest → back to the last sync (all pages on the first run)
+  store.ts           files via Rust (ttc::revenue): sync.json + one file per month; commit journal
+  revenueEngine.ts   per account: sync on start, every 2 min, midnight rollover; useSyncExternalStore
+  RevenueProvider / RevenueTicker / RevenueModal / useCountUp
+```
+
+- **Files, not `user_data.json`**: `<app data>/revenue/<username>/<YYYY-MM>.json` (daily totals, ~1–3 KB a day) and `sync.json`. `user_data.json` is read whole before the first render and rewritten on every settings change.
+- **Covered spans.** `sync.json` lists the spans of time whose purchases are all counted. A walk reads from page 1 until it passes the edge of the last span (`min(last sync, newest entry seen) − 10 min` overlap; ids counted in the overlap are kept in `recentIds`, so late-listed entries are counted and nothing twice). Entries pushed to the next page by new sales while reading are skipped by id. Closing the app before midnight loses nothing: the next start reads the hole (evening, midnight, morning) and puts each sale on its own day and hour. If the list ends before the last sync (app not opened for ~a week), the time in between is lost and stays a visible gap; `dayCoverage` tells the modal which hours of a day are missing.
+- **Exactly once.** A walk writes nothing until it is done (a walk cut short is simply done again). The commit first writes the new state plus the incomes to `sync.json` as a journal, then adds them to the month files (which remember the commit id), then clears the journal; `readSync` finishes a journal left by a crash.
+- **Account switch.** `RevenueProvider` keeps one `RevenueEngine` per active account (`useActiveTtcAccount`, driven by `ttc://accounts-changed`); `stop` drops a running walk before it writes. `ttc_fetch_purchases` takes the account explicitly.
+- Read only: the walk never marks notifications read or deletes them. Turning off "mua chương" notifications on TTC, or deleting them, removes the data the ledger is built from.
 
 ## Known Limitations
 

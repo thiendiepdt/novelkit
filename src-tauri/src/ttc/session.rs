@@ -7,12 +7,15 @@
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use std::sync::Mutex;
-use tauri::{AppHandle, Manager, WebviewUrl, WebviewWindowBuilder};
+use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use super::accounts::{parse_account_page, AccountsFile, AccountsView, TtcAccount};
 use super::client::{get_client, get_ttc_base, USER_AGENT};
 
 const LOGIN_WINDOW: &str = "ttc-login";
+/// Emitted with the new `AccountsView` whenever the list or the active account changes,
+/// for views outside the TTC page (the revenue ticker of the header).
+const ACCOUNTS_CHANGED: &str = "ttc://accounts-changed";
 
 // ─── Session State ─────────────────────────────────────────
 
@@ -44,6 +47,13 @@ impl TtcSession {
         let mut store = self.store.lock().unwrap();
         let result = change(&mut store);
         store.save(&self.dir)?;
+        Ok(result)
+    }
+
+    /// `update`, then tell the frontend (see `ACCOUNTS_CHANGED`).
+    fn update_and_emit<R>(&self, app: &AppHandle, change: impl FnOnce(&mut AccountsFile) -> R) -> Result<R, String> {
+        let result = self.update(change)?;
+        app.emit(ACCOUNTS_CHANGED, self.view()).ok();
         Ok(result)
     }
 }
@@ -88,7 +98,7 @@ async fn verify_active_account(app: &AppHandle) -> Result<AccountsView, String> 
     let base_url = get_ttc_base(app).await?;
     match fetch_account_identity(&client, &base_url, &account.cookie).await {
         Ok(Some((username, display_name))) => {
-            state.update(|store| {
+            state.update_and_emit(app, |store| {
                 store.upsert(TtcAccount {
                     username: username.clone(),
                     display_name,
@@ -98,7 +108,7 @@ async fn verify_active_account(app: &AppHandle) -> Result<AccountsView, String> 
                 store.set_active(&username).ok();
             })?;
         }
-        Ok(None) => state.update(|store| store.mark_needs_login(&account.username, true))?,
+        Ok(None) => state.update_and_emit(app, |store| store.mark_needs_login(&account.username, true))?,
         Err(e) => log::warn!("Could not verify the TTC account: {}", e),
     }
     Ok(state.view())
@@ -120,7 +130,7 @@ pub async fn ttc_verify_active(app: AppHandle) -> Result<AccountsView, String> {
 #[tauri::command]
 pub async fn ttc_switch_account(app: AppHandle, username: String) -> Result<AccountsView, String> {
     app.state::<TtcSession>()
-        .update(|store| store.set_active(&username))??;
+        .update_and_emit(&app, |store| store.set_active(&username))??;
     verify_active_account(&app).await
 }
 
@@ -128,7 +138,7 @@ pub async fn ttc_switch_account(app: AppHandle, username: String) -> Result<Acco
 #[tauri::command]
 pub async fn ttc_logout(app: AppHandle, username: Option<String>) -> Result<AccountsView, String> {
     let state = app.state::<TtcSession>();
-    state.update(|store| {
+    state.update_and_emit(&app, |store| {
         let target = username.or_else(|| store.active.clone());
         if let Some(target) = target {
             store.remove(&target);
@@ -225,7 +235,7 @@ pub async fn ttc_check_session(app: AppHandle) -> Result<LoginPoll, String> {
     };
 
     let state = app.state::<TtcSession>();
-    state.update(|store| {
+    state.update_and_emit(&app, |store| {
         store.upsert(TtcAccount {
             username: username.clone(),
             display_name,
