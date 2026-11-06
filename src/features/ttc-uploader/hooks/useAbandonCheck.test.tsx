@@ -55,7 +55,7 @@ const addJob = vi.fn((options: UploadOptions) => `job-${options.book_id}`);
 const wrapper = ({ children }: { children: ReactNode }) => (
   <SettingsProvider>
     <UploadQueueContext.Provider
-      value={{ jobs: [], addJob, removeJob: vi.fn(), cancelJob: vi.fn(), clearDone: vi.fn(), getJobForBook: () => undefined }}
+      value={{ jobs: [], addJob, waitForJob: vi.fn(), removeJob: vi.fn(), cancelJob: vi.fn(), clearDone: vi.fn(), getJobForBook: () => undefined }}
     >
       {children}
     </UploadQueueContext.Provider>

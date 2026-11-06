@@ -4,6 +4,8 @@ import type { ReactNode } from 'react';
 import { SettingsProvider } from '@/features/settings/context/SettingsContext';
 import { UploadQueueContext } from '@/shared/context/UploadQueueContext';
 import { useSyncScan } from './useSyncScan';
+import { DripContext } from '../drip/dripContextDefs';
+import type { DripEngine, DripSnapshot } from '../drip/dripEngine';
 import type { TtcChapter, TtcStory, UploadOptions } from '../types';
 
 const invokeMock = vi.fn();
@@ -71,7 +73,7 @@ const addJob = vi.fn<(options: UploadOptions, title: string) => string>(options 
 const wrapper = ({ children }: { children: ReactNode }) => (
   <SettingsProvider>
     <UploadQueueContext.Provider
-      value={{ jobs: [], addJob, removeJob: vi.fn(), cancelJob: vi.fn(), clearDone: vi.fn(), getJobForBook: () => undefined }}
+      value={{ jobs: [], addJob, waitForJob: vi.fn(), removeJob: vi.fn(), cancelJob: vi.fn(), clearDone: vi.fn(), getJobForBook: () => undefined }}
     >
       {children}
     </UploadQueueContext.Provider>
@@ -158,5 +160,25 @@ describe('useSyncScan', () => {
     const byId = Object.fromEntries(result.current.rows.map(r => [r.book.id, r.state]));
     expect(byId[1]).toMatchObject({ kind: 'invalid', reason: expect.stringContaining('HTTP 502') });
     expect(byId[3]).toMatchObject({ kind: 'synced' });
+  });
+  it('leaves stories that drip to the update board alone', async () => {
+    const snapshot = {
+      intervalMinutes: 5,
+      lastTurnAt: 0,
+      nextPostAt: 0,
+      activity: null,
+      history: [],
+      plans: [{ bookId: 1, bookTitle: 'Truyện 1', account: 'thiendiepdt', initialBatch: 100, status: 'paused', createdAt: 0 }],
+    } satisfies DripSnapshot;
+    const withDrip = ({ children }: { children: ReactNode }) =>
+      wrapper({ children: <DripContext.Provider value={{ engine: {} as DripEngine, snapshot }}>{children}</DripContext.Provider> });
+
+    const { result } = renderHook(() => useSyncScan('thiendiepdt'), { wrapper: withDrip });
+    await act(() => result.current.runScan());
+    await waitFor(() => expect(result.current.checking).toBe(false));
+
+    const row = result.current.rows.find(r => r.book.id === 1)!;
+    expect(row.state).toMatchObject({ kind: 'invalid', reason: expect.stringContaining('nổi trên bảng cập nhật') });
+    expect(invokeMock).not.toHaveBeenCalledWith('ttc_read_folder_files', { folderPath: '/books/1' });
   });
 });

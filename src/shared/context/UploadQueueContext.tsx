@@ -4,13 +4,19 @@ import type { ReactNode } from 'react';
 import { invoke } from '@tauri-apps/api/core';
 import { listen } from '@tauri-apps/api/event';
 import { isTauri } from '@/shared/utils/platform';
+import { notifyUser } from '@/shared/utils/notify';
 import type { UploadProgressEvent } from '@/features/ttc-uploader/types';
-import type { UploadJob } from './uploadQueueDefs';
+import type { UploadJob, UploadJobOutcome } from './uploadQueueDefs';
 
 interface UploadQueueContextValue {
   jobs: UploadJob[];
-  /** Returns the id of the queued job. */
-  addJob: (options: UploadJob['options'], bookTitle: string) => string;
+  /**
+   * Returns the id of the queued job. A `silent` job sends no desktop notification
+   * (the caller reports its outcome, e.g. the drip scheduler posting every few minutes).
+   */
+  addJob: (options: UploadJob['options'], bookTitle: string, opts?: { silent?: boolean }) => string;
+  /** Resolves once the job is done, failed, cancelled or removed while pending. */
+  waitForJob: (id: string) => Promise<UploadJobOutcome>;
   removeJob: (id: string) => void;
   cancelJob: (id: string) => void;
   clearDone: () => void;
@@ -23,35 +29,25 @@ export const UploadQueueContext = createContext<UploadQueueContextValue | null>(
 export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
   const [jobs, setJobs] = useState<UploadJob[]>([]);
   const isProcessingRef = useRef(false);
+  const jobsRef = useRef(jobs);
+  useEffect(() => {
+    jobsRef.current = jobs;
+  }, [jobs]);
 
-  const notifyUser = async (title: string, body: string) => {
-    if (isTauri()) {
-      try {
-        const { isPermissionGranted, requestPermission, sendNotification } = await import('@tauri-apps/plugin-notification');
-        let permissionGranted = await isPermissionGranted();
-        if (!permissionGranted) {
-          const permission = await requestPermission();
-          permissionGranted = permission === 'granted';
-        }
-        if (permissionGranted) {
-          sendNotification({ title, body });
-        }
-      } catch (e) {
-        console.error('Failed to send native notification:', e);
-      }
-    } else {
-      if (Notification.permission === 'granted') {
-        new Notification(title, { body });
-      } else if (Notification.permission !== 'denied') {
-        const permission = await Notification.requestPermission();
-        if (permission === 'granted') {
-          new Notification(title, { body });
-        }
-      }
-    }
-  };
+  /** Callers of waitForJob, by job id. */
+  const waitersRef = useRef(new Map<string, (outcome: UploadJobOutcome) => void>());
+  const settle = useCallback((id: string, outcome: UploadJobOutcome) => {
+    const resolve = waitersRef.current.get(id);
+    if (!resolve) return;
+    waitersRef.current.delete(id);
+    resolve(outcome);
+  }, []);
+  const waitForJob = useCallback(
+    (id: string) => new Promise<UploadJobOutcome>((resolve) => waitersRef.current.set(id, resolve)),
+    [],
+  );
 
-  const addJob = useCallback((options: UploadJob['options'], bookTitle: string) => {
+  const addJob = useCallback((options: UploadJob['options'], bookTitle: string, opts?: { silent?: boolean }) => {
     const newJob: UploadJob = {
       id: `${options.book_id}-${Date.now()}`,
       bookTitle,
@@ -59,16 +55,24 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       status: 'pending',
       progress: null,
       timestamp: Date.now(),
+      silent: opts?.silent || undefined,
     };
     setJobs((prev) => [...prev, newJob]);
     return newJob.id;
   }, []);
 
   const removeJob = useCallback((id: string) => {
+    if (jobsRef.current.find((j) => j.id === id)?.status === 'pending') {
+      settle(id, { status: 'error', error: 'Đã xóa khỏi hàng đợi' });
+    }
     setJobs((prev) => prev.filter((job) => job.id !== id));
-  }, []);
+  }, [settle]);
 
   const cancelJob = useCallback((id: string) => {
+    // A pending job never reaches processNextJob: settle its waiter here.
+    if (jobsRef.current.find((j) => j.id === id)?.status === 'pending') {
+      settle(id, { status: 'error', error: 'Bị hủy bởi người dùng' });
+    }
     setJobs((prev) => {
       const job = prev.find(j => j.id === id);
       if (!job) return prev;
@@ -87,7 +91,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
         emit(`ttc://cancel-upload-${id}`);
       });
     }
-  }, []);
+  }, [settle]);
 
   const clearDone = useCallback(() => {
     setJobs((prev) => prev.filter((job) => job.status !== 'done' && job.status !== 'error'));
@@ -135,17 +139,19 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
       setJobs((prev) => 
         prev.map((j) => j.id === job.id ? { ...j, status: 'done' as const } : j)
       );
-      notifyUser('Đăng chương hoàn tất', `Đã tải lên xong truyện "${job.bookTitle}"`);
+      settle(job.id, { status: 'done' });
+      if (!job.silent) notifyUser('Đăng chương hoàn tất', `Đã tải lên xong truyện "${job.bookTitle}"`);
     } catch (e: unknown) {
       setJobs((prev) => 
         prev.map((j) => j.id === job.id ? { ...j, status: 'error' as const, error: String(e) } : j)
       );
-      notifyUser('Lỗi đăng chương', `Có lỗi xảy ra với truyện "${job.bookTitle}": ${String(e)}`);
+      settle(job.id, { status: 'error', error: String(e) });
+      if (!job.silent) notifyUser('Lỗi đăng chương', `Có lỗi xảy ra với truyện "${job.bookTitle}": ${String(e)}`);
     } finally {
       isProcessingRef.current = false;
       setQueueTick((t) => t + 1); // Trigger re-evaluation of pending jobs
     }
-  }, []);
+  }, [settle]);
 
   useEffect(() => {
     if (!isTauri()) return;
@@ -167,7 +173,7 @@ export const UploadQueueProvider = ({ children }: { children: ReactNode }) => {
   const activeJob = jobs.find((j) => j.status === 'uploading');
 
   return (
-    <UploadQueueContext.Provider value={{ jobs, addJob, removeJob, cancelJob, clearDone, activeJob, getJobForBook }}>
+    <UploadQueueContext.Provider value={{ jobs, addJob, waitForJob, removeJob, cancelJob, clearDone, activeJob, getJobForBook }}>
       {children}
     </UploadQueueContext.Provider>
   );

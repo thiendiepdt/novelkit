@@ -3,8 +3,20 @@ import { SYNC_MODE_LABELS } from '../types';
 import type { LocalSortMode, UnlockTimer } from '@/features/settings/types';
 import Select from '@/shared/components/Select';
 import { Tooltip } from '@/shared/components';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, type ReactNode } from 'react';
 import { Folder, RefreshCw, Upload, Coins, Unlock, Check, X } from 'lucide-react';
+
+/** How the open story is published: all at once now, or dripped to stay on TTC's update board. */
+export type UploadMode = 'now' | 'drip';
+
+const UPLOAD_MODE_OPTIONS: { value: UploadMode; label: string; tooltip: string }[] = [
+  { value: 'now', label: 'Đăng ngay', tooltip: 'Đăng các chương đã chọn ngay một lượt' },
+  {
+    value: 'drip',
+    label: 'Nổi trên bảng cập nhật',
+    tooltip: 'Đăng một đợt đầu, rồi cứ vài phút đăng 1 chương, luân phiên giữa các truyện để truyện luôn nằm trên bảng chương mới',
+  },
+];
 
 const SYNC_MODE_TOOLTIPS: Record<SyncMode, string> = {
   all: 'Đăng lại toàn bộ chương, ghi đè nội dung đã có trên web',
@@ -124,6 +136,12 @@ interface UploadToolbarProps {
   onUpload: () => void;
   onCancelUpload: () => void;
   onRemoveJob: () => void;
+  uploadMode: UploadMode;
+  onUploadModeChange: (mode: UploadMode) => void;
+  /** Why the other mode cannot be chosen right now (only one is active per story), or null. */
+  uploadModeLock: string | null;
+  /** Shown in place of the upload button in drip mode. */
+  dripControls: ReactNode;
 }
 
 /**
@@ -171,7 +189,12 @@ export function UploadToolbar({
   onUpload,
   onCancelUpload,
   onRemoveJob,
+  uploadMode,
+  onUploadModeChange,
+  uploadModeLock,
+  dripControls,
 }: UploadToolbarProps) {
+  const drip = uploadMode === 'drip';
   return (
     <div
       className="bg-bg-card border border-border-main rounded-xl p-3 flex flex-col gap-2.5"
@@ -331,7 +354,37 @@ export function UploadToolbar({
       {/* Row 2: Upload — Sync mode, Delay, VIP, Upload button */}
       {chapters.length > 0 && (
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 border-t border-border-main/50">
+          {/* Upload mode: only one of the two is active for a story */}
+          <div className="flex items-center gap-2">
+            <label className="text-[11px] text-text-dim">Cách đăng:</label>
+            <div className="flex gap-0.5" role="group" aria-label="Cách đăng">
+              {UPLOAD_MODE_OPTIONS.map((opt) => {
+                const locked = uploadModeLock !== null && opt.value !== uploadMode;
+                return (
+                  <Tooltip key={opt.value} content={locked ? uploadModeLock : opt.tooltip} side="bottom">
+                    <button
+                      type="button"
+                      aria-pressed={uploadMode === opt.value}
+                      disabled={locked}
+                      onClick={() => onUploadModeChange(opt.value)}
+                      className={`px-2 py-1 text-[11px] rounded border transition-colors cursor-pointer disabled:opacity-50 disabled:cursor-not-allowed ${
+                        uploadMode === opt.value
+                          ? 'bg-gold/20 border-gold text-gold font-medium'
+                          : 'bg-bg-hover border-border-main text-text-secondary hover:border-border-hover'
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  </Tooltip>
+                );
+              })}
+            </div>
+          </div>
+
+          <div className="h-5 w-px bg-border-main"></div>
+
           {/* Sync Mode */}
+          {!drip && (
           <div className="flex items-center gap-2">
             <label className="text-[11px] text-text-dim">Chế độ:</label>
             <div className="flex gap-0.5">
@@ -352,8 +405,10 @@ export function UploadToolbar({
             </div>
           </div>
 
+          )}
+
           {/* Range inputs (conditional) */}
-          {syncMode === 'range' && (
+          {!drip && syncMode === 'range' && (
             <div className="flex items-center gap-1.5">
               <label className="text-[11px] text-text-dim">Từ:</label>
               <Tooltip content="Chương bắt đầu của khoảng cần upload" side="bottom">
@@ -378,7 +433,7 @@ export function UploadToolbar({
             </div>
           )}
 
-          <div className="h-5 w-px bg-border-main"></div>
+          {!drip && <div className="h-5 w-px bg-border-main"></div>}
 
           {/* Delay */}
           <div className="flex items-center gap-1.5">
@@ -455,7 +510,11 @@ export function UploadToolbar({
             </>
           )}
 
+          {/* Drip controls replace the upload button */}
+          {drip && <div className="basis-full pt-2 border-t border-border-main/50">{dripControls}</div>}
+
           {/* Upload Button / Progress */}
+          {!drip && (
           <div className="ml-auto flex items-center min-w-[140px]">
             {progress.status === 'idle' ? (
               <button
@@ -513,6 +572,7 @@ export function UploadToolbar({
               </div>
             )}
           </div>
+          )}
         </div>
       )}
     </div>

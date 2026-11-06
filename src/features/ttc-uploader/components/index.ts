@@ -15,3 +15,5 @@ export { CoverCropperModal } from './CoverCropperModal';
 export { default as ProxiedImage } from './ProxiedImage';
 export { ResyncComparisonTable } from './ResyncComparisonTable';
 export { AbandonCheckModal } from './AbandonCheckModal';
+export { DripBookControls } from './DripBookControls';
+export { DripModal } from './DripModal';

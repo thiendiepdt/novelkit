@@ -354,6 +354,34 @@ revenue/
 - **Account switch.** `RevenueProvider` keeps one `RevenueEngine` per active account (`useActiveTtcAccount`, driven by `ttc://accounts-changed`); `stop` drops a running walk before it writes. `ttc_fetch_purchases` takes the account explicitly.
 - Read only: the walk never marks notifications read or deletes them. Turning off "mua chương" notifications on TTC, or deleting them, removes the data the ledger is built from.
 
+## Drip Upload ("Nổi trên bảng cập nhật")
+
+TTC lists the stories that just got a chapter on its update board. Uploading 300 chapters at once puts a story there once; dripping them keeps it there. Per story, the sync page offers "Cách đăng": **Đăng ngay** (the normal upload) or **Nổi trên bảng cập nhật**. Only one is active: a story with a drip plan has no upload button, and drip cannot start while a normal upload of the story is queued or running.
+
+```
+DripProvider (App, desktop) → DripEngine (drip/dripEngine.ts), saved in the user data store (nk_ttc_drip)
+  at most every TICK_MS (15s), earlier when a turn or a waiting plan is due; if the upload queue is idle:
+    1. plans with `priority` (just started/resumed, or after a bulk step): evaluated right away
+    2. if `intervalMinutes` passed since the last upload: running plans, posted longest ago first
+  evaluate one plan: folder (worker parse, book settings) + full TTC list (its own account)
+    → decideDripStep (drip/steps.ts):
+       resync    chapter on TTC differs → overwrite first difference … last chapter on TTC
+       initial   TTC has fewer than `initialBatch` → upload up to it in one job
+       drip      the next chapter after the last one on TTC, alone
+       caught-up nothing new → skip without using the turn, look again in 30 min
+  upload → addJob(…, { silent: true }) → waitForJob → removeJob when done
+```
+
+- **TTC is the state.** Nothing like "uploaded up to N" is stored: every turn compares the folder with TTC's list (`compareChapters`, the same verdict as "So sánh & Upload"). An app restart, an interrupted initial batch or an edited chapter 101 of 200 all continue correctly: resync 101–200, then drip 201.
+- **One interval for all stories, rotated.** Every `intervalMinutes` (default 5, from 0.5 = 30 seconds up to 1440, in tenths of a minute) one chapter of one story goes up; the story posted longest ago goes first, so as many stories as possible stay on the board. Bulk steps (resync, initial batch) do not wait for the interval. The interval is edited in the "Nổi bảng" modal and in the drip controls of the sync page (`DripIntervalInput`, same value); a change applies at once (the next turn is `lastTurnAt + interval`, and the scheduler looks again right away).
+- **Progress.** Each look stores the last chapter on TTC (`ttcChapters`) and in the folder (`localChapters`). The modal adds them up over all plans and estimates the time left as (chapters left to drip) × interval, since all stories share one chapter per interval; the initial batches are not counted, they go up at once. The last 100 uploads, failures included, are kept in `history` (tab "Lịch sử đăng").
+- **Rate limits and the queue.** Drip jobs go through the upload queue, so they never run next to another upload; the engine waits while the queue has anything pending or running. Within a job the Rust 429 / "chờ Ns" handling applies as for any upload.
+- **Accounts.** A plan names its account; the chapter list and the upload use that account's session, so plans of several accounts run side by side whatever account is active.
+- **Failures.** No folder / unreadable folder / nothing parsed: the plan stops (`error`) and a notification says why. TTC unreachable or a failed upload: retried after 5 minutes; after 3 failures in a row the plan stops. Pausing or removing a plan cancels its running upload, which does not count as a failure.
+- **Other bulk tools.** "Quét chương mới" leaves drip stories alone (it would upload their new chapters at once). "Check vô hố" may still reup chapter 1 of them.
+- Upload queue: `addJob(options, title, { silent })` (no desktop notification per drip post) and `waitForJob(id)` (resolves when the job is done, failed, cancelled or removed while pending).
+- **Limitation:** it runs only while NovelKit is open.
+
 ## Known Limitations
 
 1. **Session expiry**: No auto-refresh — an expired account is marked "Cần đăng nhập lại" and the user logs in again from the banner

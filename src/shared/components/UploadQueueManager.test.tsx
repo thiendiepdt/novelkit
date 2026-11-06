@@ -35,7 +35,7 @@ const renderWithJobs = (jobs: UploadJob[]) => {
       value={{
         jobs,
         addJob: vi.fn(),
-        removeJob: vi.fn(),
+        waitForJob: vi.fn(), removeJob: vi.fn(),
         cancelJob: vi.fn(),
         clearDone: vi.fn(),
         getJobForBook: () => undefined,

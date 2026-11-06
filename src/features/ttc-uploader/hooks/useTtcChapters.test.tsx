@@ -33,7 +33,7 @@ describe('useTtcChapters post-upload refetch', () => {
         value={{
           jobs: [],
           addJob: vi.fn(),
-          removeJob: vi.fn(),
+          waitForJob: vi.fn(), removeJob: vi.fn(),
           cancelJob: vi.fn(),
           clearDone: vi.fn(),
           getJobForBook: () => job,
@@ -73,6 +73,16 @@ describe('useTtcChapters post-upload refetch', () => {
     const { rerender } = renderHook(() => useTtcChapters(BOOK), { wrapper });
 
     job = { ...makeJob('error'), error: 'HTTP 403' };
+    rerender();
+
+    await waitFor(() => expect(fetchCalls()).toHaveLength(2));
+  });
+
+  it('refetches when a running job is removed right away (drip scheduler)', async () => {
+    job = makeJob('uploading');
+    const { rerender } = renderHook(() => useTtcChapters(BOOK), { wrapper });
+
+    job = undefined;
     rerender();
 
     await waitFor(() => expect(fetchCalls()).toHaveLength(2));

@@ -135,11 +135,13 @@ export function useTtcChapters(selectedBook: TtcStory | null, account?: string |
   // Refresh both the paginated list (ChapterTable) and the full comparison
   // list so the resync tab and append-mode start index reflect what was just
   // pushed, instead of staying on the pre-upload snapshot. An errored job may
-  // still have pushed some batches, so refetch in that case too.
+  // still have pushed some batches, so refetch in that case too. A job that
+  // disappears straight from uploading finished too: the drip scheduler removes
+  // its jobs as soon as they are done.
   const prevUploadStatusRef = useRef<string | undefined>(undefined);
   useEffect(() => {
     const currentStatus = currentJob?.status;
-    const finished = currentStatus === 'done' || currentStatus === 'error';
+    const finished = currentStatus === 'done' || currentStatus === 'error' || currentStatus === undefined;
     if (prevUploadStatusRef.current === 'uploading' && finished && selectedBook) {
       fetchRemoteChapters(selectedBook.id, 1, chaptersLimit);
       fetchAllRemoteChapters(selectedBook.id);

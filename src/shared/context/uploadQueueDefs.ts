@@ -8,4 +8,9 @@ export interface UploadJob {
   progress: UploadProgressEvent | null;
   error?: string;
   timestamp: number;
+  /** No desktop notification when it ends (see `addJob`). */
+  silent?: boolean;
 }
+
+/** How a job ended, as `waitForJob` reports it. */
+export type UploadJobOutcome = { status: 'done' } | { status: 'error'; error: string };

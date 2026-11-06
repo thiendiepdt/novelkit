@@ -181,6 +181,12 @@ Components:
   EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage, Segmented, TitleCaseInput,
   AbandonCheckModal ("Check vô hố": reup chương 1 of ongoing stories, via useAbandonCheck)
   SyncScanModal ("Quét chương mới": stories whose folder is ahead of TTC, via useSyncScan)
+  DripBookControls + DripModal ("Nổi trên bảng cập nhật": drip upload, see drip/ below)
+
+Drip upload (drip/): DripProvider (App, desktop) → DripEngine, one scheduler for the plans of
+every account, saved as nk_ttc_drip. Each turn decides from the folder and TTC (steps.ts:
+resync / initial batch / one chapter / caught up) and uploads through the upload queue
+(silent jobs + waitForJob). A story is either dripping or uploaded normally, never both.
 
 Revenue ("Doanh thu", revenue/): RevenueProvider (App, desktop) → RevenueEngine per active account;
 RevenueTicker in the shared Header (today's hoa, counting up) → RevenueModal (days, hours, stories).

@@ -22,6 +22,10 @@ import {
   SyncScanModal,
 } from './components';
 import { accountLabel } from './utils/accountLabel';
+import { useDrip } from './drip';
+import { DripBookControls, DripModal } from './components';
+import type { UploadMode } from './components/UploadToolbar';
+import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
 import { isPendingApproval } from './types';
 import type { TtcAccountInfo, TtcStory } from './types';
 
@@ -74,6 +78,11 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
   const books = useTtcBooks(account.username);
   const [selectedBook, setSelectedBook] = useState<TtcStory | null>(null);
   const chapters = useTtcChapters(selectedBook, account.username);
+  const drip = useDrip();
+  const uploadQueue = useUploadQueueContext();
+  /** Mode picked for the open story; a story with a drip plan is always in drip mode. */
+  const [modeChoice, setModeChoice] = useState<UploadMode>('now');
+  const [showDrip, setShowDrip] = useState(false);
 
   // ─── Modal state ────────────────────────────────────────
   const [editingBookId, setEditingBookId] = useState<number | null>(null);
@@ -90,6 +99,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
   const handleSelectBook = useCallback((book: TtcStory) => {
     setSelectedBook(book);
     chapters.resetState();
+    setModeChoice('now');
     setActiveTab('remote');
     chapters.fetchRemoteChapters(book.id, 1, chapters.chaptersLimit);
   }, [chapters]);
@@ -102,6 +112,14 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
 
   // ─── WORK VIEW: Resync a selected book ──────────────────
   if (selectedBook) {
+    const dripPlan = drip.snapshot?.plans.find((p) => p.bookId === selectedBook.id);
+    const bookJob = uploadQueue.getJobForBook(selectedBook.id);
+    const normalUploadBusy = !!bookJob && !bookJob.silent && (bookJob.status === 'pending' || bookJob.status === 'uploading');
+    const uploadModeLock = dripPlan
+      ? 'Truyện đang nổi bảng: bấm "Dừng hẳn" để quay về đăng ngay'
+      : normalUploadBusy
+        ? 'Truyện đang có tiến trình upload thường, chờ nó xong hoặc hủy nó trước'
+        : null;
     return (
       <div className="w-full h-full flex flex-col mx-auto px-4 md:px-6 py-4 md:py-6 overflow-hidden">
         <div className="flex-shrink-0 flex flex-col gap-4">
@@ -148,6 +166,17 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
             onUpload={chapters.handleUpload}
             onCancelUpload={chapters.handleCancelUpload}
             onRemoveJob={chapters.handleRemoveJob}
+            uploadMode={dripPlan ? 'drip' : modeChoice}
+            onUploadModeChange={setModeChoice}
+            uploadModeLock={uploadModeLock}
+            dripControls={
+              <DripBookControls
+                key={selectedBook.id}
+                book={selectedBook}
+                account={account.username}
+                normalUploadBusy={normalUploadBusy}
+              />
+            }
           />
         </div>
 
@@ -301,6 +330,9 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
             onCreate={() => setShowCreateModal(true)}
             onCheckAbandon={() => setShowAbandonCheck(true)}
             onScanSync={() => setShowSyncScan(true)}
+            onOpenDrip={() => setShowDrip(true)}
+            dripRunning={drip.snapshot?.plans.filter((p) => p.status === 'running').length ?? 0}
+            dripTotal={drip.snapshot?.plans.length ?? 0}
           />
 
           {listNotice && (
@@ -332,6 +364,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
                   onEdit={setEditingBookId}
                   onResync={handleSelectBook}
                   onDelete={setDeletingBook}
+                  dripStatus={drip.snapshot?.plans.find((p) => p.bookId === book.id)?.status}
                 />
               ))}
 
@@ -397,6 +430,20 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
           onOpenBook={(book) => {
             setShowSyncScan(false);
             handleSelectBook(book);
+          }}
+        />
+      )}
+
+      {/* "Nổi trên bảng cập nhật": every drip plan and the shared interval */}
+      {showDrip && (
+        <DripModal
+          account={account.username}
+          onClose={() => setShowDrip(false)}
+          onOpenBook={(bookId) => {
+            const book = books.books.find((b) => b.id === bookId);
+            setShowDrip(false);
+            if (book) handleSelectBook(book);
+            else books.handleSearchChange(drip.snapshot?.plans.find((p) => p.bookId === bookId)?.bookTitle ?? '');
           }}
         />
       )}

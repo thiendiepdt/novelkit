@@ -1,4 +1,4 @@
-import { Hourglass, Plus, ScanSearch } from 'lucide-react';
+import { Hourglass, Plus, ScanSearch, TrendingUp } from 'lucide-react';
 import { Pagination } from '@/shared/components';
 import { STATUS_OPTIONS } from '../constants';
 import type { BookStatus } from '../constants';
@@ -20,6 +20,10 @@ interface BookListToolbarProps {
   onCheckAbandon: () => void;
   /** Open "Quét chương mới": stories whose folder is ahead of TTC. */
   onScanSync: () => void;
+  onOpenDrip: () => void;
+  /** Drip plans running / in total, for the button badge. */
+  dripRunning: number;
+  dripTotal: number;
 }
 
 /**
@@ -41,6 +45,9 @@ export function BookListToolbar({
   onCreate,
   onCheckAbandon,
   onScanSync,
+  onOpenDrip,
+  dripRunning,
+  dripTotal,
 }: BookListToolbarProps) {
   return (
     <div className="flex-shrink-0">
@@ -102,6 +109,18 @@ export function BookListToolbar({
               className="text-xs text-text-secondary hover:text-gold transition-colors cursor-pointer disabled:opacity-50 flex items-center gap-1.5 px-2 py-1.5 rounded hover:bg-bg-hover"
             >
               <span>↻</span> <span className="hidden sm:inline">{loadingBooks ? 'Đang tải...' : 'Làm mới'}</span>
+            </button>
+            <button
+              onClick={onOpenDrip}
+              title="Truyện đang nổi trên bảng cập nhật: đăng nhỏ giọt từng chương, luân phiên giữa các truyện"
+              className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+            >
+              <TrendingUp size={14} /> Nổi bảng
+              {dripTotal > 0 && (
+                <span className={`px-1.5 rounded-full text-[10px] font-bold ${dripRunning > 0 ? 'bg-jade/20 text-jade' : 'bg-bg-hover text-text-dim'}`}>
+                  {dripRunning}/{dripTotal}
+                </span>
+              )}
             </button>
             <button
               onClick={onScanSync}

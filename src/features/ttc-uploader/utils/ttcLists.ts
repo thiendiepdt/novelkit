@@ -23,16 +23,17 @@ export async function fetchAllBooks(status: string): Promise<TtcStory[]> {
   return all;
 }
 
-/** The full chapter list of a story on TTC, sorted by chapter number. */
-export async function fetchAllChapters(bookId: number): Promise<TtcChapter[]> {
-  const first = await invoke<TtcChaptersResponse>('ttc_fetch_chapters', { bookId, page: 1, limit: CHAPTERS_PAGE_SIZE });
+/**
+ * The full chapter list of a story on TTC, sorted by chapter number.
+ * @param account - read with this account's session instead of the active one
+ */
+export async function fetchAllChapters(bookId: number, account?: string): Promise<TtcChapter[]> {
+  const fetchPage = (page: number) =>
+    invoke<TtcChaptersResponse>('ttc_fetch_chapters', { bookId, page, limit: CHAPTERS_PAGE_SIZE, account: account ?? null });
+  const first = await fetchPage(1);
   const all: TtcChapter[] = [...first.chapters];
   if (first.totalPages > 1) {
-    const rest = await Promise.all(
-      Array.from({ length: first.totalPages - 1 }, (_, i) =>
-        invoke<TtcChaptersResponse>('ttc_fetch_chapters', { bookId, page: i + 2, limit: CHAPTERS_PAGE_SIZE }),
-      ),
-    );
+    const rest = await Promise.all(Array.from({ length: first.totalPages - 1 }, (_, i) => fetchPage(i + 2)));
     rest.forEach(r => all.push(...r.chapters));
   }
   return all.sort((a, b) => a.chapterNumber - b.chapterNumber);

@@ -8,6 +8,7 @@ import { applyChapterPrices, parseOptionsFromSettings } from '../utils/localChap
 import { createChapterParser, type ChapterParser } from '../utils/chapterParser';
 import { compareChapters, planSync } from '../utils/syncCompare';
 import { fetchAllBooks, fetchAllChapters } from '../utils/ttcLists';
+import { useDrip } from '../drip';
 
 /** Every status a story can have in the list: a sync applies to all of them. */
 const ALL_STATUSES = 'ongoing,full,paused';
@@ -66,6 +67,12 @@ export function syncJobTitle(row: SyncRow): string {
 export function useSyncScan(account?: string | null) {
   const { getSettingsForBook, bookSettings } = useSettingsContext();
   const { addJob } = useUploadQueueContext();
+  const { snapshot: drip } = useDrip();
+  // Stories dripping to stay on the update board: uploading their new chapters at once would end that.
+  const dripRef = useRef(drip);
+  useEffect(() => {
+    dripRef.current = drip;
+  }, [drip]);
 
   const [rows, setRows] = useState<SyncRow[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(false);
@@ -97,6 +104,9 @@ export function useSyncScan(account?: string | null) {
   );
 
   const scanBook = useCallback(async (book: TtcStory): Promise<SyncRowState> => {
+    if (dripRef.current?.plans.some(p => p.bookId === book.id)) {
+      return { kind: 'invalid', reason: 'Đang nổi trên bảng cập nhật: chương mới được đăng nhỏ giọt, không đăng một lượt' };
+    }
     const folderPath = folderOf(book.id);
     let files: ChapterFile[];
     try {

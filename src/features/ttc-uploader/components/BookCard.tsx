@@ -1,6 +1,7 @@
-import { Clock, ListOrdered, Pencil, Trash2 } from 'lucide-react';
+import { Clock, ListOrdered, Pencil, Trash2, TrendingUp } from 'lucide-react';
 import { isPendingApproval } from '../types';
 import type { TtcStory } from '../types';
+import type { DripStatus } from '../drip/dripEngine';
 import ProxiedImage from './ProxiedImage';
 import { Tooltip } from '@/shared/components';
 
@@ -10,6 +11,8 @@ interface BookCardProps {
   onResync: (book: TtcStory) => void;
   /** Offered only for stories still waiting for approval. */
   onDelete: (book: TtcStory) => void;
+  /** Status of the story's "Nổi bảng" plan, if it has one. */
+  dripStatus?: DripStatus;
 }
 
 /** Shared shape of the card actions: large enough to hit without aiming. */
@@ -19,7 +22,7 @@ const ACTION_CLASS =
 /**
  * Compact book card showing poster, metadata, and action buttons.
  */
-export function BookCard({ book, onEdit, onResync, onDelete }: BookCardProps) {
+export function BookCard({ book, onEdit, onResync, onDelete, dripStatus }: BookCardProps) {
   const pending = isPendingApproval(book);
 
   return (
@@ -38,6 +41,20 @@ export function BookCard({ book, onEdit, onResync, onDelete }: BookCardProps) {
             {pending && (
               <span className="flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border border-gold/40 bg-gold/10 text-gold text-[11px] font-semibold whitespace-nowrap">
                 <Clock size={11} /> Chờ duyệt
+              </span>
+            )}
+            {dripStatus && (
+              <span
+                title={dripStatus === 'running' ? 'Đang đăng nhỏ giọt để nổi trên bảng cập nhật' : 'Chế độ nổi bảng đang dừng'}
+                className={`flex-shrink-0 inline-flex items-center gap-1 px-2 py-0.5 rounded-full border text-[11px] font-semibold whitespace-nowrap ${
+                  dripStatus === 'running'
+                    ? 'border-jade/40 bg-jade/10 text-jade'
+                    : dripStatus === 'error'
+                      ? 'border-crimson/40 bg-crimson/10 text-crimson'
+                      : 'border-border-main bg-bg-hover text-text-secondary'
+                }`}
+              >
+                <TrendingUp size={11} /> {dripStatus === 'running' ? 'Nổi bảng' : 'Nổi bảng · dừng'}
               </span>
             )}
           </div>
