@@ -53,6 +53,7 @@ src-tauri/                  # Tauri Rust backend (desktop only)
 │   ├── user_store.rs       # user_data.json: settings store that replaces webview localStorage on desktop
 │   ├── net.rs              # Readable descriptions of outbound HTTP failures
 │   ├── novel_source.rs     # Allowlisted fetches from the AI-fill source sites (see sources/types.ts)
+│   ├── meotruyen.rs        # Mèo Truyện import API (meotruyen.com only, uploader token)
 │   └── ttc/                # TTC feature backend (modular)
 │       ├── mod.rs           # Module declarations
 │       ├── types.rs         # Serde structs for API payloads & responses
@@ -183,6 +184,7 @@ Components:
   AbandonCheckModal ("Check vô hố": reup chương 1 of ongoing stories, via useAbandonCheck)
   SyncScanModal ("Quét chương mới": stories whose folder is ahead of TTC, via useSyncScan)
   DripBookControls + DripModal ("Nổi trên bảng cập nhật": drip upload, see drip/ below)
+  MeoTruyenModal ("Mèo Truyện": female stories to meotruyen.com, see meotruyen/ below)
 
 Drip upload (drip/): DripProvider (App, desktop) → DripEngine, one scheduler for the plans of
 every account, saved as nk_ttc_drip. Each turn decides from the folder and TTC (steps.ts:
@@ -192,6 +194,11 @@ resync / initial batch / one chapter / caught up) and uploads through the upload
 Revenue ("Doanh thu", revenue/): RevenueProvider (App, desktop) → RevenueEngine per active account;
 RevenueTicker in the shared Header (today's hoa, counting up) → RevenueModal (days, hours, stories).
 Read from the purchase notifications of TTC, kept as daily totals in revenue/<user>/<YYYY-MM>.json.
+
+Mèo Truyện (meotruyen/): useMeoTruyenUpload reads the folder, the site's genres and the TTC poster,
+asks the model for genres, tags and an editor's note (ai.ts), builds the import with the site's own
+rules (rules.ts is a copy of the meotruyen repo's, keep it in step), then opens / sends / finalizes
+an import job through src-tauri/src/meotruyen.rs. Imported stories are remembered (nk_meotruyen_links).
 
 Folder vs TTC comparison: utils/syncCompare.ts (compareChapters, planSync) is the single
 source of truth, used by both ResyncComparisonTable and the scan. Full lists: utils/ttcLists.ts.
@@ -213,12 +220,13 @@ Create story (CreateBookModal → useCreateBook):
 - `session.rs` emits `ttc://accounts-changed` (the `AccountsView`) on every account change; `useActiveTtcAccount` follows it
 - `utils.rs` — `ttc_open_folder`, `sanitize_filename`
 
-**Rust backend outside `ttc/`** (used by the create-story AI fill):
+**Rust backend outside `ttc/`** (used by the create-story AI fill and the Mèo Truyện import):
 - `novel_source.rs` — `source_fetch_text` (allowlist of metadata hosts) and `source_fetch_image` (any public https domain, checked per redirect hop, body must be an image; it has its own process-wide client for that redirect policy). Read-only, not a general proxy. Parsing happens in the frontend (`ttc-uploader/sources/`).
 - `ai.rs` — `ai_generate_json`. Speaks Gemini `generateContent` and OpenAI-compatible `chat/completions`; the prompt is built and the reply validated in the frontend (`ttc-uploader/ai/`).
-- Both reuse the shared `reqwest::Client` via `ttc::client::get_client()`. Adding a source means: a host in `TEXT_SOURCES` (Rust), a branch in `sources/detect.ts`, a parser in `sources/parse.ts`, and a line in the `#[ignore]` live test.
+- `meotruyen.rs` — `meotruyen_genres`, `meotruyen_import_open` / `_send` / `_finalize`, `meotruyen_token_source`. The origin is fixed (`https://meotruyen.com`); the token (settings, else the `MEOTRUYEN_TOKEN` environment variable) only ever goes in the `Authorization` header and never into an error. Errors come back as the site's `{ status, code, message, details }`.
+- All of them reuse the shared `reqwest::Client` via `ttc::client::get_client()`. Adding a source means: a host in `TEXT_SOURCES` (Rust), a branch in `sources/detect.ts`, a parser in `sources/parse.ts`, and a line in the `#[ignore]` live test.
 
-**AI settings** live in `AppSettings.ai` (`features/settings/types.ts`): provider (`gemini` | `openai`), and per provider `apiKey` / `model` / `baseUrl`. They are global only (never per-book) and stored with the other settings (`user_data.json` on desktop, see below).
+**AI settings** live in `AppSettings.ai` (`features/settings/types.ts`): provider (`gemini` | `openai`), and per provider `apiKey` / `model` / `baseUrl`. They are global only (never per-book) and stored with the other settings (`user_data.json` on desktop, see below). The Mèo Truyện token is `AppSettings.meoTruyen.token`, global only as well.
 
 **Key patterns**:
 - All commands use shared `TtcClient` (reqwest connection pooling) instead of creating per-request clients

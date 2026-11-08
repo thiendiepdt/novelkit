@@ -10,6 +10,7 @@ import { Select, Tooltip } from '@/shared/components';
 import { useActiveTtcAccount } from '@/features/ttc-uploader/hooks/useActiveTtcAccount';
 import { useTtcBooks } from '@/features/ttc-uploader/hooks/useTtcBooks';
 import { Settings, X, RotateCcw } from 'lucide-react';
+import { MeoTruyenSettingsSection } from './components/MeoTruyenSettingsSection';
 
 interface SettingsPanelProps {
   onClose: () => void;
@@ -343,6 +344,14 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle, initia
           </div>
         );
       }
+
+      case 'meoTruyen':
+        return (
+          <MeoTruyenSettingsSection
+            token={globalSettings.meoTruyen.token}
+            onChange={(token) => updateGlobalSettings('meoTruyen', { token })}
+          />
+        );
 
       case 'general':
       default:

@@ -1,8 +1,8 @@
 import React from 'react';
-import { Settings, Scissors, Rocket, Sparkles } from 'lucide-react';
+import { Settings, Scissors, Rocket, Sparkles, Cat } from 'lucide-react';
 import { Tooltip } from '@/shared/components';
 
-export type SettingsCategory = 'general' | 'splitter' | 'ttcUploader' | 'ai';
+export type SettingsCategory = 'general' | 'splitter' | 'ttcUploader' | 'ai' | 'meoTruyen';
 
 interface SettingsSidebarProps {
   activeCategory: SettingsCategory;
@@ -14,6 +14,7 @@ const CATEGORIES: { id: SettingsCategory; label: string; icon: React.ReactNode; 
   { id: 'splitter', label: 'Chapter Splitter', icon: <Scissors size={16} />, tooltip: 'Cấu hình chia chương tự động' },
   { id: 'ttcUploader', label: 'TTC Uploader', icon: <Rocket size={16} />, tooltip: 'Cấu hình đẩy chương lên TTC' },
   { id: 'ai', label: 'AI', icon: <Sparkles size={16} />, tooltip: 'Cấu hình API AI (Gemini / OpenAI compatible) cho AI điền hồ sơ truyện' },
+  { id: 'meoTruyen', label: 'Mèo Truyện', icon: <Cat size={16} />, tooltip: 'Token nạp truyện lên meotruyen.com' },
 ];
 
 export function SettingsSidebar({ activeCategory, onSelectCategory }: SettingsSidebarProps) {

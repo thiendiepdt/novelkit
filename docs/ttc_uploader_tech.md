@@ -398,6 +398,27 @@ DripProvider (App, desktop) → DripEngine (drip/dripEngine.ts), saved in the us
 - Upload queue: `addJob(options, title, { silent })` (no desktop notification per drip post) and `waitForJob(id)` (resolves when the job is done, failed, cancelled or removed while pending).
 - **Limitation:** it runs only while NovelKit is open.
 
+## Mèo Truyện ("Đăng lên Mèo Truyện")
+
+Female stories ("Nữ" in TTC's list, `gender`) get a "Mèo Truyện" button on their card: the story and the chapters of its folder go to meotruyen.com, a romance reading site, as a **draft** published from that site's edit page. The site's import API is the one its own `npm run import` uses (meotruyen repo, `docs/import-format.md`); no zip is built: the same content is sent as JSON.
+
+```
+MeoTruyenModal → useMeoTruyenUpload (meotruyen/)
+  on open, side by side:
+    meotruyen_genres (/api/genres: 11 genres, ~280 tags)  → aiPickMeo (ai.ts): genres, tags, editor's note
+    folder (worker parse, book settings)                  → ParsedChapter[]
+    TTC poster (ttc_proxy_image) → cover.ts: centre 3:4, JPEG 600×800 ≤300 KB + 180×240 ≤60 KB
+  buildMeoImport (buildImport.ts): TTC story + chapters + picks → open body, chapter texts, problems
+  send: meotruyen_import_open → 409 duplicate_book? → meotruyen_import_send (batches ≤100 chapters, ≤4 MB, 3 tries)
+        → meotruyen_import_finalize → MeoLink saved (nk_meotruyen_links, by TTC story id)
+```
+
+- **Fields.** Title, Chinese title (required: the site checks duplicates on it and on the source link), author, original author, source link (`chinese_link`, dropped with a warning when it is not http/https), synopsis (TTC's `description` as is), status (`full` → `completed`), `appId` = TTC story id. Translator is left empty: the site uses the token owner's name. The model only picks genres and tags (slugs of the live list; a name is matched too, anything else dropped) and writes the editor's note (≤300 characters, editable). A refusal by the provider's content filter is retried without the synopsis, as in the create-story fill.
+- **The site's rules, copied.** `meotruyen/rules.ts` copies `formatChapterFile`, the limits and `chapterBatches` from the meotruyen repo (`shared/import.ts`, `shared/text.ts`), so the text sent is exactly what the site's importer would send, and every problem shows before a job is opened: chapters numbered 1..N without a gap (a folder with "bỏ qua N chương đầu" cannot go), no empty chapter, ≤200 KB each, titles ≤200 characters, at least one genre. Keep the copy in step when the site changes those rules.
+- **Duplicates and updates.** A story imported before is remembered (`MeoLink`: book id, slug, picks, chapters, date) and its button shows a check. Sending again reuses its picks without asking the model, and when the site answers `duplicate_book` with that same book and nothing to lose (`chaptersDeleted` 0) it is overwritten without a question: chapters with the same number are replaced, new ones added, comments kept. Any other duplicate (or one that would delete chapters) is shown with what an overwrite would cost, and only an explicit "Ghi đè truyện này" sends it.
+- **Token.** `AppSettings.meoTruyen.token` (Cài đặt → Mèo Truyện); empty = the `MEOTRUYEN_TOKEN` environment variable, read by Rust. `src-tauri/src/meotruyen.rs` fixes the origin (`https://meotruyen.com`), puts the token in the `Authorization` header only (never in a URL or an error), checks job ids before they go into a path, and returns the site's `{ status, code, message, details }` as the error. The site answers a bad, expired or revoked token with a plain 404.
+- **Failures.** A 400 lists every problem the site found. A batch or the finalize is tried 3 times on a network error or a 5xx; a failure after that leaves the job open on the site (it expires after 24 hours) and nothing changed: sending again starts over. A finalize that answers `import_closed` with status `done` means an earlier try created the book and only its reply was lost.
+
 ## Known Limitations
 
 1. **Session expiry**: No auto-refresh — an expired account is marked "Cần đăng nhập lại" and the user logs in again from the banner

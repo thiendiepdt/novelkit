@@ -2,6 +2,7 @@
 
 mod ai;
 mod fsutil;
+mod meotruyen;
 mod net;
 mod novel_source;
 mod ttc;
@@ -58,6 +59,12 @@ pub fn run() {
             novel_source::source_fetch_image,
             // AI (Gemini / OpenAI-compatible)
             ai::ai_generate_json,
+            // Mèo Truyện import API (uploader token)
+            meotruyen::meotruyen_token_source,
+            meotruyen::meotruyen_genres,
+            meotruyen::meotruyen_import_open,
+            meotruyen::meotruyen_import_send,
+            meotruyen::meotruyen_import_finalize,
             // Settings store (replaces the webview localStorage on desktop)
             user_store::user_store_load,
             user_store::user_store_import,

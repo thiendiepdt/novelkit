@@ -72,6 +72,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
         gemini: { ...DEFAULT_SETTINGS.ai.gemini, ...(globalSettings?.ai?.gemini || {}) },
         openai: { ...DEFAULT_SETTINGS.ai.openai, ...(globalSettings?.ai?.openai || {}) },
       },
+      meoTruyen: { ...DEFAULT_SETTINGS.meoTruyen, ...(globalSettings?.meoTruyen || {}) },
     };
 
     const getSettingsForBookMerged = (bookId?: number): AppSettings => {
@@ -89,6 +90,7 @@ export function SettingsProvider({ children }: { children: React.ReactNode }) {
           ...(specific.ttcUploader || {}),
         },
         ai: mergedGlobalSettings.ai,
+        meoTruyen: mergedGlobalSettings.meoTruyen,
       };
     };
 

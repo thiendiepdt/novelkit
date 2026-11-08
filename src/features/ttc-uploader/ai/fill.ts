@@ -187,7 +187,7 @@ export function isContentBlock(message: string): boolean {
 }
 
 /** Pull the JSON object out of a model reply (bare JSON, fenced, wrapped in prose, or slightly broken). */
-function extractJson(reply: string): Record<string, unknown> {
+export function extractJson(reply: string): Record<string, unknown> {
   const trimmed = reply.trim();
   const candidates = [trimmed];
   const fenced = trimmed.match(/```(?:json)?\s*([\s\S]*?)```/i);

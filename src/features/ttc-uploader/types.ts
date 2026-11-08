@@ -18,6 +18,15 @@ export interface TtcStory {
   chinese_title?: string | null;
   /** Link of the book on the source site (Fanqie, Qidian, ...); empty for "Sáng Tác" stories. */
   chinese_link?: string | null;
+  /** "Nam" or "Nữ": only "Nữ" stories can go to Mèo Truyện. */
+  gender?: string | null;
+  type?: string | null;
+  /** Synopsis (văn án). */
+  description?: string | null;
+  /** Author name on the source site. */
+  author_original?: string | null;
+  /** [Tính cách, Bối cảnh, Lưu phái] labels. */
+  sub_categories?: unknown;
 }
 
 /** A story is pending only when TTC says so explicitly, exactly like the site's own list. */

@@ -33,6 +33,21 @@ pub struct TtcStory {
     /// Link of the book on the source site (Fanqie, Qidian, ...); empty for "Sáng Tác" stories.
     #[serde(default)]
     pub chinese_link: Option<String>,
+    /// "Nam" or "Nữ" (only "Nữ" stories can go to Mèo Truyện).
+    #[serde(default)]
+    pub gender: Option<String>,
+    /// "truyen-cv", "truyen-dich" or "sang-tac".
+    #[serde(default, rename = "type")]
+    pub story_type: Option<String>,
+    /// Synopsis (văn án), as on the story page.
+    #[serde(default)]
+    pub description: Option<String>,
+    /// Author name on the source site.
+    #[serde(default)]
+    pub author_original: Option<String>,
+    /// [Tính cách, Bối cảnh, Lưu phái] labels, passed on as sent (a stray null must not fail the list).
+    #[serde(default)]
+    pub sub_categories: Option<serde_json::Value>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

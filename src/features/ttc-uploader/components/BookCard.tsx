@@ -1,8 +1,10 @@
 import type { ReactNode } from 'react';
-import { Clock, ListOrdered, Pencil, Trash2, TrendingUp } from 'lucide-react';
+import { Cat, Check, Clock, ListOrdered, Pencil, Trash2, TrendingUp } from 'lucide-react';
 import { isPendingApproval } from '../types';
 import type { TtcStory } from '../types';
 import type { DripStatus } from '../drip/dripEngine';
+import { isFemaleStory } from '../meotruyen/buildImport';
+import type { MeoLink } from '../meotruyen/types';
 import ProxiedImage from './ProxiedImage';
 import { SourceLink } from './SourceLink';
 import { Tooltip } from '@/shared/components';
@@ -17,6 +19,10 @@ interface BookCardProps {
   dripStatus?: DripStatus;
   /** A line under the details, e.g. how the folder differs from TTC. */
   note?: ReactNode;
+  /** "Mèo Truyện": offered for female stories only. */
+  onMeoTruyen?: (book: TtcStory) => void;
+  /** The Mèo Truyện book this story was imported as, if it was. */
+  meoLink?: MeoLink;
 }
 
 /** Shared shape of the card actions: large enough to hit without aiming. */
@@ -26,7 +32,7 @@ const ACTION_CLASS =
 /**
  * Compact book card showing poster, metadata, and action buttons.
  */
-export function BookCard({ book, onEdit, onResync, onDelete, dripStatus, note }: BookCardProps) {
+export function BookCard({ book, onEdit, onResync, onDelete, dripStatus, note, onMeoTruyen, meoLink }: BookCardProps) {
   const pending = isPendingApproval(book);
 
   return (
@@ -87,6 +93,25 @@ export function BookCard({ book, onEdit, onResync, onDelete, dripStatus, note }:
                 className={`${ACTION_CLASS} mr-2 border border-crimson/30 bg-crimson/10 text-crimson hover:bg-crimson/20 hover:border-crimson/50 focus-visible:ring-crimson/60`}
               >
                 <Trash2 size={16} /> Xóa
+              </button>
+            </Tooltip>
+          )}
+          {onMeoTruyen && isFemaleStory(book) && (
+            <Tooltip
+              content={
+                meoLink
+                  ? `Đã nạp lên Mèo Truyện (${meoLink.chapters} chương). Bấm để cập nhật: chương mới được thêm, chương trùng số được thay`
+                  : 'Nạp truyện và các chương trong folder lên meotruyen.com thành bản nháp (AI chọn thể loại, chủ đề)'
+              }
+              side="top"
+            >
+              <button
+                type="button"
+                onClick={() => onMeoTruyen(book)}
+                className={`${ACTION_CLASS} border border-purple/40 bg-purple/10 text-purple hover:bg-purple/20 hover:border-purple/60 focus-visible:ring-purple/60`}
+              >
+                <Cat size={16} /> Mèo Truyện
+                {meoLink && <Check size={14} className="text-jade" aria-label="Đã nạp" />}
               </button>
             </Tooltip>
           )}

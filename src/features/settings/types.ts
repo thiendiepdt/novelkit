@@ -47,11 +47,18 @@ export const DEFAULT_AI_BASE_URLS: Record<AiProvider, string> = {
   openai: 'https://api.openai.com/v1',
 };
 
+export interface MeoTruyenSettings {
+  /** Uploader token (`mtk_…`) of meotruyen.com; empty = the MEOTRUYEN_TOKEN environment variable. */
+  token: string;
+}
+
 export interface AppSettings {
   splitter: SplitterSettings;
   ttcUploader: TtcUploaderSettings;
   /** Global only: AI credentials are never overridden per book. */
   ai: AiSettings;
+  /** Global only. */
+  meoTruyen: MeoTruyenSettings;
 }
 
 export type PerBookSettings = Partial<{
@@ -88,4 +95,5 @@ export const DEFAULT_SETTINGS: AppSettings = {
     gemini: { apiKey: '', model: 'gemini-3.8-flash', baseUrl: '' },
     openai: { apiKey: '', model: 'gpt-5.6-sol', baseUrl: '' },
   },
+  meoTruyen: { token: '' },
 };

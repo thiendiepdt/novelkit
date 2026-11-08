@@ -18,3 +18,4 @@ export { ResyncComparisonTable } from './ResyncComparisonTable';
 export { AbandonCheckModal } from './AbandonCheckModal';
 export { DripBookControls } from './DripBookControls';
 export { DripModal } from './DripModal';
+export { MeoTruyenModal } from './MeoTruyenModal';

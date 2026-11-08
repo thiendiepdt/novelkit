@@ -22,7 +22,9 @@ import {
   AbandonCheckModal,
   AccountSwitcher,
   SyncScanModal,
+  MeoTruyenModal,
 } from './components';
+import { useMeoTruyenLinks } from './meotruyen/links';
 import { accountLabel } from './utils/accountLabel';
 import { useDrip } from './drip';
 import { DripBookControls, DripModal } from './components';
@@ -106,6 +108,8 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
   const [showDownloadAllModal, setShowDownloadAllModal] = useState(false);
   const [showAbandonCheck, setShowAbandonCheck] = useState(false);
   const [showSyncScan, setShowSyncScan] = useState(false);
+  const [meoBook, setMeoBook] = useState<TtcStory | null>(null);
+  const meo = useMeoTruyenLinks();
   const [activeTab, setActiveTab] = useState<'remote' | 'local'>('remote');
 
   // ─── Book selection handlers ────────────────────────────
@@ -399,6 +403,8 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
                   onDelete={setDeletingBook}
                   dripStatus={drip.snapshot?.plans.find((p) => p.bookId === book.id)?.status}
                   note={tabs.tab === 'unsynced' ? <FolderSyncNote status={tabs.folderSync.statusOf(book.id)} /> : undefined}
+                  onMeoTruyen={setMeoBook}
+                  meoLink={meo.links[book.id]}
                 />
               ))}
 
@@ -483,6 +489,16 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
             if (book) handleSelectBook(book);
             else books.handleSearchChange(drip.snapshot?.plans.find((p) => p.bookId === bookId)?.bookTitle ?? '');
           }}
+        />
+      )}
+
+      {/* "Mèo Truyện": a female story with its folder, to meotruyen.com */}
+      {meoBook && (
+        <MeoTruyenModal
+          book={meoBook}
+          link={meo.links[meoBook.id]}
+          onImported={(link) => meo.saveLink(meoBook.id, link)}
+          onClose={() => setMeoBook(null)}
         />
       )}
 
