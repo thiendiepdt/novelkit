@@ -1,57 +1,52 @@
 import { useState, useEffect, useCallback, useRef } from 'react';
-import { invoke } from '@tauri-apps/api/core';
 import { useSettings } from '@/features/settings/hooks/useSettings';
-import { DEFAULT_BOOKS_LIMIT } from '../constants';
 import type { BookStatus } from '../constants';
-import type { TtcStory, TtcBooksResponse } from '../types';
+import type { TtcStory } from '../types';
+import { fetchAllBooks } from '../utils/ttcLists';
 
 /**
- * Manages book list state: fetching, search, status filtering, and pagination.
+ * The whole book list for the status filter and the search (TTC's own search), in TTC's
+ * order. Tabs, source filter and pages work on it locally (`useBookTabs`, the page).
  */
 export function useTtcBooks(session?: string | null) {
-  const [books, setBooks] = useState<TtcStory[]>([]);
+  const [allBooks, setAllBooks] = useState<TtcStory[]>([]);
   const [loadingBooks, setLoadingBooks] = useState(false);
   const [booksError, setBooksError] = useState<string | null>(null);
 
-  // Search, filter & pagination
   const [searchKeyword, setSearchKeyword] = useState('');
   const [statusFilter, setStatusFilter] = useState<BookStatus[]>(['ongoing']);
   const [currentPage, setCurrentPage] = useState(1);
-  const [totalPages, setTotalPages] = useState(1);
-  const [totalStories, setTotalStories] = useState(0);
-  
+
   const { settings, updateSettings } = useSettings();
   const booksLimit = settings.ttcUploader.booksLimit;
   const setBooksLimit = useCallback((v: number) => updateSettings('ttcUploader', { booksLimit: v }), [updateSettings]);
-  
-  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Fetch books
-  const fetchBooks = useCallback(async (page = 1, keyword = '', status = 'ongoing' as string, limit = DEFAULT_BOOKS_LIMIT) => {
+  const searchTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** Only the latest request may fill the list (typing sends several). */
+  const requestRef = useRef(0);
+
+  const fetchBooks = useCallback(async (keyword: string, status: string) => {
+    const request = ++requestRef.current;
     setLoadingBooks(true);
     setBooksError(null);
     try {
-      const resp = await invoke<TtcBooksResponse>('ttc_fetch_books', {
-        page,
-        limit,
-        keyword: keyword || null,
-        status,
-      });
-      setBooks(resp.stories);
-      setTotalPages(resp.totalPages);
-      setTotalStories(resp.totalStories);
+      const books = await fetchAllBooks(status, keyword);
+      if (request === requestRef.current) setAllBooks(books);
     } catch (e) {
-      setBooksError(String(e));
+      if (request === requestRef.current) setBooksError(String(e));
     } finally {
-      setLoadingBooks(false);
+      if (request === requestRef.current) setLoadingBooks(false);
     }
   }, []);
 
-  // Auto-fetch when session/filter/page changes
   useEffect(() => {
-    if (session) fetchBooks(currentPage, searchKeyword, statusFilter.join(','), booksLimit);
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- fetchBooks is stable (useCallback with []), searchKeyword triggers via debounced handleSearchChange instead
-  }, [session, currentPage, statusFilter, booksLimit]);
+    if (session) fetchBooks(searchKeyword, statusFilter.join(','));
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- searchKeyword triggers via the debounced handleSearchChange instead
+  }, [session, statusFilter, fetchBooks]);
+
+  useEffect(() => () => {
+    if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
+  }, []);
 
   // Debounced search (400ms)
   const handleSearchChange = useCallback(
@@ -60,10 +55,10 @@ export function useTtcBooks(session?: string | null) {
       if (searchTimerRef.current) clearTimeout(searchTimerRef.current);
       searchTimerRef.current = setTimeout(() => {
         setCurrentPage(1);
-        fetchBooks(1, value, statusFilter.join(','), booksLimit);
+        fetchBooks(value, statusFilter.join(','));
       }, 400);
     },
-    [fetchBooks, statusFilter, booksLimit],
+    [fetchBooks, statusFilter],
   );
 
   // Toggle status filter chip
@@ -76,26 +71,23 @@ export function useTtcBooks(session?: string | null) {
     setCurrentPage(1);
   }, []);
 
-  // Refresh books (callable from outside)
+  /** Reload the list, keeping the page (callable from outside). */
   const refreshBooks = useCallback(() => {
-    fetchBooks(currentPage, searchKeyword, statusFilter.join(','), booksLimit);
-  }, [fetchBooks, currentPage, searchKeyword, statusFilter, booksLimit]);
+    fetchBooks(searchKeyword, statusFilter.join(','));
+  }, [fetchBooks, searchKeyword, statusFilter]);
 
   return {
-    books,
+    allBooks,
     loadingBooks,
     booksError,
     searchKeyword,
     statusFilter,
     currentPage,
-    totalPages,
-    totalStories,
     booksLimit,
     setCurrentPage,
     setBooksLimit,
     handleSearchChange,
     handleStatusToggle,
-    fetchBooks,
     refreshBooks,
   };
 }

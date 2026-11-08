@@ -3,7 +3,7 @@ import Select from './Select';
 import { ArrowLeft, ArrowRight } from 'lucide-react';
 
 // ─── Constants ─────────────────────────────────────────────
-const LIMIT_OPTIONS = [10, 16, 20, 30, 50];
+const LIMIT_OPTIONS = [10, 16, 20, 30, 50, 100, 200];
 
 // ─── Types ─────────────────────────────────────────────────
 export interface PaginationProps {

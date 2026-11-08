@@ -14,6 +14,10 @@ export interface TtcStory {
   follows: number;
   /** `false` while the story waits for a moderator ("Chờ duyệt"); null/absent when unknown. */
   approved?: boolean | null;
+  /** Title on the source site; empty for "Sáng Tác" stories. */
+  chinese_title?: string | null;
+  /** Link of the book on the source site (Fanqie, Qidian, ...); empty for "Sáng Tác" stories. */
+  chinese_link?: string | null;
 }
 
 /** A story is pending only when TTC says so explicitly, exactly like the site's own list. */

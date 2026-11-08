@@ -162,6 +162,6 @@ describe('parseQq', () => {
 
   it('surfaces the server message when the book is missing', () => {
     expect(() => parseQq('{"msg":"书籍不存在","introinfo":{}}', ref('qq', '1'))).toThrow('书籍不存在');
-    expect(() => parseQq('<html>403</html>', ref('qq', '1'))).toThrow(/QQ Reading/);
+    expect(() => parseQq('<html>403</html>', ref('qq', '1'))).toThrow(/BookQQ/);
   });
 });

@@ -207,7 +207,7 @@ CreateBookModal → useCreateBook
 | Source | Link forms accepted | Metadata is read from | Signing |
 |--------|--------------------|-----------------------|---------|
 | Fanqie | `fanqienovel.com/page/{id}`, share links with `book_id=` | `window.__INITIAL_STATE__` in the book page | none |
-| QQ Reading | any `*.qq.com` book page (bid or `1e9 + bid`) | `detailadr.reader.qq.com/book/queryDetailPage` (public JSON) | none |
+| BookQQ | any `*.qq.com` book page (bid or `1e9 + bid`) | `detailadr.reader.qq.com/book/queryDetailPage` (public JSON) | none |
 | Qidian | `qidian.com/{book,info,chapter}/{id}` on any subdomain | SSR page context of `m.qidian.com/book/{id}/` | none |
 | Qimao | `qimao.com/shuku/{id}/`, chapter `shuku/{id}-{chapterId}/` | markup of the server-rendered book page (its `__NUXT__` state is a JS program, not data) | none |
 | SFACG | `book.sfacg.com/Novel/{id}/[…chapter]`, `m.sfacg.com/{b,i}/{id}/`, chapter `m.sfacg.com/c/{chapterId}/` | `m.sfacg.com/b/{id}/` (full synopsis) + `book.sfacg.com/Novel/{id}/` (tags) | none |
@@ -303,6 +303,22 @@ AbandonCheckModal → useAbandonCheck
 - `utils/abandon.ts`: `ABANDON_DAYS` (12), day count and risk level. Only stories at least N days without a chapter are preselected (default `DEFAULT_REUP_FROM_DAYS` = 7, adjustable in the modal, kept in localStorage `nk_ttc_reup_from_days`). The rule lives on TTC; change the constant if TTC changes it.
 - Several reup jobs start back to back, and TTC has answered `/dang-chuong/{id}` with HTTP 500 in that situation. `ttc_fetch_upload_tokens` retries connection errors, 5xx and 429 (3 attempts, 3s then 6s) and logs the status and body of every failure. A failed reup can be selected and queued again from the modal.
 - `addJob` of the upload queue returns the job id, so the modal shows the status of the jobs it queued.
+
+## Book List: Tabs and Source Filter
+
+The list is loaded whole for the status filter and the search (`useTtcBooks` → `fetchAllBooks`, 200 stories per page, TTC's own search), then everything else is local (`useBookTabs`, `utils/bookFilters.ts`): tabs, source filter and pages, so counts and pages are right whatever the filter.
+
+| Tab | Shows |
+|-----|-------|
+| Tất cả | the list as TTC returns it |
+| Chờ duyệt | `approved === false` |
+| Chưa có chương | `total_chapters === 0` |
+| Chưa chọn folder | no folder in the settings of that very story |
+| Chưa đồng bộ | folder ahead of TTC, latest chapter different, or folder unreadable |
+
+- **Source filter**: the source of a story comes from its `chinese_link` (`utils/sourceSite.ts`: short names of `SOURCE_LABELS`, the host for other sites, "Không có nguồn" without a link). Several sources can be picked; none = all. Tab counts follow it; source counts follow the open tab but not the source filter (every source stays pickable, in a fixed order; one with no story in the tab is disabled).
+- **"Chưa đồng bộ"** compares each folder with what the list already says (`utils/folderSync.ts`: number of chapters and title of the latest one), with no request to TTC. Folders are read only while the tab is open (`useFolderSyncStatus`, one at a time in the parser worker) and a result is kept until the folder, the parse settings or the story on TTC change. An older chapter edited in the folder is not seen here: "Quét chương mới" reads every chapter on TTC.
+- `SourceLink` shows the source on the card and in the book header and opens it in the default browser (`shared/utils/openExternal.ts`: shell plugin, web pages only).
 
 ## Sync Scan ("Quét chương mới")
 

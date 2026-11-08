@@ -25,7 +25,7 @@ export function SettingsPanel({ onClose, initialBookId, initialBookTitle, initia
   const { globalSettings, updateGlobalSettings, resetGlobalSettings, bookSettings, updateBookSettings, clearBookSettings } = useSettingsContext();
 
   const activeAccount = useActiveTtcAccount();
-  const { books } = useTtcBooks(activeAccount);
+  const { allBooks: books } = useTtcBooks(activeAccount);
 
   const [activeCategory, setActiveCategory] = useState<SettingsCategory>(initialCategory ?? 'splitter');
   const [scope, setScope] = useState<string>(initialBookId ? initialBookId.toString() : 'global');

@@ -1,8 +1,10 @@
+import type { ReactNode } from 'react';
 import { Clock, ListOrdered, Pencil, Trash2, TrendingUp } from 'lucide-react';
 import { isPendingApproval } from '../types';
 import type { TtcStory } from '../types';
 import type { DripStatus } from '../drip/dripEngine';
 import ProxiedImage from './ProxiedImage';
+import { SourceLink } from './SourceLink';
 import { Tooltip } from '@/shared/components';
 
 interface BookCardProps {
@@ -13,6 +15,8 @@ interface BookCardProps {
   onDelete: (book: TtcStory) => void;
   /** Status of the story's "Nổi bảng" plan, if it has one. */
   dripStatus?: DripStatus;
+  /** A line under the details, e.g. how the folder differs from TTC. */
+  note?: ReactNode;
 }
 
 /** Shared shape of the card actions: large enough to hit without aiming. */
@@ -22,20 +26,22 @@ const ACTION_CLASS =
 /**
  * Compact book card showing poster, metadata, and action buttons.
  */
-export function BookCard({ book, onEdit, onResync, onDelete, dripStatus }: BookCardProps) {
+export function BookCard({ book, onEdit, onResync, onDelete, dripStatus, note }: BookCardProps) {
   const pending = isPendingApproval(book);
 
   return (
     <div className="bg-bg-card border border-border-main rounded-xl p-3 transition-all duration-200 hover:border-border-hover">
-      <div className="flex items-start gap-3">
+      {/* In a narrow window the actions move under the details instead of squeezing them */}
+      <div className="flex flex-wrap items-start gap-3">
         <ProxiedImage
           path={book.poster}
           alt={book.title}
           className="w-10 h-14 flex-shrink-0"
         />
-        <div className="flex-1 min-w-0">
-          <div className="flex items-center gap-2 min-w-0">
-            <h3 className="text-sm font-semibold text-text-primary truncate">
+        <div className="flex-1 min-w-72">
+          {/* The badges go to the next line before the title is cut short */}
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 min-w-0">
+            <h3 className="text-sm font-semibold text-text-primary truncate min-w-0 max-w-full">
               {book.title}
             </h3>
             {pending && (
@@ -58,16 +64,21 @@ export function BookCard({ book, onEdit, onResync, onDelete, dripStatus }: BookC
               </span>
             )}
           </div>
-          <p className="text-xs text-text-dim mt-0.5">
-            {book.author} · {book.category} · {book.total_chapters} chương
-          </p>
+          <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+            <p className="text-xs text-text-dim">
+              {book.author} · {book.category} ·{' '}
+              <span className="font-semibold text-text-secondary tabular-nums">{book.total_chapters} chương</span>
+            </p>
+            <SourceLink book={book} />
+          </div>
           {book.latest_chapter_title && (
             <p className="text-xs text-text-dim mt-0.5 truncate">
               Mới nhất: {book.latest_chapter_title}
             </p>
           )}
+          {note && <div className="text-xs mt-1">{note}</div>}
         </div>
-        <div className="flex flex-wrap items-center justify-end gap-2 flex-shrink-0 self-center">
+        <div className="flex flex-wrap items-center justify-end gap-2 ml-auto self-center">
           {pending && (
             <Tooltip content="Xóa truyện đang chờ duyệt khỏi TTC (không hoàn tác được)" side="top">
               <button

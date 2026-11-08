@@ -172,11 +172,12 @@ The app uses a **Warm Charcoal Xianxia** dark theme. All colors are defined as C
 ```
 TtcUploaderPage (orchestrator, ~200 lines)
   ├── useTtcAuth      → accounts: startup check, add (login window), switch, logout
-  ├── useTtcBooks     → book list, search, status filters, pagination
+  ├── useTtcBooks     → the whole book list (all pages) for the status filter + TTC search
+  ├── useBookTabs     → local tabs, source filter (and useFolderSyncStatus for "Chưa đồng bộ")
   └── useTtcChapters  → chapter list, folder parsing, upload, download
 
 Components:
-  LoginView, BookCard, BookListToolbar, BookDetailHeader,
+  LoginView, BookCard, BookListToolbar, BookListFilters, SourceLink, BookDetailHeader,
   UploadToolbar, ChapterTable, DownloadAllModal,
   EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage, Segmented, TitleCaseInput,
   AbandonCheckModal ("Check vô hố": reup chương 1 of ongoing stories, via useAbandonCheck)

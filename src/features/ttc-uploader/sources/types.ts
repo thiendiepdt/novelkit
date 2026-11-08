@@ -3,7 +3,7 @@ export type SourceId = 'fanqie' | 'qq' | 'qidian' | 'qimao' | 'sfacg' | 'faloo' 
 
 export const SOURCE_LABELS: Record<SourceId, string> = {
   fanqie: 'Fanqie (番茄小说)',
-  qq: 'QQ Reading (QQ阅读)',
+  qq: 'BookQQ (QQ阅读)',
   qidian: 'Qidian (起点中文网)',
   qimao: 'Qimao (七猫中文网)',
   sfacg: 'SFACG (SF轻小说)',
@@ -13,7 +13,7 @@ export const SOURCE_LABELS: Record<SourceId, string> = {
 };
 
 /** Short names for UI copy, in the order they are listed to the user. */
-export const SOURCE_NAMES = 'Fanqie, QQ Reading, Qidian, Qimao, SFACG, Faloo, JJWXC và Ciweimao';
+export const SOURCE_NAMES = 'Fanqie, BookQQ, Qidian, Qimao, SFACG, Faloo, JJWXC và Ciweimao';
 
 /** A book link resolved to its source, id, canonical link and the URL to fetch metadata from. */
 export interface SourceRef {

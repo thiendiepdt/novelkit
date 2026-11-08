@@ -27,6 +27,12 @@ pub struct TtcStory {
     /// `false` while the story waits for a moderator ("Chờ duyệt"). Absent on old payloads.
     #[serde(default)]
     pub approved: Option<bool>,
+    /// Title on the source site; empty for "Sáng Tác" stories.
+    #[serde(default)]
+    pub chinese_title: Option<String>,
+    /// Link of the book on the source site (Fanqie, Qidian, ...); empty for "Sáng Tác" stories.
+    #[serde(default)]
+    pub chinese_link: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

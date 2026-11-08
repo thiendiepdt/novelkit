@@ -1,11 +1,15 @@
 import { invoke } from '@tauri-apps/api/core';
 import type { TtcChapter, TtcChaptersResponse, TtcStory, TtcBooksResponse } from '../types';
 
-const BOOKS_PAGE_SIZE = 50;
+/** TTC serves up to 200 stories per page: most accounts fit in one request. */
+const BOOKS_PAGE_SIZE = 200;
 const CHAPTERS_PAGE_SIZE = 1000;
 
-/** Every story of the active account with one of the given statuses (comma-separated, as the list sends them). */
-export async function fetchAllBooks(status: string): Promise<TtcStory[]> {
+/**
+ * Every story of the active account with one of the given statuses (comma-separated, as the
+ * list sends them), in TTC's order. `keyword` is TTC's own search.
+ */
+export async function fetchAllBooks(status: string, keyword = ''): Promise<TtcStory[]> {
   const all: TtcStory[] = [];
   let page = 1;
   let totalPages = 1;
@@ -13,14 +17,16 @@ export async function fetchAllBooks(status: string): Promise<TtcStory[]> {
     const resp = await invoke<TtcBooksResponse>('ttc_fetch_books', {
       page,
       limit: BOOKS_PAGE_SIZE,
-      keyword: null,
+      keyword: keyword || null,
       status,
     });
     all.push(...resp.stories);
     totalPages = resp.totalPages;
     page++;
   } while (page <= totalPages);
-  return all;
+  // A story that moved between pages while they were read would show twice.
+  const seen = new Set<number>();
+  return all.filter((b) => !seen.has(b.id) && seen.add(b.id));
 }
 
 /**

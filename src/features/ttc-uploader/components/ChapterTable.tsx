@@ -95,12 +95,12 @@ export function ChapterTable({
             <thead className="bg-bg-hover/80 backdrop-blur-md sticky top-0 z-10 text-xs text-text-secondary shadow-sm">
               <tr>
                 <th className="px-4 py-2 font-medium w-16 text-center border-b border-border-main">STT</th>
-                <th className="px-4 py-2 font-medium border-b border-border-main">Tên chương</th>
+                <th className="px-4 py-2 font-medium border-b border-border-main w-full">Tên chương</th>
                 <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main">Số chữ</th>
-                <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main">Lượt xem</th>
+                <th className="px-4 py-2 font-medium w-24 text-right border-b border-border-main hidden lg:table-cell">Lượt xem</th>
                 <th className="px-4 py-2 font-medium w-24 text-center border-b border-border-main">Mua/Click</th>
                 <th className="px-4 py-2 font-medium w-28 text-center border-b border-border-main">Trạng thái</th>
-                <th className="px-4 py-2 font-medium w-32 text-center border-b border-border-main">Cập nhật</th>
+                <th className="px-4 py-2 font-medium w-32 text-center border-b border-border-main hidden xl:table-cell">Cập nhật</th>
                 <th className="px-4 py-2 font-medium w-20 text-center border-b border-border-main">Thao tác</th>
               </tr>
             </thead>
@@ -122,8 +122,9 @@ function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownlo
   return (
     <tr className="hover:bg-bg-hover/50 transition-colors text-text-primary">
       <td className="px-4 py-2.5 text-center text-text-dim text-xs font-mono">{ch.chapterNumber}</td>
-      <td className="px-4 py-2.5 max-w-[200px] md:max-w-[400px]" title={ch.title}>
-        <div className="flex items-center gap-2">
+      {/* Takes the width the other columns leave, and truncates within it (max-w-0 lets it shrink) */}
+      <td className="px-4 py-2.5 w-full max-w-0" title={ch.title}>
+        <div className="flex items-center gap-2 min-w-0">
           <span className="truncate">{ch.title}</span>
           {ch.chapter_price > 0 && (
             <span className="shrink-0 inline-flex items-center gap-1 bg-[#d32f2f] text-white px-1.5 py-0.5 rounded-md text-[10px] font-bold shadow-sm">
@@ -135,7 +136,7 @@ function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownlo
       <td className="px-4 py-2.5 text-right text-text-dim text-xs font-mono">
         {ch.wordCount > 0 ? ch.wordCount.toLocaleString() : '-'}
       </td>
-      <td className="px-4 py-2.5 text-right text-text-dim text-xs font-mono">
+      <td className="px-4 py-2.5 text-right text-text-dim text-xs font-mono hidden lg:table-cell">
         {ch.views.toLocaleString()}
       </td>
       <td className="px-4 py-2.5 text-center text-text-dim text-xs font-mono">
@@ -146,7 +147,7 @@ function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownlo
       <td className="px-4 py-2.5 text-center">
         <ChapterStatusBadge status={ch.status} />
       </td>
-      <td className="px-4 py-2.5 text-center text-text-dim text-xs">
+      <td className="px-4 py-2.5 text-center text-text-dim text-xs hidden xl:table-cell">
         {ch.last_chap_updated ? new Date(ch.last_chap_updated).toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
       </td>
       <td className="px-4 py-2.5 text-center">

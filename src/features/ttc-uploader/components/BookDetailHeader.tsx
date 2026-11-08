@@ -1,5 +1,6 @@
 import type { TtcStory } from '../types';
 import ProxiedImage from './ProxiedImage';
+import { SourceLink } from './SourceLink';
 import { useSettingsModal } from '@/features/settings/context/SettingsModalContext';
 import { Tooltip } from '@/shared/components';
 import { Settings, ArrowLeft } from 'lucide-react';
@@ -34,9 +35,12 @@ export function BookDetailHeader({ book, onBack }: BookDetailHeaderProps) {
         <h1 className="text-lg font-bold text-gold truncate">
           {book.title}
         </h1>
-        <p className="text-xs text-text-secondary mt-0.5">
-          {book.author} · {book.category}
-        </p>
+        <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
+          <p className="text-xs text-text-secondary">
+            {book.author} · {book.category}
+          </p>
+          <SourceLink book={book} />
+        </div>
       </div>
       <Tooltip content="Cấu hình riêng cho truyện này" side="bottom">
         <button

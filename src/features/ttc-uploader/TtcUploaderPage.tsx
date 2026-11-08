@@ -1,14 +1,16 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { isTauri } from '@/shared/utils/platform';
 import { Monitor, Scale, Upload, ClipboardList, AlertTriangle } from 'lucide-react';
 import { useTtcAuth } from './hooks/useTtcAuth';
 import type { TtcAuth } from './hooks/useTtcAuth';
 import { useTtcBooks } from './hooks/useTtcBooks';
+import { useBookTabs } from './hooks/useBookTabs';
 import { useTtcChapters } from './hooks/useTtcChapters';
 import {
   LoginView,
   BookCard,
   BookListToolbar,
+  BookListFilters,
   BookDetailHeader,
   UploadToolbar,
   ChapterTable,
@@ -24,6 +26,7 @@ import {
 import { accountLabel } from './utils/accountLabel';
 import { useDrip } from './drip';
 import { DripBookControls, DripModal } from './components';
+import { FolderSyncNote } from './components/FolderSyncNote';
 import type { UploadMode } from './components/UploadToolbar';
 import { useUploadQueueContext } from '@/shared/context/UploadQueueContext';
 import { isPendingApproval } from './types';
@@ -76,6 +79,16 @@ function TtcUploaderContent() {
 function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInfo }) {
   // ─── Hooks ──────────────────────────────────────────────
   const books = useTtcBooks(account.username);
+  const tabs = useBookTabs(books.allBooks);
+  // Pages of the current tab and sources, cut here: the list is loaded whole.
+  const totalPages = Math.max(1, Math.ceil(tabs.visible.length / books.booksLimit));
+  const currentPage = Math.min(books.currentPage, totalPages);
+  const pageBooks = tabs.visible.slice((currentPage - 1) * books.booksLimit, currentPage * books.booksLimit);
+  const listRef = useRef<HTMLDivElement>(null);
+  const goToPage = (page: number) => {
+    books.setCurrentPage(page);
+    listRef.current?.scrollTo({ top: 0 });
+  };
   const [selectedBook, setSelectedBook] = useState<TtcStory | null>(null);
   const chapters = useTtcChapters(selectedBook, account.username);
   const drip = useDrip();
@@ -311,21 +324,12 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
       {/* Books List */}
       <div className="flex flex-col flex-1 min-h-0" style={{ animation: 'slideUp 0.4s ease-out 0.1s both' }}>
           <BookListToolbar
-            totalStories={books.totalStories}
+            totalStories={books.allBooks.length}
             loadingBooks={books.loadingBooks}
             searchKeyword={books.searchKeyword}
             statusFilter={books.statusFilter}
-            currentPage={books.currentPage}
-            totalPages={books.totalPages}
-            booksLimit={books.booksLimit}
             onSearchChange={books.handleSearchChange}
             onStatusToggle={books.handleStatusToggle}
-            onPageChange={books.setCurrentPage}
-            onLimitChange={(newLimit) => {
-              books.setBooksLimit(newLimit);
-              books.setCurrentPage(1);
-              books.fetchBooks(1, books.searchKeyword, books.statusFilter.join(','), newLimit);
-            }}
             onRefresh={books.refreshBooks}
             onCreate={() => setShowCreateModal(true)}
             onCheckAbandon={() => setShowAbandonCheck(true)}
@@ -333,6 +337,35 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
             onOpenDrip={() => setShowDrip(true)}
             dripRunning={drip.snapshot?.plans.filter((p) => p.status === 'running').length ?? 0}
             dripTotal={drip.snapshot?.plans.length ?? 0}
+          />
+
+          <BookListFilters
+            tab={tabs.tab}
+            counts={tabs.counts}
+            onTabChange={(tab) => {
+              tabs.setTab(tab);
+              goToPage(1);
+            }}
+            unsynced={tabs.folderSync}
+            sourceOptions={tabs.sourceOptions}
+            sources={tabs.sources}
+            onToggleSource={(name) => {
+              tabs.toggleSource(name);
+              goToPage(1);
+            }}
+            onClearSources={() => {
+              tabs.clearSources();
+              goToPage(1);
+            }}
+            currentPage={currentPage}
+            totalPages={totalPages}
+            booksLimit={books.booksLimit}
+            onPageChange={goToPage}
+            onLimitChange={(newLimit) => {
+              books.setBooksLimit(newLimit);
+              goToPage(1);
+            }}
+            disabled={books.loadingBooks}
           />
 
           {listNotice && (
@@ -355,9 +388,9 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
           )}
 
           {/* Book Cards */}
-          <div className="flex-1 overflow-y-auto pr-2 min-h-0">
+          <div ref={listRef} className="flex-1 overflow-y-auto pr-2 min-h-0">
             <div className="grid gap-2">
-              {books.books.map((book) => (
+              {pageBooks.map((book) => (
                 <BookCard
                   key={book.id}
                   book={book}
@@ -365,14 +398,19 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
                   onResync={handleSelectBook}
                   onDelete={setDeletingBook}
                   dripStatus={drip.snapshot?.plans.find((p) => p.bookId === book.id)?.status}
+                  note={tabs.tab === 'unsynced' ? <FolderSyncNote status={tabs.folderSync.statusOf(book.id)} /> : undefined}
                 />
               ))}
 
-              {books.books.length === 0 && !books.loadingBooks && (
+              {pageBooks.length === 0 && !books.loadingBooks && (
                 <div className="text-center py-8 text-text-dim text-sm">
-                  {books.searchKeyword
+                  {books.allBooks.length === 0 && books.searchKeyword
                     ? `Không tìm thấy truyện nào cho "${books.searchKeyword}"`
-                    : 'Không có truyện nào.'}
+                    : books.allBooks.length === 0
+                      ? 'Không có truyện nào.'
+                      : tabs.tab === 'unsynced' && tabs.folderSync.checking
+                        ? 'Chưa thấy truyện nào lệch với TTC, đang đọc tiếp các folder...'
+                        : 'Không có truyện nào trong mục này.'}
                 </div>
               )}
             </div>
@@ -383,7 +421,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
       {editingBookId && (
         <EditBookModal
           bookId={editingBookId}
-          pending={books.books.some((b) => b.id === editingBookId && isPendingApproval(b))}
+          pending={books.allBooks.some((b) => b.id === editingBookId && isPendingApproval(b))}
           onClose={() => setEditingBookId(null)}
           onSuccess={() => {
             setEditingBookId(null);
@@ -440,7 +478,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
           account={account.username}
           onClose={() => setShowDrip(false)}
           onOpenBook={(bookId) => {
-            const book = books.books.find((b) => b.id === bookId);
+            const book = books.allBooks.find((b) => b.id === bookId);
             setShowDrip(false);
             if (book) handleSelectBook(book);
             else books.handleSearchChange(drip.snapshot?.plans.find((p) => p.bookId === bookId)?.bookTitle ?? '');

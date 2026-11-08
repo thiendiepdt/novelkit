@@ -126,7 +126,7 @@ export function parseQidian(html: string, ref: SourceRef): SourceBook {
   };
 }
 
-// ─── QQ Reading ────────────────────────────────────────────
+// ─── BookQQ ────────────────────────────────────────────────
 
 /** detailadr.reader.qq.com/book/queryDetailPage: public JSON, no signature. */
 export function parseQq(text: string, ref: SourceRef): SourceBook {
@@ -134,12 +134,12 @@ export function parseQq(text: string, ref: SourceRef): SourceBook {
   try {
     j = JSON.parse(text);
   } catch {
-    throw new Error('QQ Reading trả về dữ liệu không hợp lệ');
+    throw new Error('BookQQ trả về dữ liệu không hợp lệ');
   }
 
   const book = j?.introinfo?.book;
   if (!str(book?.title)) {
-    throw new Error(str(j?.msg) || 'QQ Reading không trả về thông tin truyện (sai link hoặc truyện đã gỡ)');
+    throw new Error(str(j?.msg) || 'BookQQ không trả về thông tin truyện (sai link hoặc truyện đã gỡ)');
   }
 
   const n = Number(ref.bookId);
