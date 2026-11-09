@@ -9,7 +9,7 @@ use tokio::fs::OpenOptions;
 use tokio::io::AsyncWriteExt;
 use tokio::time::sleep;
 
-use super::client::{get_client, get_session_for, get_ttc_base, USER_AGENT};
+use super::client::{get_client, get_session_for, get_ttc_base, user_agent};
 use super::types::*;
 use super::utils::sanitize_filename;
 
@@ -37,7 +37,7 @@ pub async fn ttc_fetch_chapters(
     let resp = client
         .get(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .send()
         .await
         .map_err(|e| format!("Request failed: {}", e))?;
@@ -122,11 +122,12 @@ async fn ttc_fetch_upload_tokens(
     client: &reqwest::Client,
     base_url: &str,
     session: &str,
+    user_agent: &str,
     book_id: i64,
 ) -> Result<(String, String), String> {
     let mut attempt = 1;
     loop {
-        match ttc_fetch_upload_tokens_once(client, base_url, session, book_id).await {
+        match ttc_fetch_upload_tokens_once(client, base_url, session, user_agent, book_id).await {
             Ok(tokens) => return Ok(tokens),
             Err((msg, transient)) if transient && attempt < TOKEN_ATTEMPTS => {
                 log::warn!(
@@ -156,13 +157,14 @@ async fn ttc_fetch_upload_tokens_once(
     client: &reqwest::Client,
     base_url: &str,
     session: &str,
+    user_agent: &str,
     book_id: i64,
 ) -> Result<(String, String), (String, bool)> {
     let url = format!("{}/dang-chuong/{}", base_url, book_id);
     let resp = client
         .get(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent)
         .send()
         .await
         .map_err(|e| (format!("Lỗi kết nối khi lấy Token: {}", e), true))?;
@@ -232,10 +234,12 @@ pub async fn ttc_upload_chapters(
     let unlock_timer = options.unlock_timer.clone().unwrap_or_default();
     let client = get_client(&app);
     let base_url = get_ttc_base(&app).await?;
+    // One browser identity for the whole job: the upload page and every batch posted from it.
+    let ua = user_agent(&app);
 
     // Fetch Tokens
     let (csrf_token, upload_nonce) =
-        match ttc_fetch_upload_tokens(&client, &base_url, &session, options.book_id).await {
+        match ttc_fetch_upload_tokens(&client, &base_url, &session, &ua, options.book_id).await {
             Ok(tokens) => tokens,
             Err(e) => return Err(e),
         };
@@ -309,7 +313,7 @@ pub async fn ttc_upload_chapters(
             match client
                 .post(&url)
                 .header("Cookie", format!("session={}", session))
-                .header("User-Agent", USER_AGENT)
+                .header("User-Agent", &ua)
                 .header("Origin", &base_url)
                 .header(
                     "Referer",
@@ -631,7 +635,7 @@ pub async fn ttc_download_chapter(
     let resp = client
         .get(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .send()
         .await
         .map_err(|e| format!("Request failed: {}", e))?;

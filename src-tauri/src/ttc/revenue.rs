@@ -10,7 +10,7 @@
 use std::path::PathBuf;
 use tauri::{AppHandle, Manager};
 
-use super::client::{get_client, get_session_for, get_ttc_base, USER_AGENT};
+use super::client::{get_client, get_session_for, get_ttc_base, user_agent};
 use crate::fsutil::write_atomic;
 
 const DIR_NAME: &str = "revenue";
@@ -27,7 +27,7 @@ pub async fn ttc_fetch_purchases(app: AppHandle, account: String, page: u32) -> 
     let resp = get_client(&app)
         .get(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .send()
         .await
         .map_err(|e| format!("Không tải được thông báo TTC: {}", e))?;

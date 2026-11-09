@@ -385,6 +385,9 @@ The app can be logged into several TTC accounts; one is active. They live in `Tt
 - `ttc_open_login` clears the TTC cookies of the shared webview store first; otherwise the login window silently reopens the last account.
 - `TtcWorkspace` in `TtcUploaderPage` is keyed by the active username: a switch remounts it, which drops the open book, modals and in-flight requests of the previous account.
 
+#### 6a. TTC Request User-Agent
+TTC filters upload and create-story requests whose User-Agent does not look like a real browser. Every TTC request must send `ttc::client::user_agent(&app)` (the webview's own User-Agent, reported at startup by `ttc_set_user_agent`, or the complete `FALLBACK_USER_AGENT`); never hard-code a User-Agent in a TTC request. See "Request Identity" in `docs/ttc_uploader_tech.md`.
+
 #### 6b. Persisted Frontend State
 Use `usePersistentState` (or `storeGet` / `storeSet` from `shared/utils/persistentStore`), never `localStorage` directly. On desktop the values live in `user_data.json` (Rust `user_store`), loaded into memory by `initPersistentStore()` in `main.tsx` before the first render; on the web they stay in localStorage. The first desktop run copied every localStorage key into the file and left localStorage untouched (older versions still read it).
 

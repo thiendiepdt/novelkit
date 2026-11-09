@@ -3,6 +3,7 @@ import { createRoot } from 'react-dom/client'
 import './index.css'
 import App from './App'
 import { initPersistentStore } from '@/shared/utils/persistentStore'
+import { reportWebviewUserAgent } from '@/features/ttc-uploader/utils/userAgent'
 
 // The QT Web translator was removed; drop the dictionary cache it left in IndexedDB.
 try {
@@ -12,7 +13,8 @@ try {
 }
 
 // Settings are read synchronously while rendering, so the desktop store is loaded first.
-void initPersistentStore().finally(() => {
+// TTC requests start right after the first render: they need the browser User-Agent by then.
+void Promise.all([initPersistentStore(), reportWebviewUserAgent()]).finally(() => {
   createRoot(document.getElementById('root')!).render(
     <StrictMode>
       <App />

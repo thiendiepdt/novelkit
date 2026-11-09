@@ -1,7 +1,7 @@
 use regex::Regex;
 use tauri::AppHandle;
 
-use super::client::{get_client, get_session, get_ttc_base, USER_AGENT};
+use super::client::{get_client, get_session, get_ttc_base, user_agent};
 use super::types::{TtcBooksResponse, TtcCreateStoryResponse};
 
 // ─── Fetch Books Command ──────────────────────────────────
@@ -34,7 +34,7 @@ pub async fn ttc_fetch_books(
     let resp = client
         .get(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .send()
         .await
         .map_err(|e| format!("Request failed: {}", e))?;
@@ -63,7 +63,7 @@ pub async fn ttc_fetch_html(app: AppHandle, path: String) -> Result<String, Stri
     let resp = client
         .get(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .send()
         .await
         .map_err(|e| format!("Request failed: {}", e))?;
@@ -99,7 +99,7 @@ pub async fn ttc_submit_multipart(
     let resp = client
         .post(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .multipart(form)
         .send()
         .await
@@ -149,7 +149,7 @@ pub async fn ttc_create_story(
     let resp = client
         .post(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .header("Accept", "application/json")
         .header("Origin", &base_url)
         .header("Referer", &url)
@@ -223,7 +223,7 @@ pub async fn ttc_delete_story(app: AppHandle, book_id: i64) -> Result<Option<Str
     let form_page = client
         .get(format!("{}/dang-truyen", base_url))
         .header("Cookie", &cookie)
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .send()
         .await
         .map_err(|e| format!("Không lấy được token từ TTC: {}", e))?
@@ -239,7 +239,7 @@ pub async fn ttc_delete_story(app: AppHandle, book_id: i64) -> Result<Option<Str
     let resp = client
         .post(format!("{}/xoa-truyen/{}", base_url, book_id))
         .header("Cookie", &cookie)
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .header("Origin", &base_url)
         .header("Referer", format!("{}/my-stories", base_url))
         .header("Content-Type", "application/x-www-form-urlencoded")
@@ -291,7 +291,7 @@ pub async fn ttc_upload_cover(
     let resp = client
         .post(&url)
         .header("Cookie", format!("session={}", session))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .multipart(form)
         .send()
         .await

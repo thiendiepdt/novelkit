@@ -10,7 +10,7 @@ use std::sync::Mutex;
 use tauri::{AppHandle, Emitter, Manager, WebviewUrl, WebviewWindowBuilder};
 
 use super::accounts::{parse_account_page, AccountsFile, AccountsView, TtcAccount};
-use super::client::{get_client, get_ttc_base, USER_AGENT};
+use super::client::{get_client, get_ttc_base, user_agent};
 
 const LOGIN_WINDOW: &str = "ttc-login";
 /// Emitted with the new `AccountsView` whenever the list or the active account changes,
@@ -66,11 +66,12 @@ async fn fetch_account_identity(
     client: &reqwest::Client,
     base_url: &str,
     cookie: &str,
+    user_agent: &str,
 ) -> Result<Option<(String, String)>, String> {
     let resp = client
         .get(format!("{}/account", base_url))
         .header("Cookie", format!("session={}", cookie))
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent)
         .send()
         .await
         .map_err(|e| format!("Không kết nối được TTC: {}", e))?;
@@ -96,7 +97,7 @@ async fn verify_active_account(app: &AppHandle) -> Result<AccountsView, String> 
 
     let client = get_client(app);
     let base_url = get_ttc_base(app).await?;
-    match fetch_account_identity(&client, &base_url, &account.cookie).await {
+    match fetch_account_identity(&client, &base_url, &account.cookie, &user_agent(app)).await {
         Ok(Some((username, display_name))) => {
             state.update_and_emit(app, |store| {
                 store.upsert(TtcAccount {
@@ -230,7 +231,9 @@ pub async fn ttc_check_session(app: AppHandle) -> Result<LoginPoll, String> {
 
     // A session cookie exists before login too (anonymous session); /account tells them apart.
     let client = get_client(&app);
-    let Some((username, display_name)) = fetch_account_identity(&client, &base_url, &cookie).await? else {
+    let Some((username, display_name)) =
+        fetch_account_identity(&client, &base_url, &cookie, &user_agent(&app)).await?
+    else {
         return Ok(LoginPoll::Waiting);
     };
 

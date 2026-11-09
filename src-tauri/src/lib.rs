@@ -26,6 +26,7 @@ pub fn run() {
         .plugin(tauri_plugin_process::init())
         .invoke_handler(tauri::generate_handler![
             // Session & auth
+            ttc::client::ttc_set_user_agent,
             ttc::session::ttc_open_login,
             ttc::session::ttc_check_session,
             ttc::session::ttc_list_accounts,

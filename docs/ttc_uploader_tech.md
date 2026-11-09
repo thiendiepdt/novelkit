@@ -422,6 +422,16 @@ MeoTruyenModal → useMeoTruyenUpload (meotruyen/)
 - **Token.** `AppSettings.meoTruyen.token` (Cài đặt → Mèo Truyện); empty = the `MEOTRUYEN_TOKEN` environment variable, read by Rust. `src-tauri/src/meotruyen.rs` fixes the origin (`https://meotruyen.com`), puts the token in the `Authorization` header only (never in a URL or an error), checks job ids before they go into a path, and returns the site's `{ status, code, message, details }` as the error. The site answers a bad, expired or revoked token with a plain 404.
 - **Failures.** A 400 lists every problem the site found. A batch or the finalize is tried 3 times on a network error or a 5xx; a failure after that leaves the job open on the site (it expires after 24 hours) and nothing changed: sending again starts over. A finalize that answers `import_closed` with status `done` means an earlier try created the book and only its reply was lost.
 
+## Request Identity (User-Agent)
+
+TTC checks the requests of its chapter upload (`/luu-cac-chuong`) and create-story pages, in order: IP limits; a User-Agent that looks like a real browser; a Referer, if sent, of the upload page; CSRF and Origin; per-account limits; the upload token; at most 100 chapters per request. NovelKit's old User-Agent (`Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36`, cut before the browser tokens) is what that filter catches.
+
+- At startup, before the first render, `main.tsx` sends `navigator.userAgent` to `ttc_set_user_agent` (`utils/userAgent.ts`). On Windows that is WebView2, i.e. Edge/Chromium, the same engine as the TTC login window, so the session cookie and the requests come from one browser identity.
+- `is_browser_user_agent` accepts it only if it is `Mozilla/5.0 (…)` with a `Chrome/`, `Firefox/` or `Safari/` token, printable ASCII, 40–512 bytes. Otherwise (the macOS WKWebView reports no `Safari/` token) `FALLBACK_USER_AGENT`, a complete Chrome string for the platform, stays in use.
+- Every TTC request takes its User-Agent from `ttc::client::user_agent(&app)`; never hard-code one. An upload job reads it once and sends the same one for the upload page and every batch.
+- The other checks were already met: batch posts carry `Origin` = the TTC origin, `Referer` = `/dang-chuong/{id}`, `x-csrf-token` and `x-upload-nonce` from that page, and at most 100 chapters (`chunks(100)`). The create-story post sends `Origin` and `Referer` = `/dang-truyen` with the form's `_csrf`.
+- NovelKit does not enforce TTC's rate limits itself; the upload loop still waits when TTC answers "chờ Ns" or HTTP 429.
+
 ## Known Limitations
 
 1. **Session expiry**: No auto-refresh — an expired account is marked "Cần đăng nhập lại" and the user logs in again from the banner

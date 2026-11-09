@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::sync::Mutex;
 use tauri::{AppHandle, Manager};
 
-use super::client::{get_client, get_ttc_base, USER_AGENT};
+use super::client::{get_client, get_ttc_base, user_agent};
 
 // ─── Image Cache ──────────────────────────────────────────
 
@@ -39,7 +39,7 @@ pub async fn ttc_proxy_image(app: AppHandle, path: String) -> Result<String, Str
     let client = get_client(&app);
     let resp = client
         .get(&url)
-        .header("User-Agent", USER_AGENT)
+        .header("User-Agent", user_agent(&app))
         .send()
         .await
         .map_err(|e| format!("Image fetch failed: {}", e))?;
