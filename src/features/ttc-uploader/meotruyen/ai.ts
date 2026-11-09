@@ -5,6 +5,9 @@ import { AiContentBlockedError, extractJson, isContentBlock } from '../ai/fill';
 import { AI_BLOCKED_MESSAGE } from '../ai/client';
 import { BOOK_TEXT_MAX, charCount } from './rules';
 import type { MeoGenre } from './types';
+import { SOURCE_LABELS, type SourceBook } from '../sources';
+import { sourceTerms } from './sourceTags';
+import { MEO_ZH_NAMES } from './zhNames';
 
 /** What the model picks for Mèo Truyện. Slugs are always ones of the site. */
 export interface MeoAiPicks {
@@ -21,7 +24,7 @@ const NOTE_TARGET = 250;
 const SYSTEM_PROMPT = `Bạn là biên tập viên (BTV) của Mèo Truyện, web đọc truyện ngôn tình Trung Quốc dịch tiếng Việt. Từ hồ sơ một bộ truyện nữ tần đã dịch, hãy điền:
 
 - genres: chọn 1 slug (tối đa ${MAX_GENRES}) trong danh sách "Thể loại", đúng với bối cảnh và dòng chính của truyện (cổ đại, hiện đại, huyền huyễn, tiên hiệp...).
-- tags: chọn từ 3 đến 8 slug trong danh sách "Chủ đề" thật sự đúng với truyện, dựa vào văn án, phân loại và thể loại. Không chọn cho đủ số: chủ đề nào văn án không cho thấy thì bỏ.
+- tags: chọn từ 3 đến 8 slug trong danh sách "Chủ đề" thật sự đúng với truyện. Căn cứ chính là nhãn gốc tiếng Trung của trang nguồn (khi có): mỗi chủ đề có tên tiếng Trung trong ngoặc, chủ đề nào trùng hoặc cùng nghĩa với một nhãn gốc thì chọn. Sau đó mới dựa vào văn án, phân loại và thể loại. Không chọn cho đủ số: chủ đề nào không có căn cứ thì bỏ.
 - editorNote: lời giới thiệu ngắn của BTV, tiếng Việt, 1 đến 2 câu, tối đa ${NOTE_TARGET} ký tự. Nói vì sao truyện đáng đọc: điểm hấp dẫn, cảm xúc, kiểu nhân vật, quan hệ chính. Giọng tự nhiên như người giới thiệu sách cho bạn. Không tiết lộ kết truyện, không chép lại văn án, không emoji, không hashtag, không bọc trong dấu ngoặc kép. Giữ nguyên tên nhân vật như trong văn án.
 
 Chỉ dùng đúng slug có trong danh sách, không tự đặt slug mới.
@@ -29,27 +32,43 @@ Chỉ dùng đúng slug có trong danh sách, không tự đặt slug mới.
 # Đầu ra
 Trả về DUY NHẤT một JSON object với đúng các khoá: genres (mảng slug), tags (mảng slug), editorNote (chuỗi). Không in phần suy nghĩ, không giải thích, không markdown.`;
 
-const lines = (items: readonly MeoGenre[]) => items.map((g) => `${g.slug}: ${g.name}`).join('\n');
+/** `slug: tên (中文)`; the Chinese name is what the source labels match. */
+const lines = (items: readonly MeoGenre[]) =>
+  items
+    .map((g) => {
+      const zh = MEO_ZH_NAMES[g.slug];
+      return zh && zh.toLowerCase() !== g.name.toLowerCase() ? `${g.slug}: ${g.name} (${zh})` : `${g.slug}: ${g.name}`;
+    })
+    .join('\n');
 
 const subCategories = (story: TtcStory) =>
   Array.isArray(story.sub_categories) ? story.sub_categories.filter((s): s is string => typeof s === 'string' && s.trim() !== '') : [];
 
-export function buildPickPrompt(story: TtcStory, known: readonly MeoGenre[], omitSynopsis = false): { system: string; user: string } {
+export function buildPickPrompt(
+  story: TtcStory,
+  known: readonly MeoGenre[],
+  /** The book on its source site, when it could be read: its Chinese labels. */
+  source: SourceBook | null = null,
+  omitSynopsis = false,
+): { system: string; user: string } {
+  const terms = source ? sourceTerms(source) : [];
   const info = [
     `Tên truyện: ${story.title}`,
     story.chinese_title ? `Tên gốc: ${story.chinese_title}` : '',
     `Tác giả: ${story.author}`,
     story.category ? `Thể loại trên app: ${story.category}` : '',
     subCategories(story).length > 0 ? `Phân loại trên app: ${subCategories(story).join(', ')}` : '',
+    source ? `Trang nguồn: ${SOURCE_LABELS[source.source]}` : '',
+    terms.length > 0 ? `Nhãn gốc tiếng Trung: ${terms.join(', ')}` : '',
     omitSynopsis ? '' : `Văn án:\n${(story.description ?? '').trim()}`,
   ].filter(Boolean);
   const user = [
     ...info,
     '',
-    '# Thể loại (slug: tên)',
+    '# Thể loại (slug: tên (tên tiếng Trung))',
     lines(known.filter((g) => g.kind === 'genre')),
     '',
-    '# Chủ đề (slug: tên)',
+    '# Chủ đề (slug: tên (tên tiếng Trung))',
     lines(known.filter((g) => g.kind === 'tag')),
   ].join('\n');
   return { system: SYSTEM_PROMPT, user };
@@ -103,10 +122,15 @@ const isBlocked = (e: unknown) => e instanceof AiContentBlockedError || isConten
  * create-story fill, a prompt refused by the provider's content filter is asked once more
  * without the synopsis.
  */
-export async function aiPickMeo(ai: AiSettings, story: TtcStory, known: readonly MeoGenre[]): Promise<MeoAiPicks> {
+export async function aiPickMeo(
+  ai: AiSettings,
+  story: TtcStory,
+  known: readonly MeoGenre[],
+  source: SourceBook | null = null,
+): Promise<MeoAiPicks> {
   const config = ai[ai.provider];
   const ask = async (omitSynopsis: boolean) => {
-    const { system, user } = buildPickPrompt(story, known, omitSynopsis);
+    const { system, user } = buildPickPrompt(story, known, source, omitSynopsis);
     const reply = await invoke<string>('ai_generate_json', {
       request: {
         provider: ai.provider,

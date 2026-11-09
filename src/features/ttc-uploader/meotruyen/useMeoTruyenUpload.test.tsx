@@ -62,6 +62,9 @@ const duplicate = (id: number, chaptersDeleted = 0) => ({
 });
 
 let openReplies: unknown[] = [];
+// JJWXC's app endpoint for the story's chinese_link.
+const JJWXC_REPLY = JSON.stringify({ novelName: '庶女重生', authorName: '木兰', novelIntro: '', novelClass: '原创-言情-古色古香-爱情-女主', novelTags: '甜文,重生,宅斗' });
+let sourceReply: string | Error = JJWXC_REPLY;
 const calls = (cmd: string) => invokeMock.mock.calls.filter((c) => c[0] === cmd).map((c) => c[1]);
 
 const wrapper = ({ children }: { children: ReactNode }) => <SettingsProvider>{children}</SettingsProvider>;
@@ -75,6 +78,7 @@ describe('useMeoTruyenUpload', () => {
     );
     localStorage.setItem('nk_book_settings', JSON.stringify({ 31001: { ttcUploader: { folderPath: '/books/1', enableSplit: false } } }));
     openReplies = [];
+    sourceReply = JJWXC_REPLY;
     invokeMock.mockReset();
     invokeMock.mockImplementation(async (cmd: string) => {
       switch (cmd) {
@@ -86,6 +90,9 @@ describe('useMeoTruyenUpload', () => {
           return JSON.stringify({ genres: ['co-dai'], tags: ['song-lai-trung-sinh'], editorNote: 'Truyện trùng sinh nhẹ nhàng.' });
         case 'ttc_read_folder_files':
           return FILES;
+        case 'source_fetch_text':
+          if (sourceReply instanceof Error) throw sourceReply;
+          return sourceReply;
         case 'meotruyen_import_open': {
           const reply = openReplies.shift() ?? { jobId: 'job-1', slug: 'thu-nu' };
           if ('code' in (reply as object)) throw reply;
@@ -105,7 +112,13 @@ describe('useMeoTruyenUpload', () => {
     const onImported = vi.fn();
     const { result } = renderHook(() => useMeoTruyenUpload(STORY, undefined, onImported), { wrapper });
     await waitFor(() => expect(result.current.canSend).toBe(true));
-    expect(result.current.picks).toEqual({ genres: ['co-dai', 'song-lai-trung-sinh'], editorNote: 'Truyện trùng sinh nhẹ nhàng.' });
+    // The model saw the source's labels; the tags they name exactly (甜文) are added to its picks.
+    expect(calls('ai_generate_json')[0].request.user).toContain('Nhãn gốc tiếng Trung: 原创, 言情, 古色古香, 爱情, 女主, 甜文, 重生, 宅斗');
+    expect(result.current.picks).toEqual({
+      genres: ['co-dai', 'song-lai-trung-sinh', 'ngot-ngao'],
+      editorNote: 'Truyện trùng sinh nhẹ nhàng.',
+    });
+    expect(result.current.sourceInfo?.matched).toEqual(['ngot-ngao', 'song-lai-trung-sinh']);
 
     await act(() => result.current.send());
 
@@ -115,7 +128,7 @@ describe('useMeoTruyenUpload', () => {
         input: expect.objectContaining({
           titleZh: '庶女重生',
           appId: 31001,
-          genres: ['co-dai', 'song-lai-trung-sinh'],
+          genres: ['co-dai', 'ngot-ngao', 'song-lai-trung-sinh'],
           editorNote: 'Truyện trùng sinh nhẹ nhàng.',
           chapters: [
             { number: 1, title: 'Chương 1: Một' },
@@ -138,7 +151,7 @@ describe('useMeoTruyenUpload', () => {
     ]);
     expect(calls('meotruyen_import_finalize')).toEqual([{ token: 'mtk_test', jobId: 'job-1' }]);
     expect(onImported).toHaveBeenCalledWith(
-      expect.objectContaining({ bookId: 77, slug: 'thu-nu', genres: ['co-dai', 'song-lai-trung-sinh'], chapters: 2 }),
+      expect.objectContaining({ bookId: 77, slug: 'thu-nu', genres: ['co-dai', 'ngot-ngao', 'song-lai-trung-sinh'], chapters: 2 }),
     );
     expect(result.current.phase).toBe('done');
     expect(result.current.result).toEqual({ book: { id: 77, slug: 'thu-nu' }, overwrote: false });
@@ -185,6 +198,22 @@ describe('useMeoTruyenUpload', () => {
     await act(() => result.current.send());
     expect(result.current.phase).toBe('ready');
     expect(result.current.sendError).toBe('Mèo Truyện từ chối dữ liệu nạp: Tên lỗi. · Thể loại lỗi.');
+  });
+
+  it('without a model, picks the tags the source names exactly', async () => {
+    localStorage.setItem('nk_global_settings', JSON.stringify({ meoTruyen: { token: 'mtk_test' } }));
+    const { result } = renderHook(() => useMeoTruyenUpload(STORY, undefined, vi.fn()), { wrapper });
+    await waitFor(() => expect(result.current.picks.genres).toEqual(['ngot-ngao', 'song-lai-trung-sinh']));
+    expect(calls('ai_generate_json')).toHaveLength(0);
+  });
+
+  it('still asks the model when the source cannot be read', async () => {
+    sourceReply = new Error('HTTP 503');
+    const { result } = renderHook(() => useMeoTruyenUpload(STORY, undefined, vi.fn()), { wrapper });
+    await waitFor(() => expect(result.current.canSend).toBe(true));
+    expect(result.current.source).toEqual({ state: 'error', message: 'HTTP 503' });
+    expect(calls('ai_generate_json')[0].request.user).not.toContain('Nhãn gốc');
+    expect(result.current.picks.genres).toEqual(['co-dai', 'song-lai-trung-sinh']);
   });
 
   it('cannot send a story without a folder', async () => {

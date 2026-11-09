@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import type { TtcStory } from '../types';
 import { buildPickPrompt, cleanEditorNote, parsePickReply } from './ai';
 import type { MeoGenre } from './types';
+import type { SourceBook } from '../sources';
 
 const GENRES: MeoGenre[] = [
   { slug: 'co-dai', name: 'Cổ đại', kind: 'genre', sort: 1 },
@@ -34,9 +35,28 @@ describe('buildPickPrompt', () => {
     expect(system).toMatch(/editorNote/);
     expect(user).toContain('Phân loại trên app: Nữ Cường, Trùng Sinh');
     expect(user).toContain('Văn án:\nNàng sống lại.');
-    expect(user).toContain('# Thể loại (slug: tên)\nco-dai: Cổ đại\nhien-dai: Hiện đại\ntien-hiep: Tiên hiệp');
-    expect(user).toContain('# Chủ đề (slug: tên)\nngot-ngao: Ngọt ngào\nsong-lai-trung-sinh: Sống lại (Trùng sinh)');
-    expect(buildPickPrompt(story, GENRES, true).user).not.toContain('Nàng sống lại.');
+    // Each with its Chinese name, which the source labels match.
+    expect(user).toContain('# Thể loại (slug: tên (tên tiếng Trung))\nco-dai: Cổ đại (古言)\nhien-dai: Hiện đại (现言)\ntien-hiep: Tiên hiệp (仙侠)');
+    expect(user).toContain('# Chủ đề (slug: tên (tên tiếng Trung))\nngot-ngao: Ngọt ngào (甜文)\nsong-lai-trung-sinh: Sống lại (Trùng sinh) (重生)');
+    expect(user).not.toContain('Nhãn gốc');
+    expect(buildPickPrompt(story, GENRES, null, true).user).not.toContain('Nàng sống lại.');
+  });
+
+  it('gives the labels of the source book', () => {
+    const source: SourceBook = {
+      source: 'jjwxc',
+      bookId: '1',
+      link: 'https://www.jjwxc.net/onebook.php?novelid=1',
+      title: '庶女重生',
+      author: '木兰',
+      intro: '',
+      coverUrls: [],
+      category: '原创-言情-古色古香-爱情-女主',
+      tags: ['甜文', '重生', '宅斗'],
+    };
+    const { user } = buildPickPrompt(story, GENRES, source);
+    expect(user).toContain('Trang nguồn: JJWXC (晋江文学城)');
+    expect(user).toContain('Nhãn gốc tiếng Trung: 原创, 言情, 古色古香, 爱情, 女主, 甜文, 重生, 宅斗');
   });
 });
 

@@ -22,6 +22,8 @@ import {
 } from './client';
 import { buildMeoCover, type MeoCover } from './cover';
 import { chapterBatches } from './rules';
+import { fetchSourceBook, type SourceBook } from '../sources';
+import { matchSourceTags, sourceTerms } from './sourceTags';
 import type { MeoDuplicate, MeoGenre, MeoImportResult, MeoLink } from './types';
 
 const ATTEMPTS = 3;
@@ -70,7 +72,10 @@ export function useMeoTruyenUpload(story: TtcStory, link: MeoLink | undefined, o
     folder ? { state: 'loading' } : { state: 'error', message: 'Truyện chưa chọn folder: mở "Quản lý chương" để chọn folder chương.' },
   );
   const [cover, setCover] = useState<Load<MeoCover | null>>(story.poster ? { state: 'loading' } : { state: 'ok', value: null });
-  const [source, setSource] = useState<TokenSource | null>(null);
+  const [tokenFrom, setTokenFrom] = useState<TokenSource | null>(null);
+  // The book on its source site, for its Chinese labels; null = no link (a "Sáng Tác" story).
+  const sourceLink = (story.chinese_link ?? '').trim();
+  const [source, setSource] = useState<Load<SourceBook | null>>(sourceLink ? { state: 'loading' } : { state: 'ok', value: null });
 
   const [picks, setPicks] = useState<MeoPicks>({ genres: link?.genres ?? [], editorNote: link?.editorNote ?? '' });
   const [aiState, setAiState] = useState<{ running: boolean; error: string | null }>({ running: false, error: null });
@@ -91,16 +96,18 @@ export function useMeoTruyenUpload(story: TtcStory, link: MeoLink | undefined, o
 
   // ─── Loads ───────────────────────────────────────────────
   useEffect(() => {
-    tokenSource(token).then(setSource, () => setSource(null));
+    tokenSource(token).then(setTokenFrom, () => setTokenFrom(null));
   }, [token]);
 
+  /** The model's picks, plus the tags whose Chinese name is one of the source's labels. */
   const runAi = useCallback(
-    async (known: MeoGenre[]) => {
+    async (known: MeoGenre[], book: SourceBook | null) => {
       setAiState({ running: true, error: null });
       try {
-        const picked = await aiPickMeo(ai, story, known);
+        const picked = await aiPickMeo(ai, story, known, book);
         if (closedRef.current) return;
-        setPicks({ genres: [...picked.genres, ...picked.tags], editorNote: picked.editorNote });
+        const genres = [...new Set([...picked.genres, ...picked.tags, ...matchSourceTags(book, known)])];
+        setPicks({ genres, editorNote: picked.editorNote });
         setAiState({ running: false, error: null });
       } catch (e) {
         if (!closedRef.current) setAiState({ running: false, error: errorText(e) });
@@ -110,25 +117,60 @@ export function useMeoTruyenUpload(story: TtcStory, link: MeoLink | undefined, o
   );
 
   const aiReady = isAiConfigured(ai);
-  // Picks of an earlier import are kept; the model is asked only for a story without them.
-  const askAiFirst = useRef(!link && aiReady);
+  // The first picks wait for both the site's list and the source's labels. Picks of an
+  // earlier import are kept: nothing is picked for a story that has them.
+  const loaded = useRef<{ genres?: MeoGenre[]; source?: SourceBook | null }>({});
+  const firstPick = useRef(!link);
+  const onLoaded = useCallback(() => {
+    const { genres: list, source: book } = loaded.current;
+    if (!list || book === undefined || !firstPick.current) return;
+    firstPick.current = false;
+    if (aiReady) void runAi(list, book);
+    else setPicks((prev) => ({ ...prev, genres: [...new Set([...prev.genres, ...matchSourceTags(book, list)])] }));
+  }, [aiReady, runAi]);
+  // Called from the loads below, which must not restart when the settings change.
+  const onLoadedRef = useRef(onLoaded);
+  useEffect(() => {
+    onLoadedRef.current = onLoaded;
+  }, [onLoaded]);
+
   useEffect(() => {
     let cancelled = false;
     fetchGenres().then(
       (list) => {
         if (cancelled) return;
         setGenres({ state: 'ok', value: list });
-        if (askAiFirst.current) {
-          askAiFirst.current = false;
-          void runAi(list);
-        }
+        loaded.current.genres = list;
+        onLoadedRef.current();
       },
       (e) => !cancelled && setGenres({ state: 'error', message: `Không tải được thể loại của Mèo Truyện: ${describeError(e)}` }),
     );
     return () => {
       cancelled = true;
     };
-  }, [runAi]);
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const done = (value: SourceBook | null, error?: string) => {
+      if (cancelled) return;
+      setSource(error === undefined ? { state: 'ok', value } : { state: 'error', message: error });
+      loaded.current.source = value;
+      onLoadedRef.current();
+    };
+    if (!sourceLink) {
+      // Nothing to read: settle at once (from a promise, not inside the effect itself).
+      void Promise.resolve().then(() => done(null));
+    } else {
+      fetchSourceBook(sourceLink).then(
+        (book) => done(book),
+        (e) => done(null, errorText(e)),
+      );
+    }
+    return () => {
+      cancelled = true;
+    };
+  }, [sourceLink]);
 
   useEffect(() => {
     if (!folder) return;
@@ -166,9 +208,11 @@ export function useMeoTruyenUpload(story: TtcStory, link: MeoLink | undefined, o
   const known = genres.state === 'ok' ? genres.value : null;
   const parsed = chapters.state === 'ok' ? chapters.value : null;
   const build = useMemo(() => (known && parsed ? buildMeoImport(story, parsed, picks, known) : null), [story, parsed, picks, known]);
-  const loading = genres.state === 'loading' || chapters.state === 'loading' || cover.state === 'loading';
+  // The source only feeds the first picks: an update (picks kept) does not wait for it.
+  const loading =
+    genres.state === 'loading' || chapters.state === 'loading' || cover.state === 'loading' || (!link && source.state === 'loading');
   const canSend =
-    phase === 'ready' && !loading && !aiState.running && source !== 'none' && !!build && build.problems.length === 0;
+    phase === 'ready' && !loading && !aiState.running && tokenFrom !== 'none' && !!build && build.problems.length === 0;
 
   const togglePick = useCallback(
     (slug: string) =>
@@ -179,9 +223,15 @@ export function useMeoTruyenUpload(story: TtcStory, link: MeoLink | undefined, o
     [],
   );
   const setEditorNote = useCallback((editorNote: string) => setPicks((prev) => ({ ...prev, editorNote })), []);
+  const sourceBook = source.state === 'ok' ? source.value : null;
   const rerunAi = useCallback(() => {
-    if (known) void runAi(known);
-  }, [known, runAi]);
+    if (known && source.state !== 'loading') void runAi(known, sourceBook);
+  }, [known, source.state, sourceBook, runAi]);
+  /** The source's labels and the site's tags they name exactly, for the modal. */
+  const sourceInfo = useMemo(
+    () => (sourceBook ? { book: sourceBook, terms: sourceTerms(sourceBook), matched: known ? matchSourceTags(sourceBook, known) : [] } : null),
+    [sourceBook, known],
+  );
 
   // ─── Send ────────────────────────────────────────────────
   const send = useCallback(
@@ -274,8 +324,10 @@ export function useMeoTruyenUpload(story: TtcStory, link: MeoLink | undefined, o
   }, []);
 
   return {
-    tokenSource: source,
+    tokenSource: tokenFrom,
     genres,
+    source,
+    sourceInfo,
     chapters,
     cover,
     picks,

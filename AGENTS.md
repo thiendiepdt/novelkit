@@ -195,8 +195,10 @@ Revenue ("Doanh thu", revenue/): RevenueProvider (App, desktop) → RevenueEngin
 RevenueTicker in the shared Header (today's hoa, counting up) → RevenueModal (days, hours, stories).
 Read from the purchase notifications of TTC, kept as daily totals in revenue/<user>/<YYYY-MM>.json.
 
-Mèo Truyện (meotruyen/): useMeoTruyenUpload reads the folder, the site's genres and the TTC poster,
-asks the model for genres, tags and an editor's note (ai.ts), builds the import with the site's own
+Mèo Truyện (meotruyen/): useMeoTruyenUpload reads the folder, the site's genres, the TTC poster and
+the source book's labels (sources/), picks the tags those labels name exactly (sourceTags.ts +
+zhNames.ts, a copy of the site's Chinese names), asks the model for genres, tags and an editor's
+note (ai.ts), builds the import with the site's own
 rules (rules.ts is a copy of the meotruyen repo's, keep it in step), then opens / sends / finalizes
 an import job through src-tauri/src/meotruyen.rs. Imported stories are remembered (nk_meotruyen_links).
 

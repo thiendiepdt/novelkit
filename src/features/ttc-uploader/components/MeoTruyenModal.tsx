@@ -6,6 +6,7 @@ import type { TtcStory } from '../types';
 import { useMeoTruyenUpload } from '../meotruyen/useMeoTruyenUpload';
 import { BOOK_TEXT_MAX, charCount } from '../meotruyen/rules';
 import { MEOTRUYEN_ORIGIN, type MeoGenre, type MeoLink } from '../meotruyen/types';
+import { SOURCE_LABELS } from '../sources';
 
 interface MeoTruyenModalProps {
   book: TtcStory;
@@ -248,6 +249,31 @@ export function MeoTruyenModal({ book, link, onImported, onClose }: MeoTruyenMod
             )}
             {meo.aiState.error && <span className="text-crimson break-words">AI lỗi: {meo.aiState.error}</span>}
           </div>
+
+          {/* The source's own labels: the model's main clue, and exact matches picked already */}
+          {meo.source.state === 'loading' && (
+            <p className="text-xs text-text-dim inline-flex items-center gap-1.5">
+              <Loader2 size={12} className="motion-safe:animate-spin" /> Đang đọc nhãn gốc ở trang nguồn...
+            </p>
+          )}
+          {meo.source.state === 'error' && (
+            <p className="text-xs text-text-dim break-words">
+              Không đọc được trang nguồn ({meo.source.message}): AI chọn chủ đề từ văn án và phân loại TTC.
+            </p>
+          )}
+          {meo.sourceInfo && meo.sourceInfo.terms.length > 0 && (
+            <div className="text-xs text-text-secondary flex flex-wrap items-center gap-1.5">
+              <span className="text-text-dim">Nhãn gốc ({SOURCE_LABELS[meo.sourceInfo.book.source].split(' (')[0]}):</span>
+              {meo.sourceInfo.terms.map((t) => (
+                <span key={t} className="px-1.5 py-0.5 rounded border border-white/10 bg-white/[0.04]">
+                  {t}
+                </span>
+              ))}
+              {meo.sourceInfo.matched.length > 0 && (
+                <span className="text-jade">· {meo.sourceInfo.matched.length} chủ đề khớp đúng tên gốc được chọn sẵn</span>
+              )}
+            </div>
+          )}
 
           <section className="flex flex-col gap-2">
             <h3 className="text-xs font-semibold text-text-secondary">
