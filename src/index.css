@@ -1,5 +1,8 @@
 @import "tailwindcss";
 
+/* Laptop screens (1366×768 and the like, minus taskbar and title bar): views drop spacing they can spare. */
+@custom-variant short (@media (max-height: 820px));
+
 @theme {
   /* Warm Charcoal - Xianxia Theme (same as mtc-tools) */
   --color-bg-primary: #121212;

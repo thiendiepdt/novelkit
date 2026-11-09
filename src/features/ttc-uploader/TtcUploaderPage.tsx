@@ -10,6 +10,7 @@ import {
   LoginView,
   BookCard,
   BookListToolbar,
+  BookListActions,
   BookListFilters,
   BookDetailHeader,
   UploadToolbar,
@@ -138,8 +139,10 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
         ? 'Truyện đang có tiến trình upload thường, chờ nó xong hoặc hủy nó trước'
         : null;
     return (
-      <div className="w-full h-full flex flex-col mx-auto px-4 md:px-6 py-4 md:py-6 overflow-hidden">
-        <div className="flex-shrink-0 flex flex-col gap-4">
+      // Scrolls as a whole when the window is too short for the tables' minimum height,
+      // instead of cutting them off.
+      <div className="w-full h-full flex flex-col mx-auto px-4 md:px-6 py-4 md:py-6 short:py-3 overflow-y-auto">
+        <div className="flex-shrink-0 flex flex-col gap-3">
           <BookDetailHeader book={selectedBook} onBack={handleBackToList} />
           <UploadToolbar
             folderPath={chapters.folderPath}
@@ -198,10 +201,10 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
         </div>
 
         {/* Tabs */}
-        <div className="flex-shrink-0 flex items-center gap-2 border-b border-border-main pb-[1px] mt-2">
+        <div className="flex-shrink-0 flex items-center gap-2 border-b border-border-main pb-[1px] mt-2 short:mt-1">
           <button
             onClick={() => setActiveTab('remote')}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors cursor-pointer ${
+            className={`px-4 py-2 short:py-1.5 text-sm font-medium rounded-t-lg transition-colors cursor-pointer ${
               activeTab === 'remote'
                 ? 'bg-bg-card border border-border-main border-b-bg-card text-gold relative top-[1px]'
                 : 'text-text-secondary hover:text-text-primary'
@@ -216,7 +219,7 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
                 chapters.fetchAllRemoteChapters(selectedBook.id);
               }
             }}
-            className={`px-4 py-2 text-sm font-medium rounded-t-lg transition-colors cursor-pointer ${
+            className={`px-4 py-2 short:py-1.5 text-sm font-medium rounded-t-lg transition-colors cursor-pointer ${
               activeTab === 'local'
                 ? 'bg-bg-card border border-border-main border-b-bg-card text-gold relative top-[1px]'
                 : 'text-text-secondary hover:text-text-primary'
@@ -272,18 +275,27 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
 
   // ─── LIST VIEW: Login + Book list ───────────────────────
   return (
-    <div className="w-full h-full flex flex-col mx-auto px-4 md:px-6 py-4 md:py-6 overflow-hidden">
-      {/* Header & account */}
-      <div className="flex-shrink-0 flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-4">
+    <div className="w-full h-full flex flex-col mx-auto px-4 md:px-6 py-4 md:py-6 short:py-3 overflow-hidden">
+      {/* Header: title, actions, account */}
+      <div className="flex-shrink-0 flex flex-wrap items-center gap-x-4 gap-y-2 mb-4 short:mb-3">
         <div className="flex items-center gap-3" style={{ animation: 'fadeIn 0.4s ease-out' }}>
-          <span className="flex items-center text-gold"><Upload size={28} /></span>
-          <h1 className="text-xl md:text-2xl font-bold text-gold">
+          <span className="flex items-center text-gold"><Upload size={24} /></span>
+          <h1 className="text-xl md:text-2xl short:md:text-xl font-bold text-gold whitespace-nowrap">
             TTC Uploader
           </h1>
           <span className="bg-purple/20 text-purple text-[10px] font-semibold px-2 py-0.5 rounded-full uppercase tracking-wider hidden sm:inline-block">
             Desktop
           </span>
         </div>
+
+        <BookListActions
+          onCreate={() => setShowCreateModal(true)}
+          onCheckAbandon={() => setShowAbandonCheck(true)}
+          onScanSync={() => setShowSyncScan(true)}
+          onOpenDrip={() => setShowDrip(true)}
+          dripRunning={drip.snapshot?.plans.filter((p) => p.status === 'running').length ?? 0}
+          dripTotal={drip.snapshot?.plans.length ?? 0}
+        />
 
         <div style={{ animation: 'slideUp 0.4s ease-out' }}>
           <AccountSwitcher
@@ -335,12 +347,6 @@ function TtcWorkspace({ auth, account }: { auth: TtcAuth; account: TtcAccountInf
             onSearchChange={books.handleSearchChange}
             onStatusToggle={books.handleStatusToggle}
             onRefresh={books.refreshBooks}
-            onCreate={() => setShowCreateModal(true)}
-            onCheckAbandon={() => setShowAbandonCheck(true)}
-            onScanSync={() => setShowSyncScan(true)}
-            onOpenDrip={() => setShowDrip(true)}
-            dripRunning={drip.snapshot?.plans.filter((p) => p.status === 'running').length ?? 0}
-            dripTotal={drip.snapshot?.plans.length ?? 0}
           />
 
           <BookListFilters

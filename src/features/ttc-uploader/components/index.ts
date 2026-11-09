@@ -1,6 +1,6 @@
 export { LoginView } from './LoginView';
 export { BookCard } from './BookCard';
-export { BookListToolbar } from './BookListToolbar';
+export { BookListToolbar, BookListActions } from './BookListToolbar';
 export { BookListFilters } from './BookListFilters';
 export { BookDetailHeader } from './BookDetailHeader';
 export { UploadToolbar } from './UploadToolbar';

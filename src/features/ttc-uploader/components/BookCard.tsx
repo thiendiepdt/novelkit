@@ -25,9 +25,9 @@ interface BookCardProps {
   meoLink?: MeoLink;
 }
 
-/** Shared shape of the card actions: large enough to hit without aiming. */
+/** Shared shape of the card actions: large enough to hit without aiming, low enough to keep cards to two lines. */
 const ACTION_CLASS =
-  'h-9 px-4 rounded-lg text-sm font-medium inline-flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2';
+  'h-8 px-3 rounded-lg text-sm font-medium inline-flex items-center gap-2 whitespace-nowrap transition-colors cursor-pointer focus-visible:outline-none focus-visible:ring-2';
 
 /**
  * Compact book card showing poster, metadata, and action buttons.
@@ -36,13 +36,13 @@ export function BookCard({ book, onEdit, onResync, onDelete, dripStatus, note, o
   const pending = isPendingApproval(book);
 
   return (
-    <div className="bg-bg-card border border-border-main rounded-xl p-3 transition-all duration-200 hover:border-border-hover">
+    <div className="bg-bg-card border border-border-main rounded-xl px-3 py-2.5 short:py-2 transition-all duration-200 hover:border-border-hover">
       {/* In a narrow window the actions move under the details instead of squeezing them */}
       <div className="flex flex-wrap items-start gap-3">
         <ProxiedImage
           path={book.poster}
           alt={book.title}
-          className="w-10 h-14 flex-shrink-0"
+          className="w-9 h-12 flex-shrink-0"
         />
         <div className="flex-1 min-w-72">
           {/* The badges go to the next line before the title is cut short */}
@@ -70,18 +70,20 @@ export function BookCard({ book, onEdit, onResync, onDelete, dripStatus, note, o
               </span>
             )}
           </div>
+          {/* Details and the latest chapter share a line (two lines per card): the latest chapter
+              is cut short first, and only goes to its own line when less than 10rem is left. */}
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 mt-0.5">
-            <p className="text-xs text-text-dim">
+            <p className="text-xs text-text-dim whitespace-nowrap">
               {book.author} · {book.category} ·{' '}
               <span className="font-semibold text-text-secondary tabular-nums">{book.total_chapters} chương</span>
             </p>
             <SourceLink book={book} />
+            {book.latest_chapter_title && (
+              <p className="text-xs text-text-dim truncate flex-1 basis-40 min-w-0" title={book.latest_chapter_title}>
+                · Mới nhất: {book.latest_chapter_title}
+              </p>
+            )}
           </div>
-          {book.latest_chapter_title && (
-            <p className="text-xs text-text-dim mt-0.5 truncate">
-              Mới nhất: {book.latest_chapter_title}
-            </p>
-          )}
           {note && <div className="text-xs mt-1">{note}</div>}
         </div>
         <div className="flex flex-wrap items-center justify-end gap-2 ml-auto self-center">

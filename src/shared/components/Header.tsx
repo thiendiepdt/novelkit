@@ -18,7 +18,7 @@ export default function Header() {
       className="sticky top-0 z-50 backdrop-blur-xl border-b border-border-main px-4 md:px-6"
       style={{ background: 'linear-gradient(180deg, rgba(18,18,18,0.98) 0%, rgba(18,18,18,0.88) 100%)' }}
     >
-      <div className="w-full mx-auto flex items-center justify-between h-14 md:h-16">
+      <div className="w-full mx-auto flex items-center justify-between h-14 md:h-16 short:h-12">
         <Link
           to="/"
           className="flex items-center gap-2 text-gold text-lg md:text-xl font-bold whitespace-nowrap tracking-wide"

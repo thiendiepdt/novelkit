@@ -135,6 +135,7 @@ The app uses a **Warm Charcoal Xianxia** dark theme. All colors are defined as C
 3. Animations are defined as `@keyframes` in `index.css`: `fadeIn`, `overlayIn` (modal backdrops: opacity only, no blur), `slideUp`, `pulse-gold`, `shimmer`, `copySuccess`, `floatUp` (the "+90" chip of the revenue ticker)
 4. **No inline CSS** except for dynamic computed values (e.g., conditional boxShadow)
 5. The font stack is `'Be Vietnam Pro'` loaded from Google Fonts
+6. **Laptop screens** (1366×768: about 700px of viewport): the `short:` variant (`@media (max-height: 820px)`, defined in `index.css`) drops spacing a view can spare there. A list or table must never be cut off: give it a minimum height and let its page scroll (`overflow-y-auto`), not `overflow-hidden`. The upload toolbar can collapse its settings into one line, only in a window up to 900px tall (`useMediaQuery`, follows resizing; remembered, collapsed by default); a taller window always shows all settings, without the toggle.
 
 ## Feature Modules — Deep Dive
 
@@ -178,7 +179,7 @@ TtcUploaderPage (orchestrator, ~200 lines)
   └── useTtcChapters  → chapter list, folder parsing, upload, download
 
 Components:
-  LoginView, BookCard, BookListToolbar, BookListFilters, SourceLink, BookDetailHeader,
+  LoginView, BookCard, BookListToolbar, BookListActions, BookListFilters, SourceLink, BookDetailHeader,
   UploadToolbar, ChapterTable, DownloadAllModal,
   EditBookModal, CreateBookModal, DeleteBookModal, CoverCropperModal, ProxiedImage, Segmented, TitleCaseInput,
   AbandonCheckModal ("Check vô hố": reup chương 1 of ongoing stories, via useAbandonCheck)

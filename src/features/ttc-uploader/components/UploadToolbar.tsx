@@ -4,19 +4,32 @@ import type { LocalSortMode, UnlockTimer } from '@/features/settings/types';
 import Select from '@/shared/components/Select';
 import { Tooltip } from '@/shared/components';
 import { useState, useEffect, type ReactNode } from 'react';
-import { Folder, RefreshCw, Upload, Coins, Unlock, Check, X } from 'lucide-react';
+import { Folder, RefreshCw, Upload, Coins, Unlock, Check, X, ChevronDown, ChevronUp } from 'lucide-react';
+import { usePersistentState } from '@/shared/hooks/usePersistentState';
+import { useMediaQuery } from '@/shared/hooks/useMediaQuery';
+
+/** Window height (px) up to which the toolbar offers to collapse its settings into one line. */
+const TOOLBAR_COLLAPSE_MAX_HEIGHT = 900;
 
 /** How the open story is published: all at once now, or dripped to stay on TTC's update board. */
 export type UploadMode = 'now' | 'drip';
 
-const UPLOAD_MODE_OPTIONS: { value: UploadMode; label: string; tooltip: string }[] = [
-  { value: 'now', label: 'Đăng ngay', tooltip: 'Đăng các chương đã chọn ngay một lượt' },
+const UPLOAD_MODE_OPTIONS: { value: UploadMode; label: string; shortLabel: string; tooltip: string }[] = [
+  { value: 'now', label: 'Đăng ngay', shortLabel: 'Đăng ngay', tooltip: 'Đăng các chương đã chọn ngay một lượt' },
   {
     value: 'drip',
     label: 'Nổi trên bảng cập nhật',
+    shortLabel: 'Nổi bảng',
     tooltip: 'Đăng một đợt đầu, rồi cứ vài phút đăng 1 chương, luân phiên giữa các truyện để truyện luôn nằm trên bảng chương mới',
   },
 ];
+
+/** Labels of the collapsed toolbar, where everything shares one line (the tooltips say the rest). */
+const SYNC_MODE_SHORT_LABELS: Record<SyncMode, string> = {
+  all: 'Tất cả (ghi đè)',
+  append: 'Chương mới',
+  range: 'Theo khoảng',
+};
 
 const SYNC_MODE_TOOLTIPS: Record<SyncMode, string> = {
   all: 'Đăng lại toàn bộ chương, ghi đè nội dung đã có trên web',
@@ -195,13 +208,48 @@ export function UploadToolbar({
   dripControls,
 }: UploadToolbarProps) {
   const drip = uploadMode === 'drip';
+
+  // Collapsed: the settings (sort, skip, split, delay, VIP) hide behind a one-line summary and
+  // both rows share one line. Offered only in a window up to TOOLBAR_COLLAPSE_MAX_HEIGHT tall
+  // (laptop screens); a taller one always shows everything, without the toggle. Remembered,
+  // collapsed until the user expands it.
+  const canCollapse = useMediaQuery(`(max-height: ${TOOLBAR_COLLAPSE_MAX_HEIGHT}px)`);
+  const [collapsedPref, setCollapsed] = usePersistentState<boolean>('nk_ttc_upload_toolbar_collapsed', true);
+  // A folder that yields no chapter needs its settings at hand.
+  const collapsed = canCollapse && collapsedPref && chapters.length > 0;
+
+  const settingsSummary = [
+    localSortMode === 'file' ? `Thứ tự file${fileFirstLineTitle ? ', dòng đầu = tên chương' : ''}` : 'Sắp theo tên chương',
+    skipChapters > 0 ? `bỏ qua ${skipChapters} chương` : null,
+    enableSplit ? `chia ${minWords}–${maxWords} chữ` : 'không tự chia',
+    `delay ${delayMs}ms`,
+    chapterPrice > 0
+      ? `VIP ${chapterPrice} hoa${vipFromChapter > 0 ? ` từ chương ${vipFromChapter}` : ''}${vipMinWords > 0 ? `, ≥ ${vipMinWords} chữ` : ''}${unlockTimer ? `, mở khóa sau ${unlockTimer}` : ''}`
+      : 'miễn phí',
+  ]
+    .filter(Boolean)
+    .join(' · ');
+
+  const collapseToggle = (
+    <Tooltip content={collapsed ? `Hiện các tùy chọn: ${settingsSummary}` : 'Thu gọn các tùy chọn vào một dòng'} side="bottom" className="ml-auto">
+      <button
+        type="button"
+        aria-expanded={!collapsed}
+        onClick={() => setCollapsed(!collapsed)}
+        className="px-2 py-1 text-[11px] rounded border border-border-main bg-bg-hover text-text-secondary hover:text-gold hover:border-gold/50 transition-colors cursor-pointer flex items-center gap-1 whitespace-nowrap"
+      >
+        {collapsed ? <ChevronDown size={12} /> : <ChevronUp size={12} />} {collapsed ? 'Tùy chọn' : 'Thu gọn'}
+      </button>
+    </Tooltip>
+  );
+
   return (
     <div
-      className="bg-bg-card border border-border-main rounded-xl p-3 flex flex-col gap-2.5"
+      className={`bg-bg-card border border-border-main rounded-xl p-3 short:py-2 flex flex-wrap items-center gap-y-2.5 ${collapsed ? 'gap-x-3' : 'gap-x-4'}`}
       style={{ animation: 'slideUp 0.3s ease-out' }}
     >
-      {/* Row 1: Source — Folder, Sort, Split */}
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
+      {/* Row 1: Source — Folder, Sort, Split (its items join the single line when collapsed) */}
+      <div className={collapsed ? 'contents' : 'basis-full flex flex-wrap items-center gap-x-4 gap-y-2'}>
         {/* Folder Picker */}
         <div className="flex items-center gap-2">
           <Tooltip content="Chọn folder chứa file chương (.txt) trên máy để upload" side="bottom">
@@ -236,7 +284,7 @@ export function UploadToolbar({
           ) : null}
         </div>
 
-        {folderPath && (
+        {folderPath && !collapsed && (
           <>
             <div className="h-5 w-px bg-border-main"></div>
 
@@ -349,11 +397,13 @@ export function UploadToolbar({
             </div>
           </>
         )}
+        {canCollapse && !collapsed && chapters.length > 0 && collapseToggle}
       </div>
 
       {/* Row 2: Upload — Sync mode, Delay, VIP, Upload button */}
       {chapters.length > 0 && (
-        <div className="flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 border-t border-border-main/50">
+        <div className={collapsed ? 'contents' : 'basis-full flex flex-wrap items-center gap-x-4 gap-y-2 pt-2 border-t border-border-main/50'}>
+          {collapsed && <div className="h-5 w-px bg-border-main"></div>}
           {/* Upload mode: only one of the two is active for a story */}
           <div className="flex items-center gap-2">
             <label className="text-[11px] text-text-dim">Cách đăng:</label>
@@ -373,7 +423,7 @@ export function UploadToolbar({
                           : 'bg-bg-hover border-border-main text-text-secondary hover:border-border-hover'
                       }`}
                     >
-                      {opt.label}
+                      {collapsed ? opt.shortLabel : opt.label}
                     </button>
                   </Tooltip>
                 );
@@ -398,7 +448,7 @@ export function UploadToolbar({
                         : 'bg-bg-hover border-border-main text-text-secondary hover:border-border-hover'
                     }`}
                   >
-                    {SYNC_MODE_LABELS[mode]}
+                    {collapsed ? SYNC_MODE_SHORT_LABELS[mode] : SYNC_MODE_LABELS[mode]}
                   </button>
                 </Tooltip>
               ))}
@@ -433,8 +483,17 @@ export function UploadToolbar({
             </div>
           )}
 
-          {!drip && <div className="h-5 w-px bg-border-main"></div>}
+          {!drip && !collapsed && <div className="h-5 w-px bg-border-main"></div>}
 
+          {/* Collapsed: one line naming the hidden settings */}
+          {collapsed && (
+            <span className="text-[11px] text-text-dim truncate flex-1 basis-24 min-w-0" title={settingsSummary}>
+              {settingsSummary}
+            </span>
+          )}
+
+          {!collapsed && (
+          <>
           {/* Delay */}
           <div className="flex items-center gap-1.5">
             <label className="text-[11px] text-text-dim whitespace-nowrap">Delay:</label>
@@ -509,13 +568,18 @@ export function UploadToolbar({
               </div>
             </>
           )}
+          </>
+          )}
+
+          {/* Collapsed: the toggle ends the single line (in drip mode, before the drip controls' own row) */}
+          {collapsed && drip && collapseToggle}
 
           {/* Drip controls replace the upload button */}
           {drip && <div className="basis-full pt-2 border-t border-border-main/50">{dripControls}</div>}
 
           {/* Upload Button / Progress */}
           {!drip && (
-          <div className="ml-auto flex items-center min-w-[140px]">
+          <div className={`ml-auto flex items-center ${collapsed ? 'min-w-[120px]' : 'min-w-[140px]'}`}>
             {progress.status === 'idle' ? (
               <button
                 onClick={onUpload}
@@ -573,6 +637,7 @@ export function UploadToolbar({
             )}
           </div>
           )}
+          {collapsed && !drip && collapseToggle}
         </div>
       )}
     </div>

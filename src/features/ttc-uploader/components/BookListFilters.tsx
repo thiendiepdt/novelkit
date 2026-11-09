@@ -46,7 +46,7 @@ export function BookListFilters({
   const unsyncedKnown = unsynced.done > 0 || (tab === 'unsynced' && !unsynced.checking);
 
   return (
-    <div className="flex-shrink-0 flex flex-col gap-3 mb-3">
+    <div className="flex-shrink-0 flex flex-col gap-3 short:gap-2 mb-3 short:mb-2">
       <div role="group" aria-label="Xem theo" className="flex flex-wrap gap-x-1 border-b border-border-main">
         {BOOK_TABS.map((t) => {
           const active = tab === t.value;
@@ -57,7 +57,7 @@ export function BookListFilters({
                 type="button"
                 aria-pressed={active}
                 onClick={() => onTabChange(t.value)}
-                className={`-mb-px px-3 py-2 text-sm border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
+                className={`-mb-px px-3 py-2 short:py-1.5 text-sm border-b-2 transition-colors cursor-pointer whitespace-nowrap flex items-center gap-1.5 ${
                   active ? 'border-gold text-gold font-semibold' : 'border-transparent text-text-secondary hover:text-text-primary'
                 }`}
               >

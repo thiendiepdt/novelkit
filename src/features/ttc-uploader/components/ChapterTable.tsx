@@ -35,16 +35,25 @@ export function ChapterTable({
   onDownloadAll,
 }: ChapterTableProps) {
   return (
-    <div className="bg-bg-card border border-border-main rounded-xl overflow-hidden mt-4 flex flex-col flex-1 min-h-0" style={{ animation: 'slideUp 0.3s ease-out 0.1s both' }}>
-      {/* Header */}
-      <div className="flex-shrink-0 px-4 py-3 bg-bg-hover/50 border-b border-border-main flex justify-between items-center z-10">
+    // At least 18rem tall: in a short window the page scrolls rather than squeezing the rows away.
+    <div className="bg-bg-card border border-border-main rounded-xl overflow-hidden mt-4 short:mt-2 flex flex-col flex-1 min-h-[18rem]" style={{ animation: 'slideUp 0.3s ease-out 0.1s both' }}>
+      {/* Header: title, pages and actions on one row */}
+      <div className="flex-shrink-0 px-4 py-2 bg-bg-hover/50 border-b border-border-main flex flex-wrap justify-between items-center gap-x-4 gap-y-2 z-10">
         <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2">
           <ClipboardList size={18} /> Danh sách chương trên TTC
           <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
             {totalChapters || selectedBook.total_chapters} chương
           </span>
         </h2>
-        <div className="flex items-center gap-3">
+        <div className="flex flex-wrap items-center justify-end gap-3 ml-auto">
+          <Pagination
+            currentPage={currentPage}
+            totalPages={totalPages}
+            onPageChange={(page) => onPageChange(selectedBook.id, page, chaptersLimit)}
+            disabled={loading}
+            limit={chaptersLimit}
+            onLimitChange={onLimitChange}
+          />
           <Tooltip content="Tải toàn bộ chương truyện về máy" side="bottom">
             <button
               onClick={onDownloadAll}
@@ -65,23 +74,8 @@ export function ChapterTable({
         </div>
       </div>
 
-      {/* Pagination */}
-      <div className="flex-shrink-0 px-4 py-2.5 bg-bg-card border-b border-border-main flex justify-end">
-        <Pagination
-          currentPage={currentPage}
-          totalPages={totalPages}
-          onPageChange={(page) => {
-            window.scrollTo({ top: 0, behavior: 'smooth' });
-            onPageChange(selectedBook.id, page, chaptersLimit);
-          }}
-          disabled={loading}
-          limit={chaptersLimit}
-          onLimitChange={onLimitChange}
-        />
-      </div>
-
       {/* Table */}
-      <div className="flex-1 overflow-y-auto relative min-h-[300px]">
+      <div className="flex-1 overflow-y-auto relative min-h-0">
         {loading && chapters.length === 0 ? (
           <div className="absolute inset-0 flex items-center justify-center text-sm text-text-dim bg-bg-card/50 backdrop-blur-sm z-20">
             Đang tải danh sách chương...
@@ -121,9 +115,9 @@ export function ChapterTable({
 function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownload: (ch: TtcChapter) => void }) {
   return (
     <tr className="hover:bg-bg-hover/50 transition-colors text-text-primary">
-      <td className="px-4 py-2.5 text-center text-text-dim text-xs font-mono">{ch.chapterNumber}</td>
+      <td className="px-4 py-2.5 short:py-2 text-center text-text-dim text-xs font-mono">{ch.chapterNumber}</td>
       {/* Takes the width the other columns leave, and truncates within it (max-w-0 lets it shrink) */}
-      <td className="px-4 py-2.5 w-full max-w-0" title={ch.title}>
+      <td className="px-4 py-2.5 short:py-2 w-full max-w-0" title={ch.title}>
         <div className="flex items-center gap-2 min-w-0">
           <span className="truncate">{ch.title}</span>
           {ch.chapter_price > 0 && (
@@ -133,24 +127,24 @@ function ChapterRow({ chapter: ch, onDownload }: { chapter: TtcChapter; onDownlo
           )}
         </div>
       </td>
-      <td className="px-4 py-2.5 text-right text-text-dim text-xs font-mono">
+      <td className="px-4 py-2.5 short:py-2 text-right text-text-dim text-xs font-mono">
         {ch.wordCount > 0 ? ch.wordCount.toLocaleString() : '-'}
       </td>
-      <td className="px-4 py-2.5 text-right text-text-dim text-xs font-mono hidden lg:table-cell">
+      <td className="px-4 py-2.5 short:py-2 text-right text-text-dim text-xs font-mono hidden lg:table-cell">
         {ch.views.toLocaleString()}
       </td>
-      <td className="px-4 py-2.5 text-center text-text-dim text-xs font-mono">
+      <td className="px-4 py-2.5 short:py-2 text-center text-text-dim text-xs font-mono">
         {ch.chapter_price > 0
           ? (ch.buy_count?.toLocaleString() || '0')
           : (ch.unlock_link ? (ch.link_click_count?.toLocaleString() || '0') : '—')}
       </td>
-      <td className="px-4 py-2.5 text-center">
+      <td className="px-4 py-2.5 short:py-2 text-center">
         <ChapterStatusBadge status={ch.status} />
       </td>
-      <td className="px-4 py-2.5 text-center text-text-dim text-xs hidden xl:table-cell">
+      <td className="px-4 py-2.5 short:py-2 text-center text-text-dim text-xs hidden xl:table-cell">
         {ch.last_chap_updated ? new Date(ch.last_chap_updated).toLocaleString('vi-VN', { year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit' }) : '-'}
       </td>
-      <td className="px-4 py-2.5 text-center">
+      <td className="px-4 py-2.5 short:py-2 text-center">
         <button
           onClick={() => onDownload(ch)}
           className="px-2 py-1 text-[10px] font-medium rounded border border-gold/30 bg-gold/10 text-gold hover:bg-gold/20 hover:border-gold/50 transition-colors cursor-pointer"

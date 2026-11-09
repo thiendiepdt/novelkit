@@ -100,9 +100,10 @@ export function ResyncComparisonTable({
   }, [scrollTriggerId, page, analysis.firstChangedIndex, analysis.rows]);
 
   return (
-    <div className="bg-bg-card border border-border-main rounded-xl overflow-hidden mt-4 flex flex-col flex-1 min-h-0" style={{ animation: 'slideUp 0.3s ease-out 0.1s both' }}>
-      {/* Header & Recommendation */}
-      <div className="flex-shrink-0 px-4 py-3 bg-bg-hover/50 border-b border-border-main z-10 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+    // At least 18rem tall: in a short window the page scrolls rather than squeezing the rows away.
+    <div className="bg-bg-card border border-border-main rounded-xl overflow-hidden mt-4 short:mt-2 flex flex-col flex-1 min-h-[18rem]" style={{ animation: 'slideUp 0.3s ease-out 0.1s both' }}>
+      {/* Header: title, recommendation and pages on one row (wraps in a narrow window) */}
+      <div className="flex-shrink-0 px-4 py-2 bg-bg-hover/50 border-b border-border-main z-10 flex flex-wrap items-center gap-x-3 gap-y-2">
         <h2 className="text-sm font-semibold text-text-primary flex items-center gap-2 whitespace-nowrap">
           <span><Scale size={18} /></span> So sánh & Đồng bộ dữ liệu
           <span className="text-xs font-normal text-text-dim bg-bg-primary px-2 py-0.5 rounded-full">
@@ -114,8 +115,8 @@ export function ResyncComparisonTable({
         </h2>
         
         {localChapters.length > 0 && (
-          <div className="flex items-center gap-3 bg-bg-primary border border-border-main px-3 py-1.5 rounded-lg flex-1 sm:flex-none">
-            <span className="text-[11px] text-text-secondary truncate" title={analysis.recommendationText}>
+          <div className="flex items-center gap-3 bg-bg-primary border border-border-main px-3 py-1 rounded-lg flex-1 min-w-64">
+            <span className="text-[11px] text-text-secondary truncate flex-1 min-w-0" title={analysis.recommendationText}>
               <Lightbulb size={12} className="inline mr-1 -mt-0.5" /> {analysis.recommendationText}
             </span>
             {analysis.recommendedMode && (analysis.recommendedMode !== 'all' || analysis.recommendationText.includes('Ghi đè')) && (
@@ -130,12 +131,11 @@ export function ResyncComparisonTable({
             )}
           </div>
         )}
-      </div>
 
       {/* Pagination controls */}
       {totalPages > 1 && (
-        <div className="flex-shrink-0 px-4 py-2 bg-bg-card border-b border-border-main flex items-center justify-between">
-          <span className="text-[11px] text-text-dim">
+        <div className="flex items-center gap-3 ml-auto">
+          <span className="text-[11px] text-text-dim whitespace-nowrap">
             Hiện {page * ROWS_PER_PAGE + 1}–{Math.min((page + 1) * ROWS_PER_PAGE, analysis.rows.length)} / {analysis.rows.length}
           </span>
           <div className="flex items-center gap-1">
@@ -159,9 +159,10 @@ export function ResyncComparisonTable({
           </div>
         </div>
       )}
+      </div>
 
       {/* Table */}
-      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative min-h-[300px]">
+      <div ref={scrollContainerRef} className="flex-1 overflow-y-auto relative min-h-0">
         {loading ? (
           <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 text-sm text-text-dim">
             <div className="w-6 h-6 border-2 border-gold border-t-transparent rounded-full animate-spin" />

@@ -10,19 +10,11 @@ interface BookListToolbarProps {
   onSearchChange: (value: string) => void;
   onStatusToggle: (status: BookStatus) => void;
   onRefresh: () => void;
-  onCreate: () => void;
-  onCheckAbandon: () => void;
-  /** Open "Quét chương mới": stories whose folder is ahead of TTC. */
-  onScanSync: () => void;
-  onOpenDrip: () => void;
-  /** Drip plans running / in total, for the button badge. */
-  dripRunning: number;
-  dripTotal: number;
 }
 
 /**
- * Toolbar for the book list: status filter, search, refresh and the actions (pages, tabs and
- * the source filter are in BookListFilters).
+ * Toolbar for the book list: status filter, search and refresh in one row (the actions are in
+ * BookListActions on the title row; pages, tabs and the source filter in BookListFilters).
  */
 export function BookListToolbar({
   totalStories,
@@ -32,18 +24,12 @@ export function BookListToolbar({
   onSearchChange,
   onStatusToggle,
   onRefresh,
-  onCreate,
-  onCheckAbandon,
-  onScanSync,
-  onOpenDrip,
-  dripRunning,
-  dripTotal,
 }: BookListToolbarProps) {
-  // Three groups that wrap as wholes when the window narrows (labels never break inside a
-  // button): title + status, search (takes the rest of its row), actions (right-aligned).
+  // Two groups that wrap as wholes when the window narrows (labels never break inside a
+  // button): title + status, search (takes the rest of its row).
   return (
     <div className="flex-shrink-0">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-4">
+      <div className="flex flex-wrap items-center gap-x-4 gap-y-3 mb-3 short:mb-2">
         {/* Title + status tabs */}
         <div className="flex flex-wrap items-center gap-x-4 gap-y-2">
           <h2 className="text-base font-semibold text-text-primary whitespace-nowrap flex items-center">
@@ -100,43 +86,58 @@ export function BookListToolbar({
             <span>↻</span> <span>{loadingBooks ? 'Đang tải...' : 'Làm mới'}</span>
           </button>
         </div>
-
-        {/* Actions: right-aligned, also when they wrap onto their own row */}
-        <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
-          <button
-            onClick={onOpenDrip}
-            title="Truyện đang nổi trên bảng cập nhật: đăng nhỏ giọt từng chương, luân phiên giữa các truyện"
-            className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
-          >
-            <TrendingUp size={14} /> Nổi bảng
-            {dripTotal > 0 && (
-              <span className={`px-1.5 rounded-full text-[10px] font-bold ${dripRunning > 0 ? 'bg-jade/20 text-jade' : 'bg-bg-hover text-text-dim'}`}>
-                {dripRunning}/{dripTotal}
-              </span>
-            )}
-          </button>
-          <button
-            onClick={onScanSync}
-            title="Quét truyện có chương mới trong folder hoặc chương khác với TTC, rồi upload hàng loạt"
-            className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
-          >
-            <ScanSearch size={14} /> Quét chương mới
-          </button>
-          <button
-            onClick={onCheckAbandon}
-            title="Xem truyện đang ra sắp bị vô hố và reup chương 1 để làm mới ngày cập nhật"
-            className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
-          >
-            <Hourglass size={14} /> Check vô hố
-          </button>
-          <button
-            onClick={onCreate}
-            className="text-xs font-bold bg-gold text-bg-primary hover:bg-gold/90 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
-          >
-            <Plus size={14} /> Đăng truyện mới
-          </button>
-        </div>
       </div>
+    </div>
+  );
+}
+
+interface BookListActionsProps {
+  onCreate: () => void;
+  onCheckAbandon: () => void;
+  /** Open "Quét chương mới": stories whose folder is ahead of TTC. */
+  onScanSync: () => void;
+  onOpenDrip: () => void;
+  /** Drip plans running / in total, for the button badge. */
+  dripRunning: number;
+  dripTotal: number;
+}
+
+/** The book list actions, on the page title row: right-aligned, also when they wrap. */
+export function BookListActions({ onCreate, onCheckAbandon, onScanSync, onOpenDrip, dripRunning, dripTotal }: BookListActionsProps) {
+  return (
+    <div className="flex flex-wrap items-center justify-end gap-2 ml-auto">
+      <button
+        onClick={onOpenDrip}
+        title="Truyện đang nổi trên bảng cập nhật: đăng nhỏ giọt từng chương, luân phiên giữa các truyện"
+        className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+      >
+        <TrendingUp size={14} /> Nổi bảng
+        {dripTotal > 0 && (
+          <span className={`px-1.5 rounded-full text-[10px] font-bold ${dripRunning > 0 ? 'bg-jade/20 text-jade' : 'bg-bg-hover text-text-dim'}`}>
+            {dripRunning}/{dripTotal}
+          </span>
+        )}
+      </button>
+      <button
+        onClick={onScanSync}
+        title="Quét truyện có chương mới trong folder hoặc chương khác với TTC, rồi upload hàng loạt"
+        className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+      >
+        <ScanSearch size={14} /> Quét chương mới
+      </button>
+      <button
+        onClick={onCheckAbandon}
+        title="Xem truyện đang ra sắp bị vô hố và reup chương 1 để làm mới ngày cập nhật"
+        className="text-xs font-medium text-gold border border-gold/40 hover:bg-gold/10 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+      >
+        <Hourglass size={14} /> Check vô hố
+      </button>
+      <button
+        onClick={onCreate}
+        className="text-xs font-bold bg-gold text-bg-primary hover:bg-gold/90 transition-colors cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg whitespace-nowrap"
+      >
+        <Plus size={14} /> Đăng truyện mới
+      </button>
     </div>
   );
 }
